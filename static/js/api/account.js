@@ -142,7 +142,7 @@ async function testCrewConnection() {
 function editSimpleFinToken() {
     document.getElementById('simplefin-config-form').style.display = 'block';
     document.getElementById('simplefin-config-display').style.display = 'none';
-    document.getElementById('simplefin-token-input').value = '';
+    document.getElementById('simplefin-update-token-input').value = '';
     document.getElementById('simplefin-error').style.display = 'none';
 }
 
@@ -152,7 +152,7 @@ function editSimpleFinToken() {
 function cancelSimpleFinEdit() {
     document.getElementById('simplefin-config-form').style.display = 'none';
     document.getElementById('simplefin-config-display').style.display = 'block';
-    document.getElementById('simplefin-token-input').value = '';
+    document.getElementById('simplefin-update-token-input').value = '';
     document.getElementById('simplefin-error').style.display = 'none';
 }
 
@@ -160,7 +160,7 @@ function cancelSimpleFinEdit() {
  * Save SimpleFin setup token
  */
 async function saveSimpleFinToken() {
-    const token = document.getElementById('simplefin-token-input').value.trim();
+    const token = document.getElementById('simplefin-update-token-input').value.trim();
     const errorEl = document.getElementById('simplefin-error');
 
     if (!token) {
