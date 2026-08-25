@@ -79,6 +79,11 @@
                             <button onclick="testCrewConnection()" style="background: var(--bg-elevated); color: var(--text-dark); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;">Test Connection</button>
                         </div>
                     </div>
+                    <div id="crew-connection-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 13px; color: var(--text-dark);">Connection Health</div>
+                        <p id="crew-connection-status" aria-live="polite" style="font-size: 13px; color: var(--text-muted); margin: 0 0 10px 0;">Not checked</p>
+                        <button type="button" id="crew-connection-check" onclick="checkCrewConnection()" style="background: var(--bg-elevated); color: var(--text-dark); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;">Check Crew connection</button>
+                    </div>
                 </div>
             </div>
 

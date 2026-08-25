@@ -709,6 +709,15 @@ def get_crew_bearer_token():
     # Fallback to env var for backward compatibility
     return os.environ.get("BEARER_TOKEN")
 
+# --- CREW INTEGRATION (Hybrid Gateway Foundation) ---
+from crew.client import CrewClient
+from crew.credentials import StoredBearerTokenProvider
+from crew.health import CredentialHealthService
+
+crew_credential_provider = StoredBearerTokenProvider(get_crew_bearer_token)
+crew_client = CrewClient(crew_credential_provider, endpoint=URL, timeout_seconds=15)
+crew_health_service = CredentialHealthService(crew_client)
+
 def get_lunchflow_api_key():
     """Get LunchFlow API key (database first, then env var fallback)"""
     conn = sqlite3.connect(DB_FILE)
@@ -3213,6 +3222,17 @@ def api_account_test_crew():
 
     except Exception as e:
         return jsonify({"success": False, "error": f"Connection test failed: {str(e)}"}), 500
+
+@app.route('/api/account/crew-health')
+@login_required
+def api_crew_health():
+    """Classified Crew connection health; never exposes token material"""
+    health = crew_health_service.check()
+    return jsonify({
+        "state": health.state.value,
+        "message": health.message,
+        "provider": crew_credential_provider.describe(),
+    })
 
 @app.route('/api/account/bank-details', methods=['GET'])
 @login_required
