@@ -8,6 +8,7 @@ never log it or include it in responses.
 """
 
 import threading
+from typing import Optional
 from urllib.parse import urlparse
 
 CREW_APP_URL = "https://app.trycrew.com"
@@ -33,7 +34,7 @@ class PlaywrightAuthorizationCapturer:
     def __init__(self, app_url: str = CREW_APP_URL, headless: bool = False):
         self._app_url = app_url
         self._headless = headless
-        self._captured_header: str | None = None
+        self._captured_header: Optional[str] = None
         self._captured_event = threading.Event()
         self._playwright = None
         self._browser = None
@@ -82,7 +83,7 @@ class PlaywrightAuthorizationCapturer:
             self._captured_header = header_value
             self._captured_event.set()
 
-    def capture(self, timeout_seconds: float) -> str | None:
+    def capture(self, timeout_seconds: float) -> Optional[str]:
         """Block until an authorization header is seen or timeout elapses."""
         if not self._captured_event.wait(timeout=float(max(0.0, timeout_seconds))):
             return None
