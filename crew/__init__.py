@@ -7,6 +7,7 @@ from .client import (
     CrewUncertainWriteError,
 )
 from .credentials import CredentialProvider, MacCredentialProvider, StoredBearerTokenProvider
+from .health import CredentialHealthService, CrewHealth, CrewHealthState
 
 __all__ = [
     "CredentialProvider",
@@ -18,4 +19,7 @@ __all__ = [
     "CrewError",
     "CrewTransportError",
     "CrewUncertainWriteError",
+    "CredentialHealthService",
+    "CrewHealth",
+    "CrewHealthState",
 ]
