@@ -22,3 +22,15 @@ def test_mac_provider_is_a_seam_not_an_automatic_login_flow():
     provider = MacCredentialProvider(lambda: "local-token")
     assert provider.get_bearer_token() == "local-token"
     assert provider.describe() == "mac_credential_provider"
+
+
+def test_stored_provider_normalizes_bearer_prefixed_token():
+    """Existing installs store the full header value ('Bearer xyz').
+    The client adds its own prefix, so the provider must strip any."""
+    provider = StoredBearerTokenProvider(lambda: " Bearer abc123 ")
+    assert provider.get_bearer_token() == "abc123"
+
+
+def test_stored_provider_leaves_plain_token_untouched():
+    provider = StoredBearerTokenProvider(lambda: "abc123")
+    assert provider.get_bearer_token() == "abc123"

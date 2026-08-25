@@ -6,12 +6,23 @@ class CredentialProvider(Protocol):
     def describe(self) -> str: ...
 
 
+def _normalize_token(token: Optional[str]) -> Optional[str]:
+    """Existing installs may store the full header value ('Bearer xyz').
+    CrewClient adds its own prefix, so strip any leading scheme and whitespace."""
+    if not token:
+        return None
+    token = token.strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    return token or None
+
+
 class StoredBearerTokenProvider:
     def __init__(self, token_loader: Callable[[], Optional[str]]):
         self._token_loader = token_loader
 
     def get_bearer_token(self) -> Optional[str]:
-        return self._token_loader()
+        return _normalize_token(self._token_loader())
 
     def describe(self) -> str:
         return "stored_bearer_token"
