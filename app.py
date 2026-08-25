@@ -1598,20 +1598,35 @@ def get_configured_timezone():
         return None
 
 def move_money(from_id, to_id, amount, memo=""):
+    from crew.client import CrewAPIError, CrewAuthenticationError, CrewTransportError, CrewUncertainWriteError
+
+    query_string = """ mutation InitiateTransferScottie($input: InitiateTransferInput!) { initiateTransfer(input: $input) { result { id __typename } __typename } } """
+    variables = {"input": {"amount": int(round(float(amount) * 100)), "accountFromId": from_id, "accountToId": to_id, "note": memo or "Transfer"}}
     try:
-        headers = get_crew_headers()
-        if not headers: return {"error": "Credentials not found"}
-        query_string = """ mutation InitiateTransferScottie($input: InitiateTransferInput!) { initiateTransfer(input: $input) { result { id __typename } __typename } } """
-        amount_cents = int(round(float(amount) * 100))
-        variables = {"input": {"amount": amount_cents, "accountFromId": from_id, "accountToId": to_id, "note": memo or "Transfer"}}
-        response = requests.post(URL, headers=headers, json={"operationName": "InitiateTransferScottie", "variables": variables, "query": query_string})
-        data = response.json()
-        if 'errors' in data: return {"error": data['errors'][0]['message']}
+        data = crew_client.execute(
+            "InitiateTransferScottie",
+            query_string,
+            variables,
+            is_mutation=True,
+        )
+        result = data.get("initiateTransfer", {}).get("result")
+        if not result:
+            return {"error": "Crew transfer returned no confirmed result", "error_code": "api_error"}
         print("🧹 Clearing Cache after transaction...")
         cache.clear()
-        return {"success": True, "result": data.get("data", {}).get("initiateTransfer", {})}
-    except Exception as e:
-        return {"error": str(e)}
+        return {"success": True, "result": result}
+    except CrewUncertainWriteError:
+        return {
+            "error": "Transfer outcome is uncertain. Verify Crew state before trying again.",
+            "error_code": "uncertain_write",
+            "verify_state": True,
+        }
+    except CrewAuthenticationError:
+        return {"error": "Crew authentication needs attention", "error_code": "unauthorized"}
+    except CrewTransportError:
+        return {"error": "Crew is unreachable", "error_code": "unreachable"}
+    except CrewAPIError as exc:
+        return {"error": str(exc), "error_code": "api_error"}
 
 @cached("family")
 def get_family_data():
