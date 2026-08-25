@@ -718,6 +718,31 @@ crew_credential_provider = StoredBearerTokenProvider(get_crew_bearer_token)
 crew_client = CrewClient(crew_credential_provider, endpoint=URL, timeout_seconds=15)
 crew_health_service = CredentialHealthService(crew_client)
 
+def store_crew_credential(value):
+    """Persist a renewed Crew credential through the same path as manual saves."""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT id FROM crew_config LIMIT 1")
+    existing = c.fetchone()
+    if existing:
+        c.execute("UPDATE crew_config SET bearer_token = ?, is_valid = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                  (value, existing[0]))
+    else:
+        c.execute("INSERT INTO crew_config (bearer_token, is_valid) VALUES (?, 1)", (value,))
+    conn.commit()
+    conn.close()
+
+# --- GUIDED CREW CREDENTIAL RENEWAL (Milestone 2) ---
+from crew.browser_capture import create_mac_capturer
+from crew.renewal import GuidedRenewalService, sanitize_status_payload
+
+crew_renewal_service = GuidedRenewalService(
+    capturer_factory=create_mac_capturer,
+    storer=store_crew_credential,
+    health_checker=lambda: crew_health_service.check(),
+    timeout_seconds=300,
+)
+
 def get_lunchflow_api_key():
     """Get LunchFlow API key (database first, then env var fallback)"""
     conn = sqlite3.connect(DB_FILE)
@@ -3246,6 +3271,24 @@ def api_crew_health():
         "message": health.message,
         "provider": crew_credential_provider.describe(),
     })
+
+@app.route('/api/account/crew/reconnect/start', methods=['POST'])
+@login_required
+def api_crew_reconnect_start():
+    """Begin a guided renewal session; runs only on the local Mac"""
+    result = crew_renewal_service.start()
+    if "error" in result:
+        return jsonify(result), 409
+    return jsonify(result)
+
+@app.route('/api/account/crew/reconnect/status/<session_id>')
+@login_required
+def api_crew_reconnect_status(session_id):
+    """Sanitized renewal status — never includes credential material"""
+    payload = crew_renewal_service.status(session_id)
+    if payload is None:
+        return jsonify({"error": "Unknown renewal session"}), 404
+    return jsonify(sanitize_status_payload(payload))
 
 @app.route('/api/account/bank-details', methods=['GET'])
 @login_required

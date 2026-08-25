@@ -37,11 +37,31 @@ class _Session:
 
 
 def _sanitize_health(health: Any) -> Optional[Dict[str, str]]:
-    state = getattr(getattr(health, "state", None), "value", None)
-    message = getattr(health, "message", None)
+    if isinstance(health, dict):
+        state = health.get("state")
+        message = health.get("message")
+        state = getattr(state, "value", state)
+    else:
+        state = getattr(getattr(health, "state", None), "value", None)
+        message = getattr(health, "message", None)
     if state is None and message is None:
         return None
     return {"state": state or "", "message": message or ""}
+
+
+ALLOWED_STATUS_FIELDS = ("status", "message")
+
+
+def sanitize_status_payload(payload: Any) -> Dict[str, Any]:
+    """Whitelist a renewal status payload; credential material cannot pass."""
+    if not isinstance(payload, dict):
+        return {}
+    sanitized: Dict[str, Any] = {key: payload[key] for key in ALLOWED_STATUS_FIELDS if key in payload}
+    if "health" in payload:
+        sanitized_health = _sanitize_health(payload.get("health"))
+        if sanitized_health:
+            sanitized["health"] = sanitized_health
+    return sanitized
 
 
 class GuidedRenewalService:
@@ -100,7 +120,7 @@ class GuidedRenewalService:
                 sanitized = _sanitize_health(session.health)
                 if sanitized:
                     payload["health"] = sanitized
-            return payload
+            return sanitize_status_payload(payload)
 
     def active_session_id(self) -> Optional[str]:
         with self._lock:
