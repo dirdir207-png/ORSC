@@ -185,6 +185,10 @@ open http://localhost:8080
 
 > **Passkey Support**: Passkeys work on Chrome 67+, Safari 14+, Firefox 60+, and Edge 18+. HTTPS required in production (localhost works for development).
 
+### Private Remote Access
+
+SimpleCrew is designed to run on an always-on Mac and be accessed privately over [Tailscale](https://tailscale.com) — no public port forwarding required. See [docs/REMOTE_ACCESS.md](docs/REMOTE_ACCESS.md) for startup, iPhone access, Crew token replacement, and the connection health check.
+
 ---
 
 ## Tech Stack
