@@ -1607,7 +1607,8 @@ def move_money(from_id, to_id, amount, memo=""):
             is_mutation=True,
         )
         result = data.get("initiateTransfer", {}).get("result")
-        if not result:
+        transfer_id = result.get("id") if isinstance(result, dict) else None
+        if not isinstance(transfer_id, str) or not transfer_id.strip():
             return {"error": "Crew transfer returned no confirmed result", "error_code": "api_error"}
         print("🧹 Clearing Cache after transaction...")
         cache.clear()
