@@ -100,3 +100,40 @@ def test_primary_account_read_uses_crew_client(monkeypatch):
     assert len(calls) == 1
     assert calls[0][0] == "CurrentUser"
     assert calls[0][2] is False
+
+
+def test_move_money_rejects_truthy_result_without_confirmed_string_id(monkeypatch):
+    """Review blocker regression: a truthy result with a missing/empty/non-string
+    transfer id must not be reported as confirmed success."""
+    payloads = [
+        {"initiateTransfer": {"result": {}}},
+        {"initiateTransfer": {"result": {"id": None}}},
+        {"initiateTransfer": {"result": {"id": ""}}},
+        {"initiateTransfer": {"result": {"id": "   "}}},
+        {"initiateTransfer": {"result": {"id": 12345}}},
+        {"initiateTransfer": {"result": "ok"}},
+    ]
+
+    class StubCrewClient:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def execute(self, *args, **kwargs):
+            return self._payload
+
+    for payload in payloads:
+        monkeypatch.setattr(simplecrew, "crew_client", StubCrewClient(payload))
+        result = simplecrew.move_money("from-1", "to-2", 1.00, "memo")
+        assert result.get("error_code") == "api_error", payload
+        assert result.get("success") is not True, payload
+
+
+def test_move_money_accepts_result_with_confirmed_string_id(monkeypatch):
+    class StubCrewClient:
+        def execute(self, *args, **kwargs):
+            return {"initiateTransfer": {"result": {"id": "tx-9", "__typename": "TransferResult"}}}
+
+    monkeypatch.setattr(simplecrew, "crew_client", StubCrewClient())
+    result = simplecrew.move_money("from-1", "to-2", 1.00, "memo")
+    assert result["success"] is True
+    assert result["result"]["id"] == "tx-9"

@@ -1,0 +1,46 @@
+# Secrets and credentials — never enter image layers
+.env
+.env.*
+*.pem
+*.key
+
+# User data and databases
+data/
+*.db
+*.sqlite*
+
+# Git metadata
+.git
+.gitignore
+.gitattributes
+
+# Python caches and virtual environments
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local tooling and editor state
+.vscode/
+.idea/
+.claude/
+.clineignore
+.clinerules
+.DS_Store
+
+# Docs, tests, and compose files (runtime image needs none of these)
+docs/
+tests/
+README.md
+LICENSE
+docker-compose.yml
+docker-compose.yml.template
+Dockerfile
+.dockerignore
+
+# Downloads and scratch files
+downloads/
+*.log
