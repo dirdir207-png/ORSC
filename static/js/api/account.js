@@ -145,12 +145,69 @@ async function checkCrewConnection() {
     try {
         const response = await fetch('/api/account/crew-health', { credentials: 'same-origin' });
         const data = await response.json();
-        status.textContent = data.message || data.state || 'Unknown';
-        status.dataset.state = data.state || 'api_error';
+        renderCrewHealthState(status, data);
     } catch (error) {
         status.textContent = 'Could not check Crew connection';
         status.dataset.state = 'unreachable';
     }
+}
+
+function renderCrewHealthState(statusEl, data) {
+    statusEl.textContent = data.message || data.state || 'Unknown';
+    statusEl.dataset.state = data.state || 'api_error';
+    const reconnectBtn = document.getElementById('crew-reconnect');
+    if (reconnectBtn) {
+        reconnectBtn.style.display = data.state === 'unauthorized' ? 'inline-block' : 'none';
+    }
+}
+
+let crewReconnectPollTimer = null;
+
+/**
+ * Guided renewal: opens a local browser window for interactive Crew login,
+ * captures the new credential server-side, then re-checks health.
+ */
+async function reconnectCrew() {
+    const status = document.getElementById('crew-connection-status');
+    const button = document.getElementById('crew-reconnect');
+    if (!status) return;
+
+    let startData;
+    try {
+        const response = await fetch('/api/account/crew/reconnect/start', { method: 'POST', credentials: 'same-origin' });
+        startData = await response.json();
+    } catch (error) {
+        status.textContent = 'Could not start Crew renewal';
+        return;
+    }
+    if (!startData.session_id) {
+        status.textContent = startData.error || 'Could not start Crew renewal';
+        return;
+    }
+
+    if (button) { button.disabled = true; button.style.opacity = '0.6'; }
+    status.textContent = 'Opening Crew login window…';
+
+    if (crewReconnectPollTimer) clearInterval(crewReconnectPollTimer);
+    crewReconnectPollTimer = setInterval(async () => {
+        let payload;
+        try {
+            const response = await fetch(`/api/account/crew/reconnect/status/${startData.session_id}`, { credentials: 'same-origin' });
+            payload = await response.json();
+        } catch (error) {
+            return;
+        }
+        if (payload.message) status.textContent = payload.message;
+        const terminal = ['captured', 'failed', 'expired'].includes(payload.status);
+        if (terminal) {
+            clearInterval(crewReconnectPollTimer);
+            crewReconnectPollTimer = null;
+            if (button) { button.disabled = false; button.style.opacity = ''; }
+            if (payload.status === 'captured' && payload.health) {
+                setTimeout(() => checkCrewConnection(), 500);
+            }
+        }
+    }, 2000);
 }
 
 // --- SIMPLEFIN TOKEN MANAGEMENT ---
