@@ -56,3 +56,6 @@ Thumbs.db
 .clineignore
 .clinerules
 @schema.graphql
+
+# pytest
+.pytest_cache/

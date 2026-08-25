@@ -134,6 +134,25 @@ async function testCrewConnection() {
     }
 }
 
+/**
+ * Check classified Crew connection health and render state.
+ * Consumes only state/message — never credential material.
+ */
+async function checkCrewConnection() {
+    const status = document.getElementById('crew-connection-status');
+    if (!status) return;
+    status.textContent = 'Checking…';
+    try {
+        const response = await fetch('/api/account/crew-health', { credentials: 'same-origin' });
+        const data = await response.json();
+        status.textContent = data.message || data.state || 'Unknown';
+        status.dataset.state = data.state || 'api_error';
+    } catch (error) {
+        status.textContent = 'Could not check Crew connection';
+        status.dataset.state = 'unreachable';
+    }
+}
+
 // --- SIMPLEFIN TOKEN MANAGEMENT ---
 
 /**
