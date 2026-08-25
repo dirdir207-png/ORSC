@@ -84,3 +84,19 @@ def test_move_money_does_not_retry_uncertain_write(monkeypatch):
     assert calls == 1
     assert result["error_code"] == "uncertain_write"
     assert result["verify_state"] is True
+
+
+def test_primary_account_read_uses_crew_client(monkeypatch):
+    calls = []
+
+    class StubCrewClient:
+        def execute(self, operation_name, query, variables=None, *, is_mutation=False):
+            calls.append((operation_name, variables, is_mutation))
+            return {"currentUser": {"accounts": [{"id": "checking-1", "displayName": "Checking"}]}}
+
+    monkeypatch.setattr(simplecrew, "crew_client", StubCrewClient())
+    account_id = simplecrew.get_primary_account_id()
+    assert account_id == "checking-1"
+    assert len(calls) == 1
+    assert calls[0][0] == "CurrentUser"
+    assert calls[0][2] is False

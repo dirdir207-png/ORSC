@@ -969,12 +969,9 @@ def get_crew_headers():
 @cached("primary_account_id")
 def get_primary_account_id():
     try:
-        headers = get_crew_headers()
-        if not headers: return None
         query_string = """ query CurrentUser { currentUser { accounts { id displayName } } } """
-        response = requests.post(URL, headers=headers, json={"operationName": "CurrentUser", "query": query_string})
-        data = response.json()
-        accounts = data.get("data", {}).get("currentUser", {}).get("accounts", [])
+        data = crew_client.execute("CurrentUser", query_string)
+        accounts = data.get("currentUser", {}).get("accounts", [])
         for acc in accounts:
             if acc.get("displayName") == "Checking":
                 return acc.get("id")
