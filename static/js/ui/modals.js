@@ -253,54 +253,68 @@ function saveBill() {
         variable: isVariable
     };
 
-    // 4. API Call
-    fetch('/api/create-bill', {
+    // 4. API Call — editing an existing bill replaces it (delete + recreate)
+    const finish = () => { btn.disabled = false; btn.innerText = "Save Bill"; };
+    const handleCreateResponse = (data) => {
+        finish();
+
+        if(data.error) {
+            msg.innerHTML = `<div style="color:var(--alert-red); margin-bottom:10px;">${data.error}</div>`;
+        } else {
+            const res = data.result;
+            const reservedAmt = (res.reservedAmount || 0) / 100.0;
+            const accountName = res.fundingDisplayName || "Checking";
+
+            modalBody.innerHTML = `
+                <div style="text-align:center; padding: 20px 0;">
+                    <div style="font-size: 40px; margin-bottom: 10px;">🎉</div>
+                    <div style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-bottom: 15px;">${window._editingBillId ? 'Bill Updated' : 'Bill Created Successfully'}</div>
+
+                    <div style="background: var(--bg-elevated); padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: left; border: 1px solid var(--border-color);">
+                        <div style="font-size: 14px; line-height: 1.5; color: var(--text-light);">
+                            To ensure <strong>${name}</strong> is fully caught up and aligned with your funding schedule,
+                            <span style="color: var(--text-dark); font-weight: 700;">${fmt(reservedAmt)}</span>
+                            has been automatically reserved from your
+                            <span style="color: var(--text-dark); font-weight: 700;">${accountName}</span> account.
+                        </div>
+                    </div>
+
+                    <button class="btn-goal-add" onclick="closeBillModalAndRefresh()">Done</button>
+                </div>
+            `;
+            window._editingBillId = null;
+        }
+    };
+
+    const doCreate = () => fetch('/api/create-bill', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
     })
     .then(res => res.json())
-    .then(data => {
-            btn.disabled = false;
-            btn.innerText = "Create Bill";
-
-            if(data.error) {
-                msg.innerHTML = `<div style="color:var(--alert-red); margin-bottom:10px;">${data.error}</div>`;
-            } else {
-                // SUCCESS LOGIC
-                const res = data.result;
-                const reservedCents = res.reservedAmount || 0;
-                const reservedAmt = reservedCents / 100.0;
-
-                // Use the simplified name we injected from the Python backend
-                const accountName = res.fundingDisplayName || "Checking";
-
-                // Replace Modal Content with Success Message
-                modalBody.innerHTML = `
-                    <div style="text-align:center; padding: 20px 0;">
-                        <div style="font-size: 40px; margin-bottom: 10px;">🎉</div>
-                        <div style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-bottom: 15px;">Bill Created Successfully</div>
-
-                        <div style="background: var(--bg-elevated); padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: left; border: 1px solid var(--border-color);">
-                            <div style="font-size: 14px; line-height: 1.5; color: var(--text-light);">
-                                To ensure <strong>${name}</strong> is fully caught up and aligned with your funding schedule,
-                                <span style="color: var(--text-dark); font-weight: 700;">${fmt(reservedAmt)}</span>
-                                has been automatically reserved from your
-                                <span style="color: var(--text-dark); font-weight: 700;">${accountName}</span> account.
-                            </div>
-                        </div>
-
-                        <button class="btn-goal-add" onclick="closeBillModalAndRefresh()">Done</button>
-                    </div>
-                `;
-            }
-        })
+    .then(handleCreateResponse)
     .catch(err => {
-        btn.disabled = false;
-        btn.innerText = "Create Bill";
+        finish();
         msg.innerHTML = `<div style="color:var(--alert-red); margin-bottom:10px;">System Error</div>`;
         console.error(err);
     });
+
+    const editingId = window._editingBillId;
+    if (!editingId) {
+        doCreate();
+    } else {
+        fetch('/api/delete-bill', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: editingId })
+        })
+        .then(r => r.json())
+        .then(() => { window._editingBillId = null; return doCreate(); })
+        .catch(() => {
+            finish();
+            msg.innerHTML = '<div style="color:var(--alert-red);margin-bottom:10px;">Could not replace the original bill.</div>';
+        });
+    }
 }
 
 /**

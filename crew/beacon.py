@@ -46,3 +46,41 @@ def build_forecast(
             "day": trajectory.index(low_amount),
         },
     }
+
+
+def project_reserve(
+    reserve_balance: float,
+    daily_burn: float,
+    upcoming: List[Dict[str, Any]],
+    horizon_days: int = 30,
+) -> Dict[str, Any]:
+    """Will the bill reserve cover upcoming bills given current burn pace?
+
+    Simulates chronologically: balance starts at reserve_balance, decays by
+    daily_burn each day; each bill is paid in full on its due day. First bill
+    that cannot be paid identifies the shortfall.
+    """
+    balance = float(reserve_balance or 0)
+    ordered = sorted(
+        [b for b in (upcoming or []) if b.get("due_in_days") is not None],
+        key=lambda b: b["due_in_days"],
+    )
+
+    if not ordered:
+        return {"verdict": "stable", "shortfall": 0.0, "first_missed": None}
+
+    day = 0
+    for bill in ordered:
+        due = int(bill["due_in_days"])
+        amount = float(bill.get("amount") or 0)
+        balance += daily_burn * max(0, due - day)
+        day = due
+        if balance < amount - 0.005:
+            return {
+                "verdict": "shortfall",
+                "shortfall": round(amount - max(0.0, balance), 2),
+                "first_missed": {"name": bill.get("name"), "due_in_days": due},
+            }
+        balance -= amount
+
+    return {"verdict": "covered", "shortfall": 0.0, "first_missed": None}
