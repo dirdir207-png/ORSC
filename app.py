@@ -1,4 +1,5 @@
 import requests
+import secrets
 import sqlite3
 import time
 import functools
@@ -757,6 +758,9 @@ def verify_transfer_action(params, result):
     return {"ok": confirmed, "check": "confirmed-transfer-id"}
 
 action_store = ActionStore(db_path=DB_FILE, allowed_types=("move_money",))
+from crew.propose_key import get_or_create_local_key
+
+local_proposer_key = get_or_create_local_key(DB_FILE)
 action_executors = {
     "move_money": ExecutorSpec(
         execute=lambda p: move_money(p["from_id"], p["to_id"], p["amount"], p.get("memo", "")),
@@ -776,6 +780,68 @@ def resolve_crew_target(name):
         if (sub.get("name") or "").strip().lower() == wanted:
             return sub.get("id")
     return None
+
+# --- AI ADVISOR (Milestone 5): chat that can only propose ---
+from crew.advisor import (
+    AdvisorService,
+    AdvisorUnavailable,
+    FinancialContextBuilder,
+    OpenAICompatClient,
+    llm_configured,
+    llm_model,
+)
+
+def _financial_snapshot():
+    snap = {"safe_to_spend": None, "accounts": [], "pockets": []}
+    try:
+        fin = get_financial_data()
+        if isinstance(fin, dict) and "error" not in fin:
+            snap["safe_to_spend"] = fin.get("safe_to_spend")
+            checking = fin.get("checking")
+            if isinstance(checking, dict) and checking.get("id"):
+                snap["accounts"].append({
+                    "id": checking.get("id"),
+                    "name": checking.get("name", "Checking"),
+                    "balance": checking.get("balance"),
+                })
+    except Exception:
+        pass
+    try:
+        subs = get_subaccounts_list()
+        for s in ((subs or {}).get("subaccounts") or []):
+            snap["pockets"].append({"id": s.get("id"), "name": s.get("name"), "balance": s.get("balance")})
+    except Exception:
+        pass
+    return snap
+
+advisor_context_builder = FinancialContextBuilder(snapshot_fn=_financial_snapshot)
+advisor_service = AdvisorService(
+    llm_client=(OpenAICompatClient() if llm_configured() else None),
+    context_builder=advisor_context_builder,
+    store=action_store,
+    resolver=resolve_crew_target,
+)
+
+@app.route('/api/advisor/status')
+@login_required
+def api_advisor_status():
+    return jsonify({"configured": llm_configured(), "model": llm_model()})
+
+@app.route('/api/advisor/chat', methods=['POST'])
+@login_required
+def api_advisor_chat():
+    data = request.json or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({"error": "Message is required"}), 400
+    history = data.get('history') or []
+    if not isinstance(history, list):
+        history = []
+    try:
+        result = advisor_service.chat(message, history=history)
+    except AdvisorUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify(result)
 
 def get_lunchflow_api_key():
     """Get LunchFlow API key (database first, then env var fallback)"""
@@ -3333,9 +3399,14 @@ def api_actions_pending():
 
 @app.route('/api/actions/propose/local', methods=['POST'])
 def api_actions_propose_local():
-    """Local-assistant proposal entry point. Loopback only; proposals are inert."""
-    if request.remote_addr not in ("127.0.0.1", "::1"):
-        return jsonify({"error": "Local proposer endpoint is restricted to localhost"}), 403
+    """Local-assistant proposal entry point. Requires the local capability key.
+
+    Docker's port proxy masks source addresses, so origin is not trusted;
+    possession of the key permits only creating inert proposals.
+    """
+    supplied = request.headers.get("X-Local-Key", "")
+    if not supplied or not secrets.compare_digest(supplied, local_proposer_key):
+        return jsonify({"error": "Invalid or missing X-Local-Key header"}), 401
     data = request.json or {}
     kind = data.get("kind", "transfer")
     if kind != "transfer":
