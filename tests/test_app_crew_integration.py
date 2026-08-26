@@ -258,3 +258,48 @@ def test_double_approve_conflict_409(authenticated_client, action_env):
     second = authenticated_client.post(f"/api/actions/{created['id']}/approve")
     assert first.status_code == 200
     assert second.status_code == 409
+
+
+@pytest.fixture
+def local_action_env(tmp_path, monkeypatch):
+    from crew.actions import ActionStore
+
+    store = ActionStore(db_path=str(tmp_path / "actions.db"), allowed_types=("move_money",))
+    monkeypatch.setattr(simplecrew, "action_store", store)
+    monkeypatch.setattr(
+        simplecrew,
+        "resolve_crew_target",
+        lambda name: {"checking": "acc-1", "rent": "pock-9"}.get((name or "").lower()),
+    )
+    return store
+
+
+def test_local_proposer_creates_pending_transfer(authenticated_client, local_action_env):
+    response = authenticated_client.post(
+        "/api/actions/propose/local",
+        json={"kind": "transfer", "from": "Checking", "to": "Rent", "amount": 50, "memo": "October"},
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["state"] == "proposed"
+    assert body["rationale"] == "Move $50.00 from Checking → Rent (memo: 'October')"
+    assert body["params"] == {"from_id": "acc-1", "to_id": "pock-9", "amount": 50.0, "memo": "October"}
+    assert local_action_env.list_pending()[0]["id"] == body["id"]
+
+
+def test_local_proposer_rejects_non_loopback(authenticated_client, local_action_env):
+    response = authenticated_client.post(
+        "/api/actions/propose/local",
+        json={"kind": "transfer", "from": "Checking", "to": "Rent", "amount": 50},
+        environ_base={"REMOTE_ADDR": "100.64.0.5"},
+    )
+    assert response.status_code == 403
+
+
+def test_local_proposer_unresolvable_name_is_400(authenticated_client, local_action_env):
+    response = authenticated_client.post(
+        "/api/actions/propose/local",
+        json={"kind": "transfer", "from": "Nowhere", "to": "Rent", "amount": 5},
+    )
+    assert response.status_code == 400
+    assert "nowhere" in response.get_json()["error"].lower()
