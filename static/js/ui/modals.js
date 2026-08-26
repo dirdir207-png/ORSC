@@ -629,7 +629,27 @@ function openTxDetail(id) {
     document.getElementById('modal-title-text').innerText = "Transaction Details";
     document.getElementById('modal-body-content').innerHTML = 'Loading...';
     fetch(`/api/transaction/${encodeURIComponent(id)}`).then(res=>res.json()).then(data => {
-        document.getElementById('modal-body-content').innerHTML = `<div style="text-align:center; margin-bottom: 20px;"><div class="detail-amount">${fmt(data.amount)}</div><div style="font-size:16px;">${data.title}</div></div><div style="text-align:left;"><div class="detail-row"><span>Date</span><span>${new Date(data.date).toLocaleDateString()}</span></div><div class="detail-row"><span>Status</span><span>${data.status}</span></div></div>`;
+        if (data.error) {
+            document.getElementById('modal-body-content').innerHTML = `<div style="text-align:center;color:var(--alert-red,#c00);padding:16px;">${data.error}</div>`;
+            return;
+        }
+        const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        let rows = '';
+        rows += `<div class="detail-row"><span>Date</span><span>${new Date(data.date).toLocaleString()}</span></div>`;
+        rows += `<div class="detail-row"><span>Status</span><span>${esc(data.status)}</span></div>`;
+        if (data.description) rows += `<div class="detail-row"><span>Description</span><span>${esc(data.description)}</span></div>`;
+        if (data.memo) rows += `<div class="detail-row"><span>Memo</span><span>${esc(data.memo)}</span></div>`;
+        const m = data.merchant;
+        if (m && m.name) {
+            rows += `<div class="detail-row"><span>Merchant</span><span>${esc(m.name)}</span></div>`;
+            const addr = [m.address, m.city, m.state].filter(Boolean).join(', ');
+            if (addr) rows += `<div class="detail-row"><span>Location</span><span>${esc(addr)}${m.zip ? ' ' + esc(m.zip) : ''}</span></div>`;
+        }
+        document.getElementById('modal-body-content').innerHTML =
+            `<div style="text-align:center; margin-bottom: 20px;"><div class="detail-amount">${fmt(data.amount)}</div><div style="font-size:16px;">${esc(data.title)}</div></div>` +
+            `<div style="text-align:left;">${rows}</div>`;
+    }).catch(() => {
+        document.getElementById('modal-body-content').innerHTML = '<div style="text-align:center;color:var(--alert-red,#c00);padding:16px;">Could not load details.</div>';
     });
 }
 

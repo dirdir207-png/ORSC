@@ -1,0 +1,17 @@
+<!-- Floating AI Advisor: available on every page -->
+<button type="button" id="advisor-fab" title="AI Advisor" aria-label="Open AI Advisor">🤖</button>
+
+<div id="advisor-panel" style="display:none;" role="dialog" aria-label="AI Advisor">
+    <div id="advisor-panel-header">
+        <span>🤖 AI Advisor</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span id="advisor-fab-status" style="font-size:11px;color:var(--text-muted);"></span>
+            <button type="button" id="advisor-close" title="Close" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;line-height:1;">×</button>
+        </div>
+    </div>
+    <div id="advisor-fab-log"></div>
+    <div id="advisor-fab-inputrow">
+        <input type="text" id="advisor-fab-input" placeholder="Ask, or: move $20 from Checking to Rent" autocomplete="off">
+        <button type="button" id="advisor-fab-send">➤</button>
+    </div>
+</div>
