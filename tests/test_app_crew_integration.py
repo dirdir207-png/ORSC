@@ -137,3 +137,56 @@ def test_move_money_accepts_result_with_confirmed_string_id(monkeypatch):
     result = simplecrew.move_money("from-1", "to-2", 1.00, "memo")
     assert result["success"] is True
     assert result["result"]["id"] == "tx-9"
+
+
+class StubRenewalService:
+    def __init__(self, statuses=None):
+        self._statuses = statuses or {"abc123": {"status": "waiting_for_user", "message": "Complete login"}}
+
+    def start(self):
+        if self._statuses.get("_conflict"):
+            return {"error": "A renewal session is already running", "session_id": "abc123"}
+        return {"session_id": "abc123"}
+
+    def status(self, session_id):
+        return self._statuses.get(session_id)
+
+
+def test_reconnect_start_returns_session_id(authenticated_client, monkeypatch):
+    monkeypatch.setattr(simplecrew, "crew_renewal_service", StubRenewalService())
+    response = authenticated_client.post("/api/account/crew/reconnect/start")
+    assert response.status_code == 200
+    assert response.get_json()["session_id"] == "abc123"
+
+
+def test_reconnect_status_is_sanitized_and_never_contains_token(authenticated_client, monkeypatch):
+    monkeypatch.setenv("BEARER_TOKEN", "super-secret-sentinel-value")
+    statuses = {
+        "abc123": {
+            "status": "captured",
+            "message": "Crew credential renewed",
+            "health": {"state": "healthy", "message": "Crew connection is healthy"},
+            "leaked_field": "Bearer should-never-appear",
+        }
+    }
+    monkeypatch.setattr(simplecrew, "crew_renewal_service", StubRenewalService(statuses))
+    response = authenticated_client.get("/api/account/crew/reconnect/status/abc123")
+    assert response.status_code == 200
+    body = str(response.get_data())
+    assert "should-never-appear" not in body
+    assert "sentinel" not in body
+    payload = response.get_json()
+    assert payload["status"] == "captured"
+    assert set(payload.keys()) == {"status", "message", "health"}
+
+
+def test_reconnect_unknown_session_is_404(authenticated_client, monkeypatch):
+    monkeypatch.setattr(simplecrew, "crew_renewal_service", StubRenewalService())
+    response = authenticated_client.get("/api/account/crew/reconnect/status/nope")
+    assert response.status_code == 404
+
+
+def test_reconnect_requires_login():
+    client = simplecrew.app.test_client()
+    response = client.post("/api/account/crew/reconnect/start")
+    assert response.status_code == 302

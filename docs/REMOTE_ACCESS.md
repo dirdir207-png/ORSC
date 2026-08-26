@@ -41,9 +41,27 @@ Do not configure router port forwarding, a public reverse proxy, or `tailscale f
 
 ## 5. Replace an expired Crew token
 
-Open SimpleCrew Account Settings, replace the Crew bearer token using the existing server-side configuration UI, save it, then run **Check Crew connection** (under Crew Banking → Connection Health). The token must never be placed in a URL or browser-side script.
+Two options:
 
-You can verify the connection state at any time; it reports `healthy`, `unauthorized`, `unreachable`, or `api_error`.
+### Guided renewal (preferred)
+
+1. Open SimpleCrew Account Settings → Crew Banking → Connection Health.
+2. Run **Check Crew connection**. If it reports the connection needs attention, a **Reconnect Crew** button appears.
+3. Click **Reconnect Crew** — a browser window opens at Crew's login page on this Mac.
+4. Log in interactively (including your SMS/email code). The window can be closed as soon as the app reports success.
+5. SimpleCrew captures the new credential server-side and re-checks health automatically. You never see or copy the token.
+
+One-time helper install (Mac only, not needed in Docker):
+```bash
+./venv/bin/pip install playwright && ./venv/bin/playwright install chromium
+```
+Without it, Reconnect explains what to install instead of failing silently.
+
+### Manual replacement
+
+Update Token → paste your bearer token → Save → run **Check Crew connection**.
+
+The token must never be placed in a URL or browser-side script. Health states: `healthy`, `unauthorized`, `unreachable`, `api_error`.
 
 ## 6. Disable remote access without stopping SimpleCrew
 
