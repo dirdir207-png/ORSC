@@ -99,7 +99,7 @@ def test_unknown_action_type_is_never_proposed():
     result = service.chat("nuke it")
     assert result.get("proposal") is None
     assert store.list_pending() == []
-    assert "could not" in result["reply"].lower()
+    assert "valid proposal" in result["reply"].lower()
 
 
 def test_unavailable_client_raises_normalized_error():
