@@ -86,7 +86,8 @@ The previously reported 103-test result belonged to unrecoverable local commit `
 
 ## Current blockers
 
-None.
+- AI providers: owner's OpenAI key has no credits (429); OpenRouter free-tier quota tight. Code now surfaces truthful per-provider errors; add OpenAI billing or await OpenRouter window.
+- Verification workflow upgraded: Playwright screenshot harness against isolated instance now gates all UI changes.
 
 ## Next action
 

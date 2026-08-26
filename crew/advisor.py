@@ -73,15 +73,29 @@ class OpenAICompatClient:
             )
             response.raise_for_status()
             payload = response.json()
-            return (payload.get("choices") or [{}])[0].get("message", {}).get("content", "")
+            message = (payload.get("choices") or [{}])[0].get("message") or {}
+            content = message.get("content")
+            if not content:
+                # Some models place output in reasoning/other fields
+                content = message.get("reasoning") or "".join(
+                    part.get("text", "") for part in (message.get("reasoning_content") or [])
+                    if isinstance(part, dict))
+            if not content:
+                raise AdvisorUnavailable("provider returned an empty response")
+            return content
         except requests.HTTPError as exc:
             status = getattr(getattr(exc, "response", None), "status_code", None)
+            body_text = ""
+            try:
+                body_text = exc.response.json().get("error", {}).get("message", "")
+            except Exception:
+                pass
             detail = {
                 401: "authentication rejected",
-                402: "out of credits",
+                402: "out of credits — add billing at the provider",
                 429: "rate limited / quota exceeded",
             }.get(status, f"HTTP {status}")
-            raise AdvisorUnavailable(f"provider error ({detail})") from exc
+            raise AdvisorUnavailable(f"{detail}{(' — ' + body_text[:120]) if body_text else ''}") from exc
         except requests.RequestException as exc:
             raise AdvisorUnavailable(f"AI provider unreachable: {type(exc).__name__}") from exc
         except (ValueError, KeyError, IndexError) as exc:
@@ -89,15 +103,21 @@ class OpenAICompatClient:
 
 
 OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_DEFAULT_MODEL = "openrouter/stealth/ox-alpha"
+OPENROUTER_DEFAULT_MODEL = "stealth/ox-alpha"
 
 
 class FailoverLLMClient:
-    """Tries configured providers in order; surfaces the first success."""
+    """Tries configured providers in order; surfaces the first success.
+
+    Providers that fail are put on a short cooldown so a dead primary
+    doesn't slow every subsequent message.
+    """
+
+    COOLDOWN_SECONDS = 300.0
 
     def __init__(self, providers: List[tuple]):
-        # providers: list of (name, client)
-        self._providers = [p for p in providers if p[1] is not None]
+        self._providers = [(name, client) for name, client in providers if client is not None]
+        self._cooldown_until: Dict[str, float] = {}
         self.last_provider: Optional[str] = None
 
     def __repr__(self) -> str:
@@ -107,17 +127,30 @@ class FailoverLLMClient:
         return [name for name, _ in self._providers]
 
     def complete(self, system: str, messages: List[Dict[str, str]]) -> str:
+        import time as _time
         errors: List[str] = []
+        now = _time.monotonic()
+        tried_any = False
         for name, client in self._providers:
+            if self._cooldown_until.get(name, 0) > now:
+                errors.append(f"{name}: cooling down after recent failure")
+                continue
+            tried_any = True
             try:
                 reply = client.complete(system, messages)
                 self.last_provider = name
+                self._cooldown_until.pop(name, None)
                 return reply
             except AdvisorUnavailable as exc:
+                self._cooldown_until[name] = now + self.COOLDOWN_SECONDS
                 errors.append(f"{name}: {exc}")
         self.last_provider = None
         if not self._providers:
             raise AdvisorUnavailable("No AI provider is configured")
+        if not tried_any:
+            raise AdvisorUnavailable(
+                "All AI providers are cooling down after recent failures — try again in a few minutes. "
+                + "; ".join(errors))
         raise AdvisorUnavailable("All AI providers failed — " + "; ".join(errors))
 
 

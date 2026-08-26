@@ -280,3 +280,68 @@ button.btn-goal-add,
     cursor: pointer;
 }
 .exp-item:hover { background: color-mix(in srgb, var(--sc-accent) 6%, transparent); }
+
+/* ============================================================
+   v2.1 — Kill the cramped app-shell; modern scrolling layout
+   ============================================================ */
+
+/* Free the page: natural scroll, no 100vh internal panes */
+body { overflow-y: auto !important; height: auto !important; }
+.main-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 320px !important;
+    gap: 24px !important;
+    max-width: 1240px !important;
+    margin: 20px auto 60px !important;
+    padding: 0 24px !important;
+    overflow: visible !important;
+    flex: none !important;
+    align-items: start !important;
+    width: auto !important;
+}
+.main-column { overflow: visible !important; height: auto !important; }
+.sidebar-column {
+    overflow: visible !important;
+    position: sticky;
+    top: 76px;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px;
+}
+.sidebar-card {
+    border-radius: var(--radius-m) !important;
+    box-shadow: var(--shadow-1) !important;
+    margin-bottom: 0 !important;
+}
+
+/* Info header becomes a full-width band hosting the hero */
+.info-header {
+    display: block !important;
+    background: transparent !important;
+    border-bottom: none !important;
+    padding: 18px 24px 0 !important;
+    max-width: 1240px;
+    margin: 0 auto !important;
+    width: auto;
+}
+.sts-hero { width: 100% !important; box-sizing: border-box; }
+
+/* Search + filters align with the content column */
+.controls-bar, .filter-bar, #controls-bar, #filter-bar {
+    max-width: 1240px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+    box-sizing: border-box;
+}
+
+/* Beacon card header spacing */
+#beacon-card { padding: 16px 18px !important; }
+#beacon-card > div:first-child { padding-right: 6px; }
+
+/* Mobile: single column, sidebar becomes normal flow */
+@media (max-width: 1023px) {
+    .main-grid { grid-template-columns: 1fr !important; }
+    .sidebar-column { position: static !important; }
+}
