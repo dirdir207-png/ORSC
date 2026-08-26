@@ -135,6 +135,10 @@ class AdvisorService:
         return "AdvisorService()"
 
     def chat(self, user_message: str, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+        if self._client is None:
+            raise AdvisorUnavailable(
+                "AI advisor is not configured. Set OPENAI_API_KEY (and optionally OPENAI_BASE_URL / OPENAI_MODEL) and restart."
+            )
         snapshot = self._context.build()
         system = build_system_prompt(snapshot)
         messages = list(history or [])[-10:] + [{"role": "user", "content": user_message}]
