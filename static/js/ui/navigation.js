@@ -79,6 +79,8 @@ function switchTab(tab) {
     }
     if(tab === 'account') {
         loadAccountSettings();
+        loadPendingActions();
+        advisorInit();
     }
 }
 
