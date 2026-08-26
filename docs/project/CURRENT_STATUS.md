@@ -54,6 +54,15 @@ Last consolidated: 2026-08-25 (Milestone 2 implementation)
 - `POST /api/actions/propose/local`: loopback-only (403 otherwise); a Mac-local assistant can create inert proposals ("move $50 from Checking to Rent") that surface in the owner's Pending Actions card.
 - Real resolver adapter over existing lookups (`get_primary_account_id` + subaccount list); failures are explicit, never guessed ids.
 
+### Milestone 5 — AI advisor: IMPLEMENTED (branch `feat/ai-advisor`)
+
+- Design: `docs/designs/2026-08-25-ai-advisor.md`.
+- Provider-agnostic OpenAI-compatible client via env (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`); graceful not-configured state.
+- `AdvisorService`: display-safe financial context -> LLM -> reply; proposal JSON blocks validated through the same whitelist/resolver as all proposers; only `move_money`; stored as pending actions (`requested_by=ai-advisor`).
+- API: `/api/advisor/status`, `/api/advisor/chat` (login required; AdvisorUnavailable -> 503).
+- UI: AI Advisor chat card in Account view; drafted proposals surface in Pending Actions.
+- Suite: 96 passing + 1 skip. No real network calls in tests.
+
 ### Review blockers from prior work — REPRODUCED AND REMEDIATED (merged PR #3)
 
 1. Truthy non-string transfer ID mistaken for confirmed success → reproduced by regression test; `move_money` now requires a non-empty string `result.id`.
