@@ -55,6 +55,10 @@ class OpenAICompatClient:
         if not self._api_key:
             raise AdvisorUnavailable("AI provider is not configured (set OPENAI_API_KEY)")
 
+    @property
+    def model(self) -> str:
+        return self._model
+
     def complete(self, system: str, messages: List[Dict[str, str]]) -> str:
         try:
             response = self._session.post(
@@ -70,10 +74,82 @@ class OpenAICompatClient:
             response.raise_for_status()
             payload = response.json()
             return (payload.get("choices") or [{}])[0].get("message", {}).get("content", "")
+        except requests.HTTPError as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            detail = {
+                401: "authentication rejected",
+                402: "out of credits",
+                429: "rate limited / quota exceeded",
+            }.get(status, f"HTTP {status}")
+            raise AdvisorUnavailable(f"provider error ({detail})") from exc
         except requests.RequestException as exc:
             raise AdvisorUnavailable(f"AI provider unreachable: {type(exc).__name__}") from exc
         except (ValueError, KeyError, IndexError) as exc:
             raise AdvisorUnavailable("AI provider returned an unexpected response") from exc
+
+
+OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_DEFAULT_MODEL = "openrouter/stealth/ox-alpha"
+
+
+class FailoverLLMClient:
+    """Tries configured providers in order; surfaces the first success."""
+
+    def __init__(self, providers: List[tuple]):
+        # providers: list of (name, client)
+        self._providers = [p for p in providers if p[1] is not None]
+        self.last_provider: Optional[str] = None
+
+    def __repr__(self) -> str:
+        return f"FailoverLLMClient(providers={[name for name, _ in self._providers]})"
+
+    def providers(self) -> List[str]:
+        return [name for name, _ in self._providers]
+
+    def complete(self, system: str, messages: List[Dict[str, str]]) -> str:
+        errors: List[str] = []
+        for name, client in self._providers:
+            try:
+                reply = client.complete(system, messages)
+                self.last_provider = name
+                return reply
+            except AdvisorUnavailable as exc:
+                errors.append(f"{name}: {exc}")
+        self.last_provider = None
+        if not self._providers:
+            raise AdvisorUnavailable("No AI provider is configured")
+        raise AdvisorUnavailable("All AI providers failed — " + "; ".join(errors))
+
+
+def build_llm_chain(session=requests) -> FailoverLLMClient:
+    """Provider chain from environment: OpenAI primary, OpenRouter fallback."""
+    providers: List[tuple] = []
+
+    openai_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("AI_API_KEY")
+    if openai_key:
+        providers.append((
+            "openai",
+            OpenAICompatClient(
+                api_key=openai_key,
+                base_url=os.environ.get("OPENAI_BASE_URL", DEFAULT_BASE_URL),
+                model=os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
+                session=session,
+            ),
+        ))
+
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+    if openrouter_key:
+        providers.append((
+            "openrouter",
+            OpenAICompatClient(
+                api_key=openrouter_key,
+                base_url=os.environ.get("OPENROUTER_BASE_URL", OPENROUTER_DEFAULT_BASE_URL),
+                model=os.environ.get("OPENROUTER_MODEL", OPENROUTER_DEFAULT_MODEL),
+                session=session,
+            ),
+        ))
+
+    return FailoverLLMClient(providers)
 
 
 def build_system_prompt(snapshot: Dict[str, Any]) -> str:

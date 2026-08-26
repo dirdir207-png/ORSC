@@ -787,6 +787,7 @@ from crew.advisor import (
     AdvisorUnavailable,
     FinancialContextBuilder,
     OpenAICompatClient,
+    build_llm_chain,
     llm_configured,
     llm_model,
 )
@@ -815,17 +816,32 @@ def _financial_snapshot():
     return snap
 
 advisor_context_builder = FinancialContextBuilder(snapshot_fn=_financial_snapshot)
+advisor_llm_chain = build_llm_chain()
 advisor_service = AdvisorService(
-    llm_client=(OpenAICompatClient() if llm_configured() else None),
+    llm_client=(advisor_llm_chain if advisor_llm_chain.providers() else None),
     context_builder=advisor_context_builder,
     store=action_store,
     resolver=resolve_crew_target,
 )
 
+# --- BEACON BUDGET FORECAST (Milestone 6) ---
+from crew.beacon import build_forecast
+
+@app.route('/api/beacon/forecast')
+@login_required
+def api_beacon_forecast():
+    history = get_history()
+    return jsonify(build_forecast(history.get("values") or []))
+
 @app.route('/api/advisor/status')
 @login_required
 def api_advisor_status():
-    return jsonify({"configured": llm_configured(), "model": llm_model()})
+    providers = advisor_llm_chain.providers()
+    return jsonify({
+        "configured": bool(providers),
+        "providers": providers,
+        "model": llm_model(),
+    })
 
 @app.route('/api/advisor/chat', methods=['POST'])
 @login_required

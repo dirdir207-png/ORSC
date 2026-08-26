@@ -22,6 +22,8 @@ function openMoveModal(preFillToId = null) {
 
     // Clear previous values
     document.getElementById('move-amount').value = '';
+    const sliderReset = document.getElementById('move-amount-slider');
+    if (sliderReset) { sliderReset.value = 0; sliderReset.style.setProperty('--fill', '0%'); }
     document.getElementById('move-memo').value = '';
 
     // ALWAYS REFRESH
@@ -158,6 +160,7 @@ function executeTransfer() {
             messageEl.innerHTML = `<div style="color:red; margin-bottom:10px;">Error: ${data.error}</div>`;
         } else {
             messageEl.innerHTML = '<div style="color:#63BB67; margin-bottom:10px;">✓ Transfer complete!</div>';
+            if (navigator.vibrate) navigator.vibrate([12, 40, 18]);
             setTimeout(() => {
                 closeMoveModal();
                 initBalances();

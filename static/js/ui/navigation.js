@@ -65,6 +65,7 @@ function switchTab(tab) {
     // This ensures data is fresh when navigating
     if(tab === 'expenses') loadExpenses(true);
     if(tab === 'goals') loadGoals(true);
+    if(tab === 'goals') loadBeaconForecast();
 
     if(tab === 'family') loadFamily();
     if(tab === 'cards') loadCards(true);
@@ -225,4 +226,33 @@ document.addEventListener('click', function(e) {
         const arrow = document.getElementById('user-menu-arrow');
         if (arrow) arrow.style.transform = 'rotate(0deg)';
     }
+});
+
+// --- Amount slider sync + haptics helper ---
+
+window.haptic = function (pattern) {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+};
+
+document.addEventListener('input', function (event) {
+    const el = event.target;
+    if (el.id === 'move-amount-slider') {
+        const amountInput = document.getElementById('move-amount');
+        if (amountInput) {
+            amountInput.value = el.value;
+            const pct = Math.min(100, (el.value / parseFloat(el.max || 200)) * 100);
+            el.style.setProperty('--fill', pct + '%');
+        }
+    } else if (el.id === 'move-amount') {
+        const slider = document.getElementById('move-amount-slider');
+        if (slider) {
+            const v = Math.max(0, parseFloat(el.value) || 0);
+            if (v <= parseFloat(slider.max)) slider.value = v;
+            slider.style.setProperty('--fill', Math.min(100, (v / parseFloat(slider.max || 200)) * 100) + '%');
+        }
+    }
+});
+
+document.addEventListener('change', function (event) {
+    if (event.target.id === 'move-amount-slider' && navigator.vibrate) navigator.vibrate(6);
 });

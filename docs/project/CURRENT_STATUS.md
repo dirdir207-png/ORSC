@@ -63,6 +63,12 @@ Last consolidated: 2026-08-25 (Milestone 2 implementation)
 - UI: AI Advisor chat card in Account view; drafted proposals surface in Pending Actions.
 - Suite: 96 passing + 1 skip. No real network calls in tests.
 
+### Milestones 6+7 — Beacon budget & UI polish: IMPLEMENTED (branch `feat/beacon-and-polish`, stacked on M5)
+
+- `crew/beacon.py`: explainable 30-day forecast from balance history (avg daily burn over 14-day lookback, runway, low point); unavailable state until enough history.
+- `/api/beacon/forecast` + 📡 Beacon card at top of Pockets dashboard view.
+- UI polish: global interaction transitions/depth/focus rings (`polish.css`), Move-Money amount slider synced both ways, haptics on slider ticks / transfer success / advisor proposals.
+
 ### Review blockers from prior work — REPRODUCED AND REMEDIATED (merged PR #3)
 
 1. Truthy non-string transfer ID mistaken for confirmed success → reproduced by regression test; `move_money` now requires a non-empty string `result.id`.
