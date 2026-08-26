@@ -49,7 +49,7 @@ class TestProposing:
     def test_posts_intent_to_local_endpoint(self, monkeypatch):
         sent = {}
 
-        def fake_post(url, json=None, timeout=None):
+        def fake_post(url, json=None, headers=None, timeout=None):
             sent.update(url=url, payload=json)
 
             class R:
@@ -71,7 +71,7 @@ class TestProposing:
         assert result["state"] == "proposed"
 
     def test_server_error_surfaces_message(self, monkeypatch):
-        def fake_post(url, json=None, timeout=None):
+        def fake_post(url, json=None, headers=None, timeout=None):
             class R:
                 status_code = 400
 

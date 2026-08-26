@@ -307,6 +307,7 @@ def test_local_proposer_unresolvable_name_is_400(authenticated_client, local_act
     response = authenticated_client.post(
         "/api/actions/propose/local",
         json={"kind": "transfer", "from": "Nowhere", "to": "Rent", "amount": 5},
+        headers={"X-Local-Key": "test-local-key"},
     )
     assert response.status_code == 400
     assert "nowhere" in response.get_json()["error"].lower()
