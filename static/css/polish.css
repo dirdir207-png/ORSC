@@ -60,3 +60,86 @@ select:focus-visible {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     cursor: grab;
 }
+
+/* Floating AI Advisor */
+#advisor-fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #0093E9, #80D0C7);
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0, 100, 200, 0.35);
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#advisor-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: min(380px, calc(100vw - 32px));
+    height: min(520px, calc(100vh - 90px));
+    flex-direction: column;
+    background: var(--bg-elevated, #fff);
+    border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+    z-index: 9999;
+    overflow: hidden;
+}
+
+#advisor-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    font-weight: 700;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border-color, #eee);
+}
+
+#advisor-fab-log {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    background: var(--bg-main, #fafafa);
+}
+
+#advisor-fab-inputrow {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--border-color, #eee);
+}
+
+#advisor-fab-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 10px;
+    font-size: 13px;
+    background: var(--bg-input, #fff);
+    color: var(--text-dark, #111);
+    box-sizing: border-box;
+}
+
+#advisor-fab-send {
+    background: var(--simple-blue, #0093E9);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0 14px;
+    font-size: 15px;
+    cursor: pointer;
+}

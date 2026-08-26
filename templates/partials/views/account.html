@@ -98,20 +98,7 @@
                         <div id="actions-list" style="display: none;"></div>
                     </div>
 
-                    <!-- AI Advisor -->
-                    <div id="advisor-section" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
-                        <div style="font-weight: 600; font-size: 13px; color: var(--text-dark); margin-bottom: 4px;">AI Advisor</div>
-                        <p id="advisor-status" style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px 0;">Checking availability…</p>
-                        <div id="advisor-log" style="display: none; max-height: 320px; overflow-y: auto; flex-direction: column; gap: 8px; margin-bottom: 10px;"></div>
-                        <div id="advisor-input-row" style="display: none; gap: 8px;">
-                            <input type="text" id="advisor-input" placeholder="Ask about your money, or say: move $20 from Checking to Rent" style="flex: 1; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; background: var(--bg-input); color: var(--text-dark); box-sizing: border-box;" onkeydown="if(event.key==='Enter')advisorSend()">
-                            <button type="button" id="advisor-send" onclick="advisorSend()" style="background: var(--simple-blue); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;">Send</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SimpleFin -->
+<!-- SimpleFin -->
             <div class="settings-section collapsed">
                 <div class="settings-section-header" onclick="toggleSettingsSection(this)">
                     <div class="settings-section-icon" style="background: linear-gradient(135deg, #F3E5F5, #E1BEE7); color: #7B1FA2;">&#x1f510;</div>
