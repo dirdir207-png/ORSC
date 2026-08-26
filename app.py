@@ -1,4 +1,5 @@
 import requests
+import secrets
 import sqlite3
 import time
 import functools
@@ -757,6 +758,9 @@ def verify_transfer_action(params, result):
     return {"ok": confirmed, "check": "confirmed-transfer-id"}
 
 action_store = ActionStore(db_path=DB_FILE, allowed_types=("move_money",))
+from crew.propose_key import get_or_create_local_key
+
+local_proposer_key = get_or_create_local_key(DB_FILE)
 action_executors = {
     "move_money": ExecutorSpec(
         execute=lambda p: move_money(p["from_id"], p["to_id"], p["amount"], p.get("memo", "")),
@@ -3333,9 +3337,14 @@ def api_actions_pending():
 
 @app.route('/api/actions/propose/local', methods=['POST'])
 def api_actions_propose_local():
-    """Local-assistant proposal entry point. Loopback only; proposals are inert."""
-    if request.remote_addr not in ("127.0.0.1", "::1"):
-        return jsonify({"error": "Local proposer endpoint is restricted to localhost"}), 403
+    """Local-assistant proposal entry point. Requires the local capability key.
+
+    Docker's port proxy masks source addresses, so origin is not trusted;
+    possession of the key permits only creating inert proposals.
+    """
+    supplied = request.headers.get("X-Local-Key", "")
+    if not supplied or not secrets.compare_digest(supplied, local_proposer_key):
+        return jsonify({"error": "Invalid or missing X-Local-Key header"}), 401
     data = request.json or {}
     kind = data.get("kind", "transfer")
     if kind != "transfer":
