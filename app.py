@@ -822,6 +822,15 @@ advisor_service = AdvisorService(
     resolver=resolve_crew_target,
 )
 
+# --- BEACON BUDGET FORECAST (Milestone 6) ---
+from crew.beacon import build_forecast
+
+@app.route('/api/beacon/forecast')
+@login_required
+def api_beacon_forecast():
+    history = get_history()
+    return jsonify(build_forecast(history.get("values") or []))
+
 @app.route('/api/advisor/status')
 @login_required
 def api_advisor_status():
