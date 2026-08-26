@@ -47,6 +47,13 @@ Last consolidated: 2026-08-25 (Milestone 2 implementation)
 - UI: Pending Actions card (approve/reject). Execution is deliberately API-only for now: an approval opens a one-hour window during which an authorized runner may execute; nothing auto-executes.
 - Test suite on branch: 58 passing + 1 skip. No Crew contact.
 
+### Milestone 3b — Action proposer interface: IMPLEMENTED (branch `feat/action-proposer`)
+
+- Design: `docs/designs/2026-08-25-action-proposer.md`.
+- `crew/proposals.py`: name→id resolution + validated transfer proposals with human-readable summaries.
+- `POST /api/actions/propose/local`: loopback-only (403 otherwise); a Mac-local assistant can create inert proposals ("move $50 from Checking to Rent") that surface in the owner's Pending Actions card.
+- Real resolver adapter over existing lookups (`get_primary_account_id` + subaccount list); failures are explicit, never guessed ids.
+
 ### Review blockers from prior work — REPRODUCED AND REMEDIATED (merged PR #3)
 
 1. Truthy non-string transfer ID mistaken for confirmed success → reproduced by regression test; `move_money` now requires a non-empty string `result.id`.

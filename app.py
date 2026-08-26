@@ -746,6 +746,7 @@ crew_renewal_service = GuidedRenewalService(
 # --- ACTION PIPELINE (Milestone 3): propose -> approve -> execute -> verify ---
 from crew.actions import ActionStore, IllegalTransitionError, UnknownActionTypeError
 from crew.executors import ExecutorSpec, execute_approved_action, expire_stale_approvals
+from crew.proposals import build_transfer_proposal, ProposalError
 
 APPROVAL_TTL_SECONDS = 3600
 
@@ -762,6 +763,19 @@ action_executors = {
         verifier=verify_transfer_action,
     )
 }
+
+def resolve_crew_target(name):
+    """Resolve an account/pocket display name to its Crew id (local proposers)."""
+    wanted = (name or "").strip().lower()
+    if wanted in ("checking", "spend", "main"):
+        primary = get_primary_account_id()
+        if primary:
+            return primary
+    data = get_subaccounts_list()
+    for sub in ((data or {}).get("subaccounts") or []):
+        if (sub.get("name") or "").strip().lower() == wanted:
+            return sub.get("id")
+    return None
 
 def get_lunchflow_api_key():
     """Get LunchFlow API key (database first, then env var fallback)"""
@@ -3316,6 +3330,34 @@ def api_crew_reconnect_status(session_id):
 def api_actions_pending():
     expire_stale_approvals(action_store, ttl_seconds=APPROVAL_TTL_SECONDS)
     return jsonify({"actions": action_store.list_pending()})
+
+@app.route('/api/actions/propose/local', methods=['POST'])
+def api_actions_propose_local():
+    """Local-assistant proposal entry point. Loopback only; proposals are inert."""
+    if request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Local proposer endpoint is restricted to localhost"}), 403
+    data = request.json or {}
+    kind = data.get("kind", "transfer")
+    if kind != "transfer":
+        return jsonify({"error": f"Unsupported proposal kind '{kind}'"}), 400
+    try:
+        proposal = build_transfer_proposal(
+            resolve_crew_target,
+            data.get("from"),
+            data.get("to"),
+            data.get("amount"),
+            data.get("memo", ""),
+        )
+    except ProposalError as exc:
+        return jsonify({"error": str(exc)}), 400
+    created = action_store.propose(
+        proposal["type"],
+        proposal["params"],
+        proposal["summary"],
+        requested_by="local-assistant",
+    )
+    created["summary"] = proposal["summary"]
+    return jsonify(created)
 
 @app.route('/api/actions/propose', methods=['POST'])
 @login_required
