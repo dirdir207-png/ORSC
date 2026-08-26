@@ -825,13 +825,63 @@ advisor_service = AdvisorService(
 )
 
 # --- BEACON BUDGET FORECAST (Milestone 6) ---
-from crew.beacon import build_forecast
+from crew.beacon import build_forecast, project_reserve
 
 @app.route('/api/beacon/forecast')
 @login_required
 def api_beacon_forecast():
     history = get_history()
     return jsonify(build_forecast(history.get("values") or []))
+
+@app.route('/api/beacon/reserve')
+@login_required
+def api_beacon_reserve():
+    """Will the bill reserve cover upcoming bills at current burn pace?"""
+    try:
+        data = get_expenses_data()
+        if not isinstance(data, dict) or data.get("error"):
+            return jsonify({"available": False, "reason": "Reserve data unavailable"}), 200
+        summary = data.get("summary") or {}
+        history = get_history()
+        forecast = build_forecast(history.get("values") or [])
+        daily_burn = forecast.get("daily_burn") if isinstance(forecast, dict) else 0
+
+        today = date.today()
+        upcoming = []
+        for e in (data.get("expenses") or []):
+            if e.get("paused"):
+                continue
+            reserved = float(e.get("reserved") or 0)
+            amount = float(e.get("amount") or 0)
+            if reserved >= amount:
+                continue  # fully funded — no future strain
+            due_in_days = None
+            rb = e.get("reservedBy")
+            if rb:
+                try:
+                    due_in_days = max(0, (datetime.fromisoformat(str(rb).replace('Z', '')).date() - today).days)
+                except ValueError:
+                    pass
+            if due_in_days is None:
+                due_in_days = 30
+            upcoming.append({"name": e.get("name"), "amount": amount - reserved, "due_in_days": min(due_in_days, 90)})
+
+        projection = project_reserve(
+            reserve_balance=float(summary.get("totalReserved") or 0),
+            daily_burn=float(daily_burn or 0),
+            upcoming=upcoming,
+        )
+        return jsonify({
+            "available": True,
+            "total_reserved": summary.get("totalReserved"),
+            "estimated_funding": summary.get("estimatedFunding"),
+            "next_funding_date": summary.get("nextFundingDate"),
+            "funding_source": summary.get("fundingSource"),
+            "daily_burn": daily_burn,
+            "projection": projection,
+        })
+    except Exception as exc:
+        return jsonify({"available": False, "reason": str(exc)}), 200
 
 @app.route('/api/advisor/status')
 @login_required

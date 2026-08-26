@@ -44,3 +44,48 @@ def test_low_point_identified_within_horizon():
 def test_non_numeric_entries_are_ignored():
     forecast = build_forecast([1000, None, 980, "oops", 960])
     assert forecast["available"] is True
+
+
+from crew.beacon import project_reserve
+from datetime import date, timedelta
+
+
+def test_reserve_covered_when_bills_small():
+    result = project_reserve(
+        reserve_balance=500.0,
+        daily_burn=-2.0,
+        upcoming=[{"name": "Rent", "amount": 300.0, "due_in_days": 10}],
+        horizon_days=30,
+    )
+    assert result["verdict"] == "covered"
+    assert result["shortfall"] == 0
+
+
+def test_reserve_shortfall_before_next_bill():
+    result = project_reserve(
+        reserve_balance=100.0,
+        daily_burn=-5.0,
+        upcoming=[
+            {"name": "Rent", "amount": 900.0, "due_in_days": 15},
+            {"name": "Power", "amount": 80.0, "due_in_days": 20},
+        ],
+        horizon_days=30,
+    )
+    assert result["verdict"] == "shortfall"
+    assert result["first_missed"]["name"] == "Rent"
+    assert result["shortfall"] > 0
+
+
+def test_no_upcoming_bills_is_stable():
+    result = project_reserve(reserve_balance=200.0, daily_burn=-1.0, upcoming=[], horizon_days=30)
+    assert result["verdict"] == "stable"
+
+
+def test_positive_burn_never_shortfalls():
+    result = project_reserve(
+        reserve_balance=50.0,
+        daily_burn=3.0,
+        upcoming=[{"name": "Internet", "amount": 60.0, "due_in_days": 5}],
+        horizon_days=30,
+    )
+    assert result["verdict"] == "covered"
