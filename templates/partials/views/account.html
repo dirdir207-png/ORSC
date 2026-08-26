@@ -87,6 +87,16 @@
                             <button type="button" id="crew-reconnect" onclick="reconnectCrew()" style="display: none; background: var(--simple-blue); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px;">Reconnect Crew</button>
                         </div>
                     </div>
+
+                    <!-- Action Pipeline -->
+                    <div id="actions-section" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-weight: 600; font-size: 13px; color: var(--text-dark);">Pending Actions</div>
+                            <button type="button" onclick="loadPendingActions()" style="background: var(--bg-elevated); color: var(--text-dark); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 12px;">Refresh</button>
+                        </div>
+                        <p id="actions-empty" style="font-size: 13px; color: var(--text-muted); margin: 0;">No pending action proposals.</p>
+                        <div id="actions-list" style="display: none;"></div>
+                    </div>
                 </div>
             </div>
 

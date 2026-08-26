@@ -210,6 +210,52 @@ async function reconnectCrew() {
     }, 2000);
 }
 
+/**
+ * Action pipeline: list pending proposals; approve/reject.
+ * Execution always requires an explicit approval first.
+ */
+async function loadPendingActions() {
+    const list = document.getElementById('actions-list');
+    const empty = document.getElementById('actions-empty');
+    if (!list || !empty) return;
+    try {
+        const response = await fetch('/api/actions/pending', { credentials: 'same-origin' });
+        const data = await response.json();
+        const actions = data.actions || [];
+        empty.style.display = actions.length ? 'none' : 'block';
+        empty.textContent = actions.length ? '' : 'No pending action proposals.';
+        list.style.display = actions.length ? 'block' : 'none';
+        list.innerHTML = '';
+        for (const action of actions) {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px;font-size:13px;';
+            const label = document.createElement('div');
+            label.innerHTML = `<strong>${action.type}</strong> — ${action.rationale || 'no rationale'}<br><span style="color:var(--text-muted);font-size:12px;">by ${action.requested_by} · ${action.created_at}</span>`;
+            const buttons = document.createElement('div');
+            buttons.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+            const approveBtn = document.createElement('button');
+            approveBtn.textContent = 'Approve';
+            approveBtn.style.cssText = 'background:#d4edda;color:#155724;border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;';
+            approveBtn.onclick = () => actionDecision(action.id, 'approve', loadPendingActions);
+            const rejectBtn = document.createElement('button');
+            rejectBtn.textContent = 'Reject';
+            rejectBtn.style.cssText = 'background:#fee;color:#c00;border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px;';
+            rejectBtn.onclick = () => actionDecision(action.id, 'reject', loadPendingActions);
+            buttons.append(approveBtn, rejectBtn);
+            row.append(label, buttons);
+            list.appendChild(row);
+        }
+    } catch (error) {
+        empty.textContent = 'Could not load pending actions.';
+        empty.style.display = 'block';
+    }
+}
+
+async function actionDecision(actionId, decision, refresh) {
+    await fetch(`/api/actions/${actionId}/${decision}`, { method: 'POST', credentials: 'same-origin' });
+    if (refresh) refresh();
+}
+
 // --- SIMPLEFIN TOKEN MANAGEMENT ---
 
 /**
