@@ -37,7 +37,7 @@ _TERMINAL_STATES = {ActionState.REJECTED, ActionState.EXPIRED, ActionState.VERIF
 # from-state -> allowed target states with the column to stamp on success
 _TRANSITIONS = {
     ActionState.PROPOSED: {ActionState.APPROVED, ActionState.REJECTED},
-    ActionState.APPROVED: {ActionState.EXECUTED, ActionState.EXPIRED},
+    ActionState.APPROVED: {ActionState.EXECUTED, ActionState.EXPIRED, ActionState.FAILED},
     ActionState.EXECUTED: {ActionState.VERIFIED, ActionState.FAILED},
 }
 
@@ -108,17 +108,18 @@ class ActionStore:
         return self._row_to_dict(row) if row else None
 
     def list_pending(self) -> list:
-        return self._list_by_state(ActionState.PROPOSED)
+        return self.list_by_state(ActionState.PROPOSED)
 
-    def list_recent(self, limit: int = 25) -> list:
+    def list_by_state(self, state: ActionState) -> list:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT id, type, params_json, rationale, requested_by, state, created_at, "
                 "decided_by, decided_at, executed_at, result_json, verification_json "
-                "FROM action_requests ORDER BY created_at DESC LIMIT ?",
-                (int(limit),),
+                "FROM action_requests WHERE state = ? ORDER BY created_at DESC",
+                (state.value,),
             ).fetchall()
         return [self._row_to_dict(row) for row in rows]
+
 
     def approve(self, request_id: str, decided_by: str) -> Dict[str, Any]:
         return self._transition(request_id, ActionState.APPROVED, decided_by=decided_by)
@@ -136,7 +137,7 @@ class ActionStore:
         return self._transition(request_id, ActionState.VERIFIED, verification_json=json.dumps(verification or {}))
 
     def mark_failed(self, request_id: str, error: Dict[str, Any]) -> Dict[str, Any]:
-        return self._transition(request_id, ActionState.FAILED, result_json=json.dumps(error or {}))
+        return self._transition(request_id, ActionState.FAILED, payload_json=json.dumps(error or {}))
 
     def _transition(
         self,
