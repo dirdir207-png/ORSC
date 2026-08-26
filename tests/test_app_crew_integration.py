@@ -266,6 +266,7 @@ def local_action_env(tmp_path, monkeypatch):
 
     store = ActionStore(db_path=str(tmp_path / "actions.db"), allowed_types=("move_money",))
     monkeypatch.setattr(simplecrew, "action_store", store)
+    monkeypatch.setattr(simplecrew, "local_proposer_key", "test-local-key")
     monkeypatch.setattr(
         simplecrew,
         "resolve_crew_target",
@@ -278,6 +279,7 @@ def test_local_proposer_creates_pending_transfer(authenticated_client, local_act
     response = authenticated_client.post(
         "/api/actions/propose/local",
         json={"kind": "transfer", "from": "Checking", "to": "Rent", "amount": 50, "memo": "October"},
+        headers={"X-Local-Key": "test-local-key"},
     )
     assert response.status_code == 200
     body = response.get_json()
@@ -287,13 +289,18 @@ def test_local_proposer_creates_pending_transfer(authenticated_client, local_act
     assert local_action_env.list_pending()[0]["id"] == body["id"]
 
 
-def test_local_proposer_rejects_non_loopback(authenticated_client, local_action_env):
-    response = authenticated_client.post(
+def test_local_proposer_requires_valid_key(authenticated_client, local_action_env):
+    missing = authenticated_client.post(
         "/api/actions/propose/local",
         json={"kind": "transfer", "from": "Checking", "to": "Rent", "amount": 50},
-        environ_base={"REMOTE_ADDR": "100.64.0.5"},
     )
-    assert response.status_code == 403
+    wrong = authenticated_client.post(
+        "/api/actions/propose/local",
+        json={"kind": "transfer", "from": "Checking", "to": "Rent", "amount": 50},
+        headers={"X-Local-Key": "wrong-key"},
+    )
+    assert missing.status_code == 401
+    assert wrong.status_code == 401
 
 
 def test_local_proposer_unresolvable_name_is_400(authenticated_client, local_action_env):
