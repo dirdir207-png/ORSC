@@ -743,6 +743,26 @@ crew_renewal_service = GuidedRenewalService(
     timeout_seconds=300,
 )
 
+# --- ACTION PIPELINE (Milestone 3): propose -> approve -> execute -> verify ---
+from crew.actions import ActionStore, IllegalTransitionError, UnknownActionTypeError
+from crew.executors import ExecutorSpec, execute_approved_action, expire_stale_approvals
+
+APPROVAL_TTL_SECONDS = 3600
+
+def verify_transfer_action(params, result):
+    transfer = (result or {}).get("result") or {}
+    transfer_id = transfer.get("id")
+    confirmed = isinstance(transfer_id, str) and bool(transfer_id.strip())
+    return {"ok": confirmed, "check": "confirmed-transfer-id"}
+
+action_store = ActionStore(db_path=DB_FILE, allowed_types=("move_money",))
+action_executors = {
+    "move_money": ExecutorSpec(
+        execute=lambda p: move_money(p["from_id"], p["to_id"], p["amount"], p.get("memo", "")),
+        verifier=verify_transfer_action,
+    )
+}
+
 def get_lunchflow_api_key():
     """Get LunchFlow API key (database first, then env var fallback)"""
     conn = sqlite3.connect(DB_FILE)
@@ -3289,6 +3309,52 @@ def api_crew_reconnect_status(session_id):
     if payload is None:
         return jsonify({"error": "Unknown renewal session"}), 404
     return jsonify(sanitize_status_payload(payload))
+
+# --- ACTION PIPELINE API ---
+@app.route('/api/actions/pending')
+@login_required
+def api_actions_pending():
+    expire_stale_approvals(action_store, ttl_seconds=APPROVAL_TTL_SECONDS)
+    return jsonify({"actions": action_store.list_pending()})
+
+@app.route('/api/actions/propose', methods=['POST'])
+@login_required
+def api_actions_propose():
+    data = request.json or {}
+    try:
+        created = action_store.propose(
+            data.get('type'),
+            data.get('params') or {},
+            data.get('rationale', ''),
+            requested_by=getattr(current_user, 'username', 'owner'),
+        )
+    except UnknownActionTypeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(created)
+
+@app.route('/api/actions/<action_id>/approve', methods=['POST'])
+@login_required
+def api_actions_approve(action_id):
+    try:
+        return jsonify(action_store.approve(action_id, decided_by=getattr(current_user, 'username', 'owner')))
+    except IllegalTransitionError as exc:
+        return jsonify({"error": str(exc)}), 409
+
+@app.route('/api/actions/<action_id>/reject', methods=['POST'])
+@login_required
+def api_actions_reject(action_id):
+    try:
+        return jsonify(action_store.reject(action_id, decided_by=getattr(current_user, 'username', 'owner')))
+    except IllegalTransitionError as exc:
+        return jsonify({"error": str(exc)}), 409
+
+@app.route('/api/actions/<action_id>/execute', methods=['POST'])
+@login_required
+def api_actions_execute(action_id):
+    try:
+        return jsonify(execute_approved_action(action_store, action_id, action_executors))
+    except IllegalTransitionError as exc:
+        return jsonify({"error": str(exc)}), 409
 
 @app.route('/api/account/bank-details', methods=['GET'])
 @login_required

@@ -190,3 +190,71 @@ def test_reconnect_requires_login():
     client = simplecrew.app.test_client()
     response = client.post("/api/account/crew/reconnect/start")
     assert response.status_code == 302
+
+
+@pytest.fixture
+def action_env(tmp_path, monkeypatch):
+    from crew.actions import ActionStore
+    from crew.executors import ExecutorSpec
+
+    store = ActionStore(db_path=str(tmp_path / "actions.db"), allowed_types=("move_money",))
+    calls = []
+
+    def fake_execute(params):
+        calls.append(params)
+        return {"success": True, "result": {"id": "tx-42"}}
+
+    monkeypatch.setattr(simplecrew, "action_store", store)
+    monkeypatch.setattr(
+        simplecrew,
+        "action_executors",
+        {"move_money": ExecutorSpec(execute=fake_execute, verifier=lambda p, r: {"ok": True})},
+    )
+    return store, calls
+
+
+def test_action_pipeline_full_lifecycle_over_http(authenticated_client, action_env):
+    store, calls = action_env
+
+    proposed = authenticated_client.post(
+        "/api/actions/propose",
+        json={"type": "move_money", "params": {"from_id": "a", "to_id": "b", "amount": 5}, "rationale": "test"},
+    )
+    assert proposed.status_code == 200
+    action_id = proposed.get_json()["id"]
+
+    approved = authenticated_client.post(f"/api/actions/{action_id}/approve")
+    assert approved.get_json()["state"] == "approved"
+
+    executed = authenticated_client.post(f"/api/actions/{action_id}/execute")
+    body = executed.get_json()
+    assert body["state"] == "verified"
+    assert body["verification"]["ok"] is True
+    assert calls == [{"from_id": "a", "to_id": "b", "amount": 5}]
+
+    pending = authenticated_client.get("/api/actions/pending")
+    assert pending.get_json()["actions"] == []
+
+
+def test_propose_unknown_type_is_400(authenticated_client):
+    response = authenticated_client.post(
+        "/api/actions/propose",
+        json={"type": "not_real", "params": {}},
+    )
+    assert response.status_code == 400
+
+
+def test_execute_without_approval_is_409(authenticated_client, action_env):
+    store, _ = action_env
+    created = store.propose("move_money", {}, "r", "owner")
+    response = authenticated_client.post(f"/api/actions/{created['id']}/execute")
+    assert response.status_code == 409
+
+
+def test_double_approve_conflict_409(authenticated_client, action_env):
+    store, _ = action_env
+    created = store.propose("move_money", {}, "r", "owner")
+    first = authenticated_client.post(f"/api/actions/{created['id']}/approve")
+    second = authenticated_client.post(f"/api/actions/{created['id']}/approve")
+    assert first.status_code == 200
+    assert second.status_code == 409
