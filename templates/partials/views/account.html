@@ -703,10 +703,8 @@ async function loadAutoPilotRules() {
             return;
         }
 
-        // Only show Round Up rules for now
-        const rules = (data.rules || []).filter(r =>
-            (r.actions || []).some(a => a.type === 'ROUND_UP_TRANSFER')
-        );
+        // Show all AutoPilot rules, sorted by priority (backend order)
+        const rules = data.rules || [];
 
         // Update badge
         if (badge) {
