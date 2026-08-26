@@ -38,6 +38,15 @@ Last consolidated: 2026-08-25 (Milestone 2 implementation)
 - Test suite on branch: 41 passing (renewal lifecycle 8, capturer 4, endpoints/UI regressions included). No test opens a browser or contacts Crew.
 - Pending manual gate: end-to-end renewal with real Crew login (requires Playwright install + invalid-token simulation).
 
+### Milestone 3 — Action pipeline foundation: IMPLEMENTED (branch `feat/action-pipeline`)
+
+- Design: `docs/designs/2026-08-25-action-pipeline.md`.
+- `crew/actions.py`: durable SQLite store; enforced one-way lifecycle `PROPOSED → APPROVED → EXECUTED → VERIFIED` (+ rejected/expired/failed); unknown types rejected at propose.
+- `crew/executors.py`: registry binding action type → vetted function adapter + verifier; failures normalized (`no_executor`, `executor_exception`, `action_failed`, `verification_failed`); `expire_stale_approvals` gives approvals a 1-hour execution window.
+- Flask: `/api/actions/pending|propose|<id>/approve|reject|execute`, login required, conflicts → 409.
+- UI: Pending Actions card (approve/reject). Execution is deliberately API-only for now: an approval opens a one-hour window during which an authorized runner may execute; nothing auto-executes.
+- Test suite on branch: 58 passing + 1 skip. No Crew contact.
+
 ### Review blockers from prior work — REPRODUCED AND REMEDIATED (merged PR #3)
 
 1. Truthy non-string transfer ID mistaken for confirmed success → reproduced by regression test; `move_money` now requires a non-empty string `result.id`.
@@ -49,8 +58,9 @@ The previously reported 103-test result belonged to unrecoverable local commit `
 
 ## Roadmap
 
-1. ~~Milestone 2 — automatic Crew credential renewal~~ (implemented, pending owner verification)
-2. **Milestone 3 — AI automation foundation**: natural-language money movement gated by preview → explicit approval → execute → verify; Base44/AI consumers use a deliberate application API and never receive Crew credentials directly.
+1. ~~Milestone 2 — automatic Crew credential renewal~~ (merged PR #4; owner E2E click-through still to be observed at a natural expiry)
+2. ~~Milestone 3a — action pipeline foundation~~ (implemented on `feat/action-pipeline`)
+3. **Milestone 3b — AI proposer**: natural-language/command layer that may only *propose* actions through the app API; approval stays human. Base44/AI consumers never receive Crew credentials.
 
 ## Current blockers
 
@@ -58,4 +68,4 @@ None.
 
 ## Next action
 
-Owner manual gate for Milestone 2: install Playwright helper, simulate an invalid token, complete one guided renewal against real Crew, confirm `healthy` — then merge and begin Milestone 3.
+Merge `feat/action-pipeline` after review; design the proposer interface (local command + later Base44) against the pipeline's propose-only boundary.
