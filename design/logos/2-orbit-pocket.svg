@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs><linearGradient id="g2" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#5E5CE6"/>
+  </linearGradient></defs>
+  <rect width="512" height="512" rx="120" fill="#0B1220"/>
+  <ellipse cx="256" cy="300" rx="170" ry="70" fill="none" stroke="url(#g2)" stroke-width="14" transform="rotate(-14 256 300)"/>
+  <path d="M156 260a100 88 0 0 1 200 0v66a24 24 0 0 1-24 24H180a24 24 0 0 1-24-24v-66z" fill="#fff"/>
+  <path d="M186 172h140l-28 44H214l-28-44z" fill="#fff" opacity=".85"/>
+  <circle cx="398" cy="212" r="34" fill="url(#g2)"/>
+  <text x="398" y="226" font-family="-apple-system,Arial" font-size="38" font-weight="800" text-anchor="middle" fill="#fff">$</text>
+</svg>

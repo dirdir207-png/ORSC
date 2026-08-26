@@ -1,6 +1,10 @@
 <nav class="top-nav">
     <div class="nav-left">
-        <div class="logo" onclick="switchTab('activity')" title="Home" style="cursor:pointer;"><img src="/static/images/logo.png" alt="SimpleCrew" class="theme-logo"></div>
+        <div class="logo" onclick="switchTab('activity')" title="Home" style="cursor:pointer;display:flex;align-items:center;gap:9px;">
+            <img src="/static/images/logo.png" alt="SimpleCrew" class="theme-logo">
+            <span class="brand-wordmark">SimpleCrew</span>
+        </div>
+        <span class="build-stamp" title="Deployed build">v12</span>
         <a onclick="switchTab('activity')" id="nav-activity" class="nav-link active">Activity</a>
         <a onclick="switchTab('expenses')" id="nav-expenses" class="nav-link">Bills &amp; Expenses</a>
         <a onclick="switchTab('goals')" id="nav-goals" class="nav-link">Pockets</a>
