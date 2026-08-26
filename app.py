@@ -32,7 +32,14 @@ from webauthn.helpers.structs import (
 from webauthn.helpers.cose import COSEAlgorithmIdentifier
 
 app = Flask(__name__)
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Never cache static files — forces browser/SW to always get fresh JS/CSS
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.after_request
+def _no_store_critical(response):
+    """HTML shell and service worker must never be HTTP-cached."""
+    if response.mimetype == 'text/html' or request.path.endswith('/sw.js'):
+        response.headers['Cache-Control'] = 'no-store, must-revalidate'
+    return response  # Never cache static files — forces browser/SW to always get fresh JS/CSS
 
 # --- CONFIGURATION ---
 URL = "https://api.trycrew.com/willow/graphql"

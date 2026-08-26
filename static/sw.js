@@ -1,4 +1,4 @@
-const CACHE_NAME = 'simple-finance-v11';
+const CACHE_NAME = 'simple-finance-v12';
 
 // Only pre-cache truly static assets (images, manifest) — NOT JS/CSS
 // JS and CSS are always fetched fresh from the network
