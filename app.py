@@ -781,6 +781,68 @@ def resolve_crew_target(name):
             return sub.get("id")
     return None
 
+# --- AI ADVISOR (Milestone 5): chat that can only propose ---
+from crew.advisor import (
+    AdvisorService,
+    AdvisorUnavailable,
+    FinancialContextBuilder,
+    OpenAICompatClient,
+    llm_configured,
+    llm_model,
+)
+
+def _financial_snapshot():
+    snap = {"safe_to_spend": None, "accounts": [], "pockets": []}
+    try:
+        fin = get_financial_data()
+        if isinstance(fin, dict) and "error" not in fin:
+            snap["safe_to_spend"] = fin.get("safe_to_spend")
+            checking = fin.get("checking")
+            if isinstance(checking, dict) and checking.get("id"):
+                snap["accounts"].append({
+                    "id": checking.get("id"),
+                    "name": checking.get("name", "Checking"),
+                    "balance": checking.get("balance"),
+                })
+    except Exception:
+        pass
+    try:
+        subs = get_subaccounts_list()
+        for s in ((subs or {}).get("subaccounts") or []):
+            snap["pockets"].append({"id": s.get("id"), "name": s.get("name"), "balance": s.get("balance")})
+    except Exception:
+        pass
+    return snap
+
+advisor_context_builder = FinancialContextBuilder(snapshot_fn=_financial_snapshot)
+advisor_service = AdvisorService(
+    llm_client=(OpenAICompatClient() if llm_configured() else None),
+    context_builder=advisor_context_builder,
+    store=action_store,
+    resolver=resolve_crew_target,
+)
+
+@app.route('/api/advisor/status')
+@login_required
+def api_advisor_status():
+    return jsonify({"configured": llm_configured(), "model": llm_model()})
+
+@app.route('/api/advisor/chat', methods=['POST'])
+@login_required
+def api_advisor_chat():
+    data = request.json or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({"error": "Message is required"}), 400
+    history = data.get('history') or []
+    if not isinstance(history, list):
+        history = []
+    try:
+        result = advisor_service.chat(message, history=history)
+    except AdvisorUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify(result)
+
 def get_lunchflow_api_key():
     """Get LunchFlow API key (database first, then env var fallback)"""
     conn = sqlite3.connect(DB_FILE)

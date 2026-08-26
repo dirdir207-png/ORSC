@@ -311,3 +311,52 @@ def test_local_proposer_unresolvable_name_is_400(authenticated_client, local_act
     )
     assert response.status_code == 400
     assert "nowhere" in response.get_json()["error"].lower()
+
+
+@pytest.fixture
+def advisor_env(monkeypatch):
+    class StubAdvisor:
+        def __init__(self):
+            self.calls = []
+
+        def chat(self, message, history=None):
+            self.calls.append(message)
+            return {
+                "reply": "Proposal ready for your review.",
+                "proposal": {"id": "abc123", "summary": "Move $10.00 from Checking → Rent", "state": "proposed"},
+            }
+
+    advisor = StubAdvisor()
+    monkeypatch.setattr(simplecrew, "advisor_service", advisor)
+    return advisor
+
+
+def test_advisor_chat_returns_reply_and_proposal(authenticated_client, advisor_env):
+    response = authenticated_client.post(
+        "/api/advisor/chat",
+        json={"message": "move ten bucks to rent", "history": []},
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["proposal"]["state"] == "proposed"
+    assert "token" not in str(payload).lower()
+    assert advisor_env.calls == ["move ten bucks to rent"]
+
+
+def test_advisor_requires_login():
+    client = simplecrew.app.test_client()
+    response = client.post("/api/advisor/chat", json={"message": "hi"})
+    assert response.status_code == 302
+
+
+def test_advisor_status_reports_configuration(authenticated_client, monkeypatch):
+    monkeypatch.setattr(simplecrew, "llm_configured", lambda: False)
+    response = authenticated_client.get("/api/advisor/status")
+    assert response.status_code == 200
+    assert response.get_json()["configured"] is False
+
+
+def test_advisor_unconfigured_chat_is_503(authenticated_client, monkeypatch):
+    monkeypatch.setattr(simplecrew, "llm_configured", lambda: False)
+    response = authenticated_client.post("/api/advisor/chat", json={"message": "hi"})
+    assert response.status_code == 503
