@@ -548,6 +548,23 @@ def evidence_content(evidence_id: str):
     )
 
 
+@meridian_api.get("/memory/<workspace>")
+@login_required
+@_safe_read
+def memory_workspace(workspace: str):
+    from meridian.services.memory import WORKSPACES, build_memory
+
+    if workspace not in WORKSPACES:
+        return _error(
+            "invalid_request",
+            f"Unknown memory workspace: {workspace}",
+            "Choose today, plan, activity, or accounts.",
+            404,
+        )
+    payload = build_memory(_repository().db_path, workspace)
+    return jsonify(payload)
+
+
 @meridian_api.post("/transactions/<transaction_id>/classification")
 @login_required
 @_safe_read
