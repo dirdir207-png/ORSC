@@ -18,4 +18,15 @@
     <div class="m-account-list" data-connections-list></div>
   </section>
   <p class="m-inline-error" data-accounts-error role="alert" hidden></p>
+
+  <section class="memory-management" aria-labelledby="memory-management-title">
+    <h2 id="memory-management-title">Assets &amp; Contracts</h2>
+    <div class="memory-management__actions">
+      <button type="button" data-testid="add-asset">Add asset</button>
+      <button type="button" data-testid="add-contract">Add contract</button>
+    </div>
+    <div data-memory-accounts></div>
+    <div data-testid="pending-memory-proposals" hidden></div>
+  </section>
 </div>
+<script type="module" src="/static/js/meridian/memory-manage.js"></script>

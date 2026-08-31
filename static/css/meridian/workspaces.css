@@ -653,3 +653,14 @@
     flex: 1;
   }
 }
+
+/* Task 26 memory regions */
+.memory-items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--m-space-2); }
+.memory-item { padding: var(--m-space-3); border: 1px solid var(--m-border); border-radius: var(--m-radius-md); }
+.memory-item--overdue { border-color: var(--m-risk); }
+.memory-item__why { margin: var(--m-space-1) 0; color: var(--m-ink-muted); }
+.memory-item__amount { font-weight: 600; }
+.memory-item__confidence { color: var(--m-ink-faint); font-size: 0.85em; }
+.memory-item__evidence { margin: var(--m-space-1) 0 0; padding-left: var(--m-space-3); }
+.memory-management__actions { display: flex; gap: var(--m-space-2); margin-bottom: var(--m-space-3); }
+.pending-memory-proposal { display: flex; gap: var(--m-space-2); align-items: center; padding: var(--m-space-2) 0; }

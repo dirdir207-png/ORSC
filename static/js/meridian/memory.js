@@ -1,16 +1,14 @@
 // meridian/memory.js - Frontend memory integration for all four workspaces
 // Renders memory items across Today, Plan, Activity, and Accounts
+//
+// Each workspace exposes a render hook element `[data-memory-<workspace>]`
+// (see the meridian partials). The memory endpoints (Task 3) return a
+// per-workspace contract: {"workspace", "items"} where each item uses the
+// Task 2 field contract (kind, title, why_it_matters, amount, confidence,
+// urgency, evidence[]).
 
 (function() {
     'use strict';
-
-    // Memory items use these fields:
-    //   - why_it_matters: required context for each memory item
-    //   - evidence_url: internal record id routed through /api/meridian/evidence/
-    //   - confidence: float 0-1 representing data quality
-    //   - is_overdue / is_upcoming: urgency flags
-    //   - required_approval: whether this action needs explicit owner approval
-    // Workspaces: today, plan, activity, accounts
 
     const Memory = {
         init() {
@@ -18,6 +16,14 @@
         },
 
         bindWorkspaceTriggers() {
+            // Listen for workspace changes (shell dispatches `meridian:workspacechange`);
+            // keep the legacy `workspace:changed` and `memory:refresh` events too.
+            document.addEventListener('meridian:workspacechange', (event) => {
+                if (event.detail && event.detail.workspace) {
+                    this.loadForWorkspace(event.detail.workspace);
+                }
+            });
+
             // Listen for workspace changes
             document.addEventListener('workspace:changed', (event) => {
                 if (event.detail && event.detail.workspace) {
@@ -32,10 +38,22 @@
                 }
             });
 
-            // Load for current workspace on init
+            // Load for current workspace on init: prefer an explicit
+            // [data-current-workspace] marker, else the ?workspace= URL param,
+            // else the first visible workspace section.
             const currentWorkspace = document.querySelector('[data-current-workspace]');
             if (currentWorkspace) {
                 this.loadForWorkspace(currentWorkspace.dataset.currentWorkspace);
+                return;
+            }
+            const fromUrl = new URLSearchParams(window.location.search).get('workspace');
+            if (fromUrl && document.querySelector(`[data-workspace="${fromUrl}"]`)) {
+                this.loadForWorkspace(fromUrl);
+                return;
+            }
+            const visible = document.querySelector('[data-workspace-section]:not([hidden])');
+            if (visible && visible.dataset.workspaceSection) {
+                this.loadForWorkspace(visible.dataset.workspaceSection);
             }
         },
 
@@ -62,155 +80,65 @@
         },
 
         render(workspace, data) {
-            const container = document.querySelector(`[data-workspace="${workspace}"] [data-memory-region]`);
+            const container = document.querySelector(`[data-workspace="${workspace}"] [data-memory-${workspace}]`);
             if (!container) return;
-
-            if (!data || !data.categories || data.categories.length === 0) {
+            if (!data || !data.items || data.items.length === 0) {
                 this.renderEmpty(workspace, container);
                 return;
             }
-
             container.innerHTML = '';
-            container.dataset.memoryState = 'populated';
-
-            data.categories.forEach(category => {
-                const categoryEl = this.renderCategory(category);
-                container.appendChild(categoryEl);
-            });
-        },
-
-        renderCategory(category) {
-            const section = document.createElement('section');
-            section.className = 'memory-category';
-            section.dataset.memoryKind = category.kind;
-
-            const header = document.createElement('header');
-            header.className = 'memory-category-header';
-
-            const title = document.createElement('h3');
-            title.className = 'memory-category-title';
-            title.textContent = category.title;
-
-            const count = document.createElement('span');
-            count.className = 'memory-category-count';
-            count.textContent = category.count;
-            count.setAttribute('aria-label', `${category.count} items`);
-
-            header.appendChild(title);
-            header.appendChild(count);
-            section.appendChild(header);
-
             const list = document.createElement('ul');
-            list.className = 'memory-category-list';
-            list.setAttribute('role', 'list');
-
-            category.items.forEach(item => {
-                const itemEl = this.renderItem(item);
-                list.appendChild(itemEl);
-            });
-
-            section.appendChild(list);
-            return section;
+            list.className = 'memory-items';
+            list.setAttribute('aria-label', `${workspace} memory items`);
+            data.items.forEach(item => list.appendChild(this.renderItem(workspace, item)));
+            container.appendChild(list);
         },
 
-        renderItem(item) {
+        renderItem(workspace, item) {
             const li = document.createElement('li');
-            li.className = 'memory-item';
-            li.dataset.memoryItemId = item.public_id;
-            li.dataset.memoryKind = item.kind;
+            li.className = `memory-item memory-item--${item.urgency || 'scheduled'}`;
+            li.setAttribute('data-memory-kind', item.kind);
 
-            if (item.is_overdue) {
-                li.classList.add('memory-item--overdue');
-            } else if (item.is_upcoming) {
-                li.classList.add('memory-item--upcoming');
+            const title = document.createElement('strong');
+            title.textContent = item.title || item.kind;
+            li.appendChild(title);
+
+            if (item.why_it_matters) {
+                const why = document.createElement('p');
+                why.className = 'memory-item__why';
+                why.textContent = item.why_it_matters;
+                li.appendChild(why);
             }
-
-            if (item.required_approval) {
-                li.classList.add('memory-item--requires-approval');
+            if (item.amount !== null && item.amount !== undefined) {
+                const amount = document.createElement('span');
+                amount.className = 'memory-item__amount';
+                amount.textContent = new Intl.NumberFormat('en-US', {
+                    style: 'currency', currency: 'USD',
+                }).format(item.amount);
+                li.appendChild(amount);
             }
-
-            const main = document.createElement('div');
-            main.className = 'memory-item-main';
-
-            const titleEl = document.createElement('h4');
-            titleEl.className = 'memory-item-title';
-            titleEl.textContent = item.title;
-            main.appendChild(titleEl);
-
-            const descEl = document.createElement('p');
-            descEl.className = 'memory-item-description';
-            descEl.textContent = item.description;
-            main.appendChild(descEl);
-
-            li.appendChild(main);
-
-            const meta = document.createElement('div');
-            meta.className = 'memory-item-meta';
-
-            if (item.due_date) {
-                const dueEl = document.createElement('span');
-                dueEl.className = 'memory-item-due';
-                const dueText = this.formatDueDate(item.due_date);
-                dueEl.textContent = dueText;
-                if (item.is_overdue) {
-                    dueEl.setAttribute('aria-label', `Overdue, was due ${dueText}`);
-                } else if (item.is_upcoming) {
-                    dueEl.setAttribute('aria-label', `Due soon, ${dueText}`);
-                }
-                meta.appendChild(dueEl);
+            if (item.confidence !== null && item.confidence !== undefined) {
+                const confidence = document.createElement('span');
+                confidence.className = 'memory-item__confidence';
+                confidence.textContent = `${Math.round(item.confidence * 100)}% confidence`;
+                li.appendChild(confidence);
             }
-
-            const confidenceEl = document.createElement('span');
-            confidenceEl.className = 'memory-item-confidence';
-            confidenceEl.textContent = `${Math.round(item.confidence * 100)}%`;
-            confidenceEl.setAttribute('aria-label', `Confidence ${Math.round(item.confidence * 100)} percent`);
-            meta.appendChild(confidenceEl);
-
-            li.appendChild(meta);
-
-            if (item.next_action) {
-                const actionEl = document.createElement('div');
-                actionEl.className = 'memory-item-action';
-                actionEl.textContent = item.next_action;
-                li.appendChild(actionEl);
+            if (Array.isArray(item.evidence) && item.evidence.length > 0) {
+                const links = document.createElement('ul');
+                links.className = 'memory-item__evidence';
+                item.evidence.forEach(entry => {
+                    const link = document.createElement('li');
+                    const anchor = document.createElement('a');
+                    anchor.href = `/api/meridian/evidence/${entry.id}/content`;
+                    anchor.textContent = entry.span || 'evidence';
+                    anchor.setAttribute('target', '_blank');
+                    anchor.setAttribute('rel', 'noopener');
+                    link.appendChild(anchor);
+                    links.appendChild(link);
+                });
+                li.appendChild(links);
             }
-
-            if (item.evidence_url) {
-                const evidenceEl = document.createElement('a');
-                evidenceEl.className = 'memory-item-evidence';
-                evidenceEl.href = `/api/meridian/evidence/${item.evidence_url}/content`;
-                evidenceEl.textContent = 'View source';
-                evidenceEl.setAttribute('aria-label', `View source for ${item.title}`);
-                li.appendChild(evidenceEl);
-            }
-
             return li;
-        },
-
-        formatDueDate(dueDate) {
-            if (!dueDate) return '';
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const due = new Date(dueDate);
-            due.setHours(0, 0, 0, 0);
-
-            const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
-
-            if (diffDays < 0) {
-                return `${Math.abs(diffDays)}d overdue`;
-            } else if (diffDays === 0) {
-                return 'Today';
-            } else if (diffDays === 1) {
-                return 'Tomorrow';
-            } else if (diffDays < 7) {
-                return `In ${diffDays}d`;
-            } else if (diffDays < 30) {
-                const weeks = Math.round(diffDays / 7);
-                return `In ${weeks}w`;
-            } else {
-                const months = Math.round(diffDays / 30);
-                return `In ${months}mo`;
-            }
         },
 
         renderEmpty(workspace, container) {
@@ -245,7 +173,7 @@
         },
 
         renderError(workspace, message) {
-            const container = document.querySelector(`[data-workspace="${workspace}"] [data-memory-region]`);
+            const container = document.querySelector(`[data-workspace="${workspace}"] [data-memory-${workspace}]`);
             if (!container) return;
 
             container.innerHTML = '';
