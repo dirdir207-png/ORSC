@@ -2,25 +2,32 @@ from datetime import date
 
 from meridian.assets import Asset, AssetRepository
 from meridian.contracts import Contract, ContractRepository
+from meridian.evidence import EvidenceRepository
 from meridian.services.memory import build_memory
 
 
 def _seed(db_path):
+    evidence = EvidenceRepository(db_path)
+    receipt = evidence.add_item(
+        source_kind="manual", source_id="seed-receipt", content_hash="a" * 64,
+        mime_type="text/plain", size_bytes=14, title="receipt",
+    )
     assets = AssetRepository(db_path)
     saved_asset = assets.save_asset(Asset(
         id=None, name="Laptop", category="electronics", purchased_on="2026-08-01",
         purchase_price=1500, return_until="2026-08-31", maintenance_interval_days=180,
-        replacement_reserve=1200, evidence_id=9, evidence_span="receipt", confidence=0.98,
+        replacement_reserve=1200, evidence_id=receipt.id, evidence_span="receipt",
+        confidence=0.98,
     ))
     assets.save_warranty(_warranty(saved_asset.id))
     contracts = ContractRepository(db_path)
     contracts.save_contract(Contract(
         id=None, kind="insurance", name="Home policy", starts_on="2026-01-01",
         ends_on="2026-12-31", renews_on="2027-01-01", cancel_by="2026-11-30",
-        escalation_percent=None, deductible=1000, evidence_id=10,
+        escalation_percent=None, deductible=1000, evidence_id=None,
         evidence_span="declarations", confidence=0.96,
     ))
-    return saved_asset
+    return saved_asset, receipt
 
 
 def _warranty(asset_id):
@@ -40,7 +47,8 @@ def test_today_memory_orders_by_urgency_and_carries_evidence(tmp_path):
     assert kinds[0] == "return_deadline"  # overdue first
     first = result["items"][0]
     assert first["why_it_matters"]
-    assert first["evidence"] == [{"id": 9, "span": "receipt", "confidence": 0.98}]
+    assert first["evidence"][0]["span"] == "receipt"
+    assert first["evidence"][0]["confidence"] == 0.98
     assert all("reference_transaction_id" in item for item in result["items"])
 
 

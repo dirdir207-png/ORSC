@@ -8,13 +8,15 @@ from meridian.evidence import EvidenceRepository
 WORKSPACES = ("today", "plan", "activity", "accounts")
 
 
-def _evidence_entries(db_path: str, evidence_id: int | None, span: str | None) -> list[Dict[str, Any]]:
+def _evidence_entries(
+    db_path: str, evidence_id: int | None, span: str | None, confidence: float | None
+) -> list[Dict[str, Any]]:
     if evidence_id is None:
         return []
     item = EvidenceRepository(db_path).get_item(evidence_id)
     if item is None:
         return []
-    return [{"id": item.id, "span": span or item.title or "record", "confidence": None}]
+    return [{"id": item.id, "span": span or item.title or "record", "confidence": confidence}]
 
 
 def _urgency(due_on: str | None, as_of: date) -> str | None:
@@ -55,7 +57,7 @@ def _base_item(event: Any, db_path: str, as_of: date) -> Dict[str, Any]:
         "confidence": event.confidence,
         "urgency": _urgency(event.due_on, as_of),
         "why_it_matters": _why_it_matters(event) if event.due_on else None,
-        "evidence": _evidence_entries(db_path, event.evidence_id, None),
+        "evidence": _evidence_entries(db_path, event.evidence_id, None, event.confidence),
         "reference_transaction_id": None,
         "escalation_percent": None,
     }
@@ -102,7 +104,7 @@ def _compose_accounts(
             "confidence": asset.confidence,
             "urgency": None,
             "why_it_matters": None,
-            "evidence": _evidence_entries(db_path, asset.evidence_id, asset.evidence_span),
+            "evidence": _evidence_entries(db_path, asset.evidence_id, asset.evidence_span, asset.confidence),
             "reference_transaction_id": None,
             "escalation_percent": None,
             "category": asset.category,
@@ -114,7 +116,7 @@ def _compose_accounts(
                 {
                     "id": w.id, "provider": w.provider, "expires_on": w.expires_on,
                     "deductible": w.deductible, "confidence": w.confidence,
-                    "evidence": _evidence_entries(db_path, w.evidence_id, w.evidence_span),
+                    "evidence": _evidence_entries(db_path, w.evidence_id, w.evidence_span, w.confidence),
                 }
                 for w in warranties if w.asset_id == asset.id
             ],
@@ -129,7 +131,7 @@ def _compose_accounts(
             "confidence": contract.confidence,
             "urgency": None,
             "why_it_matters": None,
-            "evidence": _evidence_entries(db_path, contract.evidence_id, contract.evidence_span),
+            "evidence": _evidence_entries(db_path, contract.evidence_id, contract.evidence_span, contract.confidence),
             "reference_transaction_id": None,
             "escalation_percent": contract.escalation_percent,
             "contract_kind": contract.kind,
@@ -142,7 +144,7 @@ def _compose_accounts(
                 {
                     "id": o.id, "name": o.name, "amount": o.amount, "due_on": o.due_on,
                     "recurrence": o.recurrence, "confidence": o.confidence,
-                    "evidence": _evidence_entries(db_path, o.evidence_id, o.evidence_span),
+                    "evidence": _evidence_entries(db_path, o.evidence_id, o.evidence_span, o.confidence),
                 }
                 for o in obligations if o.contract_id == contract.id
             ],
