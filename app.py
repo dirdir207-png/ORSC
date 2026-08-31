@@ -949,6 +949,14 @@ for _kind, (_execute, _verify) in {
 }.items():
     action_executors[_kind] = ExecutorSpec(execute=_execute, verifier=_verify)
 
+
+def _meridian_memory_proposal_sink(action_type, params):
+    summary = f"Meridian {action_type}: {params.get('name') or params.get('record_id')}"
+    return action_store.propose(action_type, params, summary, requested_by="meridian-owner")
+
+
+app.config["MERIDIAN_PROPOSAL_SINK_FACTORY"] = lambda: _meridian_memory_proposal_sink
+
 def resolve_crew_target(name):
     """Resolve an account/pocket display name to its Crew id (local proposers)."""
     wanted = (name or "").strip().lower()

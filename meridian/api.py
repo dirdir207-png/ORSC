@@ -565,6 +565,93 @@ def memory_workspace(workspace: str):
     return jsonify(payload)
 
 
+def _proposal_sink():
+    factory = current_app.config.get("MERIDIAN_PROPOSAL_SINK_FACTORY")
+    if factory is None:
+        return None
+    return factory()
+
+
+def _management_payload(action_type: str, params: dict):
+    sink = _proposal_sink()
+    if sink is None:
+        return _error(
+            "management_unavailable",
+            "Action proposals are not configured.",
+            "Start the application with the action pipeline enabled.",
+            503,
+        )
+    try:
+        proposal = sink(action_type, params)
+    except ValueError as error:
+        return _error("invalid_request", str(error), "Review the record and try again.", 400)
+    return jsonify({"proposal": {"id": proposal["id"], "state": proposal["state"]}}), 202
+
+
+@meridian_api.post("/assets")
+@login_required
+@_safe_read
+def create_asset_proposal():
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("name") or not payload.get("category"):
+        return _error("invalid_request", "name and category are required.",
+                      "Provide both and try again.", 400)
+    return _management_payload("create_asset", payload)
+
+
+@meridian_api.patch("/assets/<asset_id>")
+@login_required
+@_safe_read
+def update_asset_proposal(asset_id: str):
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("name") or not payload.get("category"):
+        return _error("invalid_request", "name and category are required.",
+                      "Provide both and try again.", 400)
+    payload["record_id"] = _positive_int(asset_id)
+    return _management_payload("update_asset", payload)
+
+
+@meridian_api.delete("/assets/<asset_id>")
+@login_required
+@_safe_read
+def delete_asset_proposal(asset_id: str):
+    payload = request.get_json(silent=True) or {}
+    payload["record_id"] = _positive_int(asset_id)
+    return _management_payload("delete_asset", payload)
+
+
+@meridian_api.post("/contracts")
+@login_required
+@_safe_read
+def create_contract_proposal():
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("name") or not payload.get("kind"):
+        return _error("invalid_request", "name and kind are required.",
+                      "Provide both and try again.", 400)
+    return _management_payload("create_contract", payload)
+
+
+@meridian_api.patch("/contracts/<contract_id>")
+@login_required
+@_safe_read
+def update_contract_proposal(contract_id: str):
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("name") or not payload.get("kind"):
+        return _error("invalid_request", "name and kind are required.",
+                      "Provide both and try again.", 400)
+    payload["record_id"] = _positive_int(contract_id)
+    return _management_payload("update_contract", payload)
+
+
+@meridian_api.delete("/contracts/<contract_id>")
+@login_required
+@_safe_read
+def delete_contract_proposal(contract_id: str):
+    payload = request.get_json(silent=True) or {}
+    payload["record_id"] = _positive_int(contract_id)
+    return _management_payload("delete_contract", payload)
+
+
 @meridian_api.post("/transactions/<transaction_id>/classification")
 @login_required
 @_safe_read
