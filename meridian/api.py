@@ -604,9 +604,6 @@ def create_asset_proposal():
 @_safe_read
 def update_asset_proposal(asset_id: str):
     payload = request.get_json(silent=True) or {}
-    if not payload.get("name") or not payload.get("category"):
-        return _error("invalid_request", "name and category are required.",
-                      "Provide both and try again.", 400)
     try:
         payload["record_id"] = _positive_int(asset_id)
     except ValueError:
@@ -644,9 +641,6 @@ def create_contract_proposal():
 @_safe_read
 def update_contract_proposal(contract_id: str):
     payload = request.get_json(silent=True) or {}
-    if not payload.get("name") or not payload.get("kind"):
-        return _error("invalid_request", "name and kind are required.",
-                      "Provide both and try again.", 400)
     try:
         payload["record_id"] = _positive_int(contract_id)
     except ValueError:

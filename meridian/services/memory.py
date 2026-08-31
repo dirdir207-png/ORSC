@@ -41,20 +41,20 @@ def _urgency(due_on: str | None, as_of: date) -> str | None:
 
 def _why_it_matters(event: Any) -> str:
     why = {
-        "return_deadline": lambda: f"Return window closes; refund of ${event.amount:.2f} at risk",
+        "return_deadline": lambda: f"Return window closes; refund of ${event.amount or 0:.2f} at risk",
         "maintenance_due": lambda: "Scheduled maintenance to preserve asset value and warranty",
-        "replacement_reserve": lambda: f"${event.amount:.2f} reserve needed for future replacement",
-        "warranty_expiration": lambda: f"Warranty expires; ${event.amount:.2f} deductible applies if claim needed",
-        "obligation_due": lambda: f"${event.amount:.2f} payment due under contract",
+        "replacement_reserve": lambda: f"${event.amount or 0:.2f} reserve needed for future replacement",
+        "warranty_expiration": lambda: f"Warranty expires; ${event.amount or 0:.2f} deductible applies if claim needed",
+        "obligation_due": lambda: f"${event.amount or 0:.2f} payment due under contract",
         "cancellation_deadline": lambda: "Must cancel by this date to avoid auto-renewal charges",
         "renewal": lambda: "Contract renews; review terms and pricing before commitment",
-        "escalation_review": lambda: f"{event.amount:.1f}% escalation clause triggers at renewal",
+        "escalation_review": lambda: f"{event.amount or 0:.1f}% escalation clause triggers at renewal",
     }.get(event.kind)
     return why() if why else "Requires attention"
 
 
 def _base_item(event: Any, db_path: str, as_of: date) -> Dict[str, Any]:
-    return {
+    item = {
         "id": f"{event.title.lower().replace(' ', '-')}:{event.kind}",
         "kind": event.kind,
         "title": event.title,
@@ -67,6 +67,12 @@ def _base_item(event: Any, db_path: str, as_of: date) -> Dict[str, Any]:
         "reference_transaction_id": None,
         "escalation_percent": None,
     }
+    if event.kind == "escalation_review":
+        # The escalation event carries a percent in `amount`; surface it in the
+        # dedicated field and keep `amount` a money figure (always null here).
+        item["escalation_percent"] = item["amount"]
+        item["amount"] = None
+    return item
 
 
 def _compose_today(events: List[Any], db_path: str, as_of: date) -> List[Dict[str, Any]]:
