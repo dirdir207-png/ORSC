@@ -147,6 +147,14 @@ class EvidenceRepository:
             ).fetchall()
         return [EvidenceLink(**dict(row)) for row in rows]
 
+    def remove_links_for_target(self, target_kind: str, target_id: str) -> int:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM evidence_links WHERE target_kind=? AND target_id=?",
+                (target_kind, target_id),
+            )
+        return cursor.rowcount
+
     def revoke_source(self, source_kind: str, source_id: str) -> int:
         timestamp = _now()
         with self._connect() as connection:

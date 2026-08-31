@@ -152,6 +152,75 @@ class ContractRepository:
             rows = connection.execute(query, parameters).fetchall()
         return [self._record(row, Obligation) for row in rows]
 
+    def get_contract(self, contract_id: int) -> Contract | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM contracts WHERE id=?", (contract_id,)
+            ).fetchone()
+        return self._record(row, Contract) if row is not None else None
+
+    def update_contract(self, contract: Contract) -> Contract:
+        if contract.id is None:
+            raise ValueError("contract id is required for update")
+        timestamp = _now()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE contracts SET
+                       kind=?, name=?, starts_on=?, ends_on=?, renews_on=?, cancel_by=?,
+                       escalation_percent=?, deductible=?, evidence_id=?, evidence_span=?,
+                       confidence=?, updated_at=?
+                   WHERE id=?""",
+                (
+                    contract.kind, contract.name, contract.starts_on, contract.ends_on,
+                    contract.renews_on, contract.cancel_by, contract.escalation_percent,
+                    contract.deductible, contract.evidence_id, contract.evidence_span,
+                    contract.confidence, timestamp, contract.id,
+                ),
+            )
+            if cursor.rowcount == 0:
+                raise ValueError("contract not found")
+            row = connection.execute(
+                "SELECT * FROM contracts WHERE id=?", (contract.id,)
+            ).fetchone()
+        return self._record(row, Contract)
+
+    def delete_contract(self, contract_id: int) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "DELETE FROM contracts WHERE id=?", (contract_id,)
+            )
+
+    def replace_obligations(
+        self, contract_id: int, obligations: list[Obligation]
+    ) -> list[Obligation]:
+        timestamp = _now()
+        with self._connect() as connection:
+            connection.execute(
+                "DELETE FROM obligations WHERE contract_id=?", (contract_id,)
+            )
+            stored = []
+            for obligation in obligations:
+                cursor = connection.execute(
+                    """INSERT INTO obligations(
+                           contract_id, name, amount, due_on, recurrence, commitment_id,
+                           evidence_id, evidence_span, confidence, created_at, updated_at
+                       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        contract_id, obligation.name, obligation.amount, obligation.due_on,
+                        obligation.recurrence, obligation.commitment_id,
+                        obligation.evidence_id, obligation.evidence_span,
+                        obligation.confidence, timestamp, timestamp,
+                    ),
+                )
+                row = connection.execute(
+                    "SELECT * FROM obligations WHERE id=?", (cursor.lastrowid,)
+                ).fetchone()
+                values = dict(row)
+                values.pop("created_at")
+                values.pop("updated_at")
+                stored.append(Obligation(**values))
+        return stored
+
 
 def contract_events(
     contract: Contract, obligations: list[Obligation], *, as_of: date

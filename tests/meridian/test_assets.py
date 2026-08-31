@@ -69,3 +69,60 @@ def test_source_document_correction_is_audited_and_proposed_not_applied(tmp_path
     assert proposal.requires_approval is True
     assert repository.get_asset(asset.id).purchase_price == 900
     assert repository.list_corrections(asset.id)[0] == proposal
+
+
+def test_update_asset_persists_changed_fields(tmp_path):
+    repo = AssetRepository(str(tmp_path / "a.db"))
+    saved = repo.save_asset(Asset(
+        id=None, name="Laptop", category="electronics",
+        purchased_on=None, purchase_price=1500.0, return_until=None,
+        maintenance_interval_days=None, replacement_reserve=1200.0,
+        evidence_id=None, evidence_span="receipt", confidence=0.98,
+    ))
+    updated = repo.update_asset(Asset(
+        id=saved.id, name="Laptop", category="electronics",
+        purchased_on=None, purchase_price=1400.0, return_until=None,
+        maintenance_interval_days=180, replacement_reserve=1000.0,
+        evidence_id=None, evidence_span="receipt", confidence=1.0,
+    ))
+    assert updated.id == saved.id
+    assert updated.purchase_price == 1400.0
+    assert repo.get_asset(saved.id).maintenance_interval_days == 180
+
+
+def test_delete_asset_cascades_warranties(tmp_path):
+    db = str(tmp_path / "a.db")
+    repo = AssetRepository(db)
+    saved = repo.save_asset(Asset(
+        id=None, name="Bike", category="sport", purchased_on=None,
+        purchase_price=800.0, return_until=None, maintenance_interval_days=None,
+        replacement_reserve=None, evidence_id=None, evidence_span="owner", confidence=1.0,
+    ))
+    repo.save_warranty(Warranty(
+        id=None, asset_id=saved.id, provider="VendorCo",
+        expires_on="2027-01-01", deductible=100.0,
+        evidence_id=None, evidence_span="owner", confidence=1.0,
+    ))
+    repo.delete_asset(saved.id)
+    assert repo.get_asset(saved.id) is None
+    assert repo.list_warranties(saved.id) == []
+
+
+def test_replace_warranties_replaces_stale(tmp_path):
+    db = str(tmp_path / "a.db")
+    repo = AssetRepository(db)
+    asset = repo.save_asset(Asset(
+        id=None, name="Phone", category="electronics", purchased_on=None,
+        purchase_price=900.0, return_until=None, maintenance_interval_days=None,
+        replacement_reserve=None, evidence_id=None, evidence_span="owner", confidence=1.0,
+    ))
+    old = repo.save_warranty(Warranty(
+        id=None, asset_id=asset.id, provider="OldCo", expires_on="2026-09-01",
+        deductible=50.0, evidence_id=None, evidence_span="owner", confidence=1.0,
+    ))
+    result = repo.replace_warranties(asset.id, [
+        Warranty(id=None, asset_id=asset.id, provider="NewCo", expires_on="2027-09-01",
+                 deductible=75.0, evidence_id=None, evidence_span="owner", confidence=1.0),
+    ])
+    assert len(result) == 1 and result[0].provider == "NewCo"
+    assert all(w.id != old.id for w in repo.list_warranties(asset.id))

@@ -75,3 +75,19 @@ def test_retention_deletes_blob_but_preserves_audit_and_financial_records(tmp_pa
     assert audit_item is not None
     assert audit_item.content_deleted_at is not None
     assert graph.list_accounts() == [account]
+
+
+def test_remove_links_for_target_keeps_items(tmp_path):
+    db = str(tmp_path / "e.db")
+    repo = EvidenceRepository(db)
+    item = repo.add_item(source_kind="manual", source_id="seed-1",
+                         content_hash="a" * 64, mime_type="text/plain", size_bytes=3)
+    repo.add_link(evidence_id=item.id, target_kind="asset", target_id="7",
+                  relation="supports", provenance="owner")
+    repo.add_link(evidence_id=item.id, target_kind="asset", target_id="8",
+                  relation="supports", provenance="owner")
+    removed = repo.remove_links_for_target("asset", "7")
+    assert removed == 1
+    assert repo.list_links_for_target("asset", "7") == []
+    assert len(repo.list_links_for_target("asset", "8")) == 1
+    assert repo.get_item(item.id) is not None  # item untouched

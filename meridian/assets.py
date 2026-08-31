@@ -197,6 +197,65 @@ class AssetRepository:
             ).fetchall()
         return [CorrectionProposal(**dict(row)) for row in rows]
 
+    def update_asset(self, asset: Asset) -> Asset:
+        if asset.id is None:
+            raise ValueError("asset id is required for update")
+        timestamp = _now()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE assets SET
+                       name=?, category=?, purchased_on=?, purchase_price=?,
+                       return_until=?, maintenance_interval_days=?, replacement_reserve=?,
+                       evidence_id=?, evidence_span=?, confidence=?, updated_at=?
+                   WHERE id=?""",
+                (
+                    asset.name, asset.category, asset.purchased_on, asset.purchase_price,
+                    asset.return_until, asset.maintenance_interval_days,
+                    asset.replacement_reserve, asset.evidence_id, asset.evidence_span,
+                    asset.confidence, timestamp, asset.id,
+                ),
+            )
+            if cursor.rowcount == 0:
+                raise ValueError("asset not found")
+            row = connection.execute(
+                "SELECT * FROM assets WHERE id=?", (asset.id,)
+            ).fetchone()
+        return self._asset(row)
+
+    def delete_asset(self, asset_id: int) -> None:
+        with self._connect() as connection:
+            connection.execute("DELETE FROM assets WHERE id=?", (asset_id,))
+
+    def replace_warranties(
+        self, asset_id: int, warranties: list[Warranty]
+    ) -> list[Warranty]:
+        timestamp = _now()
+        with self._connect() as connection:
+            connection.execute(
+                "DELETE FROM warranties WHERE asset_id=?", (asset_id,)
+            )
+            stored = []
+            for warranty in warranties:
+                cursor = connection.execute(
+                    """INSERT INTO warranties(
+                           asset_id, provider, expires_on, deductible, evidence_id,
+                           evidence_span, confidence, created_at, updated_at
+                       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        asset_id, warranty.provider, warranty.expires_on,
+                        warranty.deductible, warranty.evidence_id,
+                        warranty.evidence_span, warranty.confidence, timestamp, timestamp,
+                    ),
+                )
+                row = connection.execute(
+                    "SELECT * FROM warranties WHERE id=?", (cursor.lastrowid,)
+                ).fetchone()
+                values = dict(row)
+                values.pop("created_at")
+                values.pop("updated_at")
+                stored.append(Warranty(**values))
+        return stored
+
 
 def asset_events(
     asset: Asset, warranties: list[Warranty], *, as_of: date
