@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict
 
-from meridian.assets import Asset, AssetRepository, Warranty
-from meridian.contracts import Contract, ContractRepository, Obligation
+from meridian.assets import Asset, AssetRepository
+from meridian.contracts import Contract, ContractRepository
 from meridian.evidence import EvidenceRepository
 
 MEMORY_ACTION_TYPES = (

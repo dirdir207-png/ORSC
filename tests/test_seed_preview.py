@@ -1,6 +1,5 @@
 def test_seed_creates_assets_contracts_and_evidence(tmp_path, monkeypatch):
     import importlib
-    import os
 
     db_path = str(tmp_path / "preview.db")
     monkeypatch.setenv("DB_FILE", db_path)

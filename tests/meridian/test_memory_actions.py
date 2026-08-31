@@ -1,7 +1,11 @@
 from crew.actions import ActionStore
 from crew.executors import ExecutorSpec, execute_approved_action
 from meridian.evidence import EvidenceRepository
-from meridian.memory_actions import MEMORY_ACTION_TYPES, asset_executors, contract_executors
+from meridian.memory_actions import (
+    MEMORY_ACTION_TYPES,
+    asset_executors,
+    contract_executors,
+)
 
 
 def _store_and_executors(db_path):

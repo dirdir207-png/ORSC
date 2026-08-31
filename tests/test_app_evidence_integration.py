@@ -11,7 +11,7 @@ def app(tmp_path, monkeypatch):
     app_module.init_db()
     app_module.app.secret_key = "0123456789abcdef0123456789abcdef"
     from meridian.evidence import EvidenceRepository
-    from meridian.storage import EncryptedBlobStore, DerivedKeyProvider
+    from meridian.storage import DerivedKeyProvider, EncryptedBlobStore
 
     root = os.path.join(tmp_path, "evidence")
     store = EncryptedBlobStore(root, DerivedKeyProvider(app_module.app.secret_key.encode()))

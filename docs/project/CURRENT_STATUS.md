@@ -76,20 +76,36 @@ Tasks 9–12 fully implemented, tested, and pushed to `feat/meridian-implementat
 
 - Task 24 is consolidated in the ORSC `feat/meridian-implementation` branch.
 
-### Slice 7 — Asset and Contract Memory: IN PROGRESS
+### Slice 7 — Asset and Contract Memory: COMPLETE (Task 26 done in current branch)
 
 - Task 25 is consolidated in the ORSC `feat/meridian-implementation` branch.
-- Task 26 has untracked RED test scaffolding but no memory service or frontend implementation yet.
+- Task 26 (evidence memory across workspaces + asset/contract management) is complete in
+  `feat/meridian-implementation` per `docs/superpowers/specs/2026-08-31-task26-evidence-memory-design.md`
+  and `docs/superpowers/plans/2026-08-31-task26-evidence-memory.md`:
+  - Four memory endpoints: `GET /api/meridian/memory/{today|plan|activity|accounts}`.
+  - Six pipeline action types: `create/update/delete_asset`, `create/update/delete_contract`
+    (propose→approve→execute; executors/verifiers in `meridian/memory_actions.py`).
+  - Management proposal API: `POST/PATCH/DELETE /api/meridian/assets` and `/contracts`.
+  - Evidence content resolves end-to-end (`MERIDIAN_EVIDENCE_BLOB_STORE_FACTORY` configured;
+    `DerivedKeyProvider` in `meridian/storage.py`).
+  - Frontend: per-workspace memory regions, Assets & Contracts management UI, pending
+    memory-proposal approval rendering.
 
 > Historical per-task commit SHAs (`726e00e`…`a092c4a`) were local-only and never
 > existed on GitHub; this build tracks the ORSC branch tip instead.
-- Task 26 has untracked RED test scaffolding but no memory service or frontend implementation yet.
 
 ## Current test suite
 
-- The repository currently contains 365 Python test functions, including untracked Task 26 tests.
-- Historical Slice 2 evidence remains 259 unit tests plus 28 browser skips with Ruff and Docker gates passing.
-- A fresh full-suite, Ruff, browser, audit, and Docker release gate is required before reporting current pass counts.
+- Fresh gate run on `feat/meridian-implementation` (2026-08-31):
+  - Ruff clean (`ruff check app.py crew meridian tests` — 6 import-sort fixes applied).
+  - Full unit suite: **445 passed, 44 skipped**.
+  - Browser suite (preview app, Playwright): **41 passed** including the two Task 26
+    browser tests; **9 pre-existing failures** in `test_accounts.py`,
+    `test_contextual_advisor.py`, `test_responsive_parity.py`, `test_transaction_review.py`
+    — verified to reproduce identically against the pre-Task-26 base commit
+    (`acdaeec`), i.e. unrelated to Task 26.
+  - `pip-audit -r requirements.txt` and `docker build -t meridian:task26 .` — see gate log.
+- Historical Slice 2 evidence (259 tests + 28 browser skips) remains superseded by the fresh counts above.
 
 ## Current blockers
 
@@ -112,10 +128,9 @@ A corrected handoff document has been created at `docs/project/CODEX_CLI_HANDOFF
 
 ## Next action
 
-Launch the Codex CLI coding task using the handoff document. The task should:
-1. Read `docs/project/CODEX_CLI_HANDOFF.md`
-2. Complete Task 26 following TDD
-3. Run the final release gate and reconcile documentation from actual evidence
-4. Stop before browser login / live acceptance
+- Task 26 is complete in `feat/meridian-implementation`; the branch is pushed to
+  `dirdir207-png/ORSC`. No merge to `main` (separate build by design).
+- Pending tracks (unchanged): Meridian visual recovery (its own plan, 0/47 boxes),
+  Payday & Funding plan (2026-08-31), Connected Billers (future program).
 
 Remaining gate (desktop / owner): start the Mac broker and an isolated Docker deployment, complete one interactive Crew login, confirm `healthy`, and run read-only sync while verifying no secret leakage.
