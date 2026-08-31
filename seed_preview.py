@@ -2,15 +2,23 @@
 
 import os
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 DB = os.environ.get("DB_FILE", "savings_data.db")
 
+# Deterministic preview reference date: every seeded record is dated relative to
+# this fixed day so screenshots/baselines are reproducible and do not drift with
+# the real calendar. Change it deliberately to re-baseline.
+PREVIEW_TODAY = date(2026, 8, 20)
+
+
 def now_iso():
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.combine(PREVIEW_TODAY, datetime.min.time(), timezone.utc).isoformat().replace("+00:00", "Z")
+
 
 def days_ago_iso(days, hour=12):
-    return (datetime.now(timezone.utc) - timedelta(days=days, hours=hour)).isoformat().replace("+00:00", "Z")
+    base = datetime.combine(PREVIEW_TODAY, datetime.min.time(), timezone.utc)
+    return (base - timedelta(days=days, hours=hour)).isoformat().replace("+00:00", "Z")
 
 def seed():
     from werkzeug.security import generate_password_hash
