@@ -151,7 +151,7 @@ proposals, with kind-specific labels and diff-style change summary for updates.
 | Endpoint | Method | Auth | Success | Errors |
 |---|---|---|---|---|
 | `/api/meridian/memory/{workspace}` | GET | login | 200 `MemoryWorkspace` | 503 envelope; 404 unknown workspace |
-| `/api/meridian/evidence/{id}/content` | GET | login | 200 body | 503; 404 unknown; 410 revoked/deleted |
+| `/api/meridian/evidence/{id}/content` | GET | login | 200 body | 503; 404 unknown or revoked/deleted (existing route behavior) |
 | `/api/meridian/assets` | POST | login | 202 proposal created | 503; 409/400 pipeline errors |
 | `/api/meridian/assets/{id}` | PATCH | login | 202 proposal created | 503; 404; 409/400 |
 | `/api/meridian/assets/{id}` | DELETE | login | 202 proposal created | 503; 404; 409/400 |
