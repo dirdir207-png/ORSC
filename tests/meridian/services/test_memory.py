@@ -112,3 +112,20 @@ def test_expired_evidence_is_omitted_but_live_evidence_remains(tmp_path):
     laptop = next(i for i in result["items"] if "Laptop" in i["title"])
     assert printer["evidence"] == []  # materialized-expired evidence hidden
     assert laptop["evidence"][0]["span"] == "receipt"  # live evidence still appears
+
+
+def test_escalation_review_carries_percent_in_dedicated_field(tmp_path):
+    from meridian.contracts import Contract, ContractRepository
+
+    db_path = str(tmp_path / "m.db")
+    _seed(db_path)
+    ContractRepository(db_path).save_contract(Contract(
+        id=None, kind="lease", name="Apartment lease", starts_on="2026-07-01",
+        ends_on="2027-06-30", renews_on="2027-06-15", cancel_by="2027-05-01",
+        escalation_percent=3.0, deductible=None, evidence_id=None,
+        evidence_span="owner", confidence=1.0,
+    ))
+    result = build_memory(db_path, "today", as_of=date(2026, 8, 20))
+    escalation = next(i for i in result["items"] if i["kind"] == "escalation_review")
+    assert escalation["escalation_percent"] == 3.0
+    assert escalation["amount"] is None

@@ -62,6 +62,16 @@ def test_update_and_delete_contract_proposals(client):
     assert captured["type"] == "delete_contract"
 
 
+def test_update_asset_accepts_single_field(client):
+    test_client, captured = client
+    response = test_client.patch("/api/meridian/assets/7", json={
+        "replacement_reserve": 1000,
+    })
+    assert response.status_code == 202
+    assert captured["type"] == "update_asset"
+    assert captured["params"] == {"replacement_reserve": 1000, "record_id": 7}
+
+
 def test_invalid_payload_400(client):
     test_client, _ = client
     response = test_client.post("/api/meridian/assets", json={"name": "x"})  # missing category
