@@ -72,6 +72,7 @@ from meridian.ai.advisor import ContextualAdvisor, MeridianContextBuilder
 from meridian.api import meridian_api
 from meridian.commitments import CommitmentRepository, CommitmentType
 from meridian.providers.crew import CrewReadAdapter
+from meridian.memory_actions import MEMORY_ACTION_TYPES, asset_executors, contract_executors
 from meridian.repository import FinancialRepository
 from meridian.sync import sync_provider
 
@@ -916,7 +917,7 @@ action_store = ActionStore(
         "scheduled_move_money",
         "update_funding_rule",
         "create_commitment",
-    ),
+    ) + MEMORY_ACTION_TYPES,
 )
 local_proposer_key = get_or_create_local_key(DB_FILE)
 action_executors = {
@@ -941,6 +942,12 @@ action_executors = {
         verifier=verify_create_commitment_action,
     ),
 }
+
+for _kind, (_execute, _verify) in {
+    **asset_executors(DB_FILE),
+    **contract_executors(DB_FILE),
+}.items():
+    action_executors[_kind] = ExecutorSpec(execute=_execute, verifier=_verify)
 
 def resolve_crew_target(name):
     """Resolve an account/pocket display name to its Crew id (local proposers)."""
