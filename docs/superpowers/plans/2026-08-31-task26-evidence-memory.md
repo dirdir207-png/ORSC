@@ -1308,7 +1308,7 @@ class _User:
 
 
 @pytest.fixture()
-def client(monkeypatch):
+def client():
     app = Flask(__name__)
     app.secret_key = "test-secret"
     captured = {}
@@ -1326,7 +1326,10 @@ def client(monkeypatch):
     def load_user(user_id):
         return _User()
 
-    return app.test_client(), captured
+    test_client = app.test_client()
+    with test_client.session_transaction() as session:
+        session["_user_id"] = "1"
+    return test_client, captured
 
 
 def test_create_asset_proposal(client):
@@ -1358,7 +1361,7 @@ def test_invalid_payload_400(client):
     assert response.status_code == 400
 
 
-def test_unconfigured_sink_503(monkeypatch):
+def test_unconfigured_sink_503():
     app = Flask(__name__)
     app.secret_key = "test-secret"
     app.register_blueprint(meridian_api, url_prefix="/api/meridian")
@@ -1368,8 +1371,12 @@ def test_unconfigured_sink_503(monkeypatch):
     def load_user(user_id):
         return _User()
 
-    response = app.test_client().post("/api/meridian/assets",
-                                      json={"name": "x", "category": "y"})
+    test_client = app.test_client()
+    with test_client.session_transaction() as session:
+        session["_user_id"] = "1"
+
+    response = test_client.post("/api/meridian/assets",
+                                json={"name": "x", "category": "y"})
     assert response.status_code == 503
 ```
 
