@@ -19,6 +19,15 @@ def test_memory_uses_existing_four_workspaces_without_fifth_navigation_item():
     assert "confidence" in memory
 
 
+def test_memory_module_script_loaded_in_shell():
+    root = Path(__file__).parents[2]
+    shell = (root / "templates/meridian/index.html").read_text()
+    accounts = (root / "templates/meridian/partials/accounts.html").read_text()
+
+    assert 'src="/static/js/meridian/memory.js"' in shell
+    assert 'src="/static/js/meridian/memory-manage.js"' in accounts
+
+
 def test_memory_renders_per_workspace_items_with_evidence_links():
     root = Path(__file__).parents[2]
     memory = (root / "static/js/meridian/memory.js").read_text()

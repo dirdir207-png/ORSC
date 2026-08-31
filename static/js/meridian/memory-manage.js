@@ -180,24 +180,43 @@
                 execute.disabled = true;
                 execute.addEventListener('click', () => this.decide(action.id, 'execute', execute));
                 row.appendChild(execute);
+                const status = document.createElement('span');
+                status.className = 'memory-management__status';
+                status.setAttribute('data-testid', 'pending-proposal-status');
+                row.appendChild(status);
                 container.appendChild(row);
             });
         },
 
         async decide(id, step, button) {
+            const row = button && button.parentElement;
+            const statusEl = row && row.querySelector('[data-testid=pending-proposal-status]');
+            const execute = row && row.querySelector('[data-testid=execute-proposal]');
             try {
-                await fetch(`/api/actions/${id}/${step}`, {
+                const response = await fetch(`/api/actions/${id}/${step}`, {
                     method: 'POST', credentials: 'same-origin',
                 });
-            } finally {
-                if (step === 'approve') {
-                    // Re-enable Execute once approval succeeds so the owner can
-                    // apply the proposal.
-                    const row = button && button.parentElement;
-                    const execute = row && row.querySelector('[data-testid=execute-proposal]');
-                    if (execute) execute.disabled = false;
+                if (!response.ok) {
+                    const body = await response.json().catch(() => ({}));
+                    throw new Error((body.error && body.error.message) || `Request failed (${response.status})`);
                 }
-                this.loadPending();
+                if (step === 'approve') {
+                    // Approval succeeds: the action is no longer PROPOSED, so do
+                    // NOT re-fetch pending (it would wipe the row). Instead enable
+                    // this row's Execute button in place.
+                    if (execute) execute.disabled = false;
+                    if (statusEl) statusEl.textContent = 'approved';
+                } else if (step === 'execute') {
+                    if (statusEl) statusEl.textContent = 'executed';
+                    if (row) row.remove();
+                    // The action is now applied; refresh the accounts memory region
+                    // so the newly created/updated record shows up.
+                    document.dispatchEvent(new CustomEvent('memory:refresh', {
+                        detail: { workspace: 'accounts' },
+                    }));
+                }
+            } catch (error) {
+                if (statusEl) statusEl.textContent = error.message;
             }
         },
     };
