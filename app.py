@@ -95,6 +95,16 @@ URL = "https://api.trycrew.com/willow/graphql"
 # In app.py
 DB_FILE = os.environ.get("DB_FILE", "savings_data.db")
 app.config["MERIDIAN_REPOSITORY_FACTORY"] = lambda: FinancialRepository(DB_FILE)
+
+
+def _evidence_store_factory():
+    from meridian.storage import DerivedKeyProvider, EncryptedBlobStore
+
+    evidence_root = os.path.join(os.path.dirname(os.path.abspath(DB_FILE)), "evidence")
+    return EncryptedBlobStore(evidence_root, DerivedKeyProvider(app.secret_key.encode()))
+
+
+app.config["MERIDIAN_EVIDENCE_BLOB_STORE_FACTORY"] = _evidence_store_factory
 app.register_blueprint(meridian_api, url_prefix="/api/meridian")
 
 def get_or_create_secret_key():

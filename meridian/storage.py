@@ -119,3 +119,22 @@ class EncryptedBlobStore:
         if len(key) != 32:
             raise ValueError("Evidence encryption key must be 32 bytes")
         return key
+
+
+class DerivedKeyProvider:
+    """Deterministic HKDF-derived evidence key from a stable secret."""
+
+    def __init__(self, secret: bytes, label: str = "meridian.evidence.v1"):
+        self._secret = secret
+        self._label = label
+
+    def get_or_create_key(self) -> bytes:
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+        return HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=self._label.encode(),
+        ).derive(self._secret)
