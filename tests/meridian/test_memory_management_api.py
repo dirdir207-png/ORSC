@@ -68,6 +68,15 @@ def test_invalid_payload_400(client):
     assert response.status_code == 400
 
 
+def test_invalid_asset_id_400(client):
+    test_client, _ = client
+    response = test_client.patch("/api/meridian/assets/not-a-number", json={
+        "name": "Laptop", "category": "electronics",
+    })
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "invalid_request"
+
+
 def test_unconfigured_sink_503():
     app = Flask(__name__)
     app.secret_key = "test-secret"

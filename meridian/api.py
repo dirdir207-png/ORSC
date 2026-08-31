@@ -607,7 +607,11 @@ def update_asset_proposal(asset_id: str):
     if not payload.get("name") or not payload.get("category"):
         return _error("invalid_request", "name and category are required.",
                       "Provide both and try again.", 400)
-    payload["record_id"] = _positive_int(asset_id)
+    try:
+        payload["record_id"] = _positive_int(asset_id)
+    except ValueError:
+        return _error("invalid_request", "asset_id must be a positive integer.",
+                      "Provide a valid asset id and try again.", 400)
     return _management_payload("update_asset", payload)
 
 
@@ -616,7 +620,11 @@ def update_asset_proposal(asset_id: str):
 @_safe_read
 def delete_asset_proposal(asset_id: str):
     payload = request.get_json(silent=True) or {}
-    payload["record_id"] = _positive_int(asset_id)
+    try:
+        payload["record_id"] = _positive_int(asset_id)
+    except ValueError:
+        return _error("invalid_request", "asset_id must be a positive integer.",
+                      "Provide a valid asset id and try again.", 400)
     return _management_payload("delete_asset", payload)
 
 
@@ -639,7 +647,11 @@ def update_contract_proposal(contract_id: str):
     if not payload.get("name") or not payload.get("kind"):
         return _error("invalid_request", "name and kind are required.",
                       "Provide both and try again.", 400)
-    payload["record_id"] = _positive_int(contract_id)
+    try:
+        payload["record_id"] = _positive_int(contract_id)
+    except ValueError:
+        return _error("invalid_request", "contract_id must be a positive integer.",
+                      "Provide a valid contract id and try again.", 400)
     return _management_payload("update_contract", payload)
 
 
@@ -648,7 +660,11 @@ def update_contract_proposal(contract_id: str):
 @_safe_read
 def delete_contract_proposal(contract_id: str):
     payload = request.get_json(silent=True) or {}
-    payload["record_id"] = _positive_int(contract_id)
+    try:
+        payload["record_id"] = _positive_int(contract_id)
+    except ValueError:
+        return _error("invalid_request", "contract_id must be a positive integer.",
+                      "Provide a valid contract id and try again.", 400)
     return _management_payload("delete_contract", payload)
 
 
