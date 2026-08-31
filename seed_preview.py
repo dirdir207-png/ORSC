@@ -319,8 +319,21 @@ def seed():
     def _evidence_key():
         conn = sqlite3.connect(DB)
         try:
+            conn.execute('''CREATE TABLE IF NOT EXISTS app_config (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )''')
             row = conn.execute("SELECT value FROM app_config WHERE key='secret_key'").fetchone()
-            return row[0].encode() if row else b"preview-seed-key"
+            if row:
+                return row[0].encode()
+            # Persist the same secret the app will reuse via
+            # get_or_create_secret_key, so seed-then-boot and boot-then-seed
+            # derive the same evidence encryption key.
+            secret_key = os.urandom(24).hex()
+            conn.execute("INSERT INTO app_config (key, value) VALUES ('secret_key', ?)", (secret_key,))
+            conn.commit()
+            return secret_key.encode()
         finally:
             conn.close()
 
