@@ -94,9 +94,28 @@
             kindField.appendChild(kindSpan);
             kindField.appendChild(kindSelect);
 
+            // Hidden numeric record id. Accounts memory items carry ids like
+            // "asset:7" / "contract:3"; the numeric part is the DB record id.
+            const recordIdInput = document.createElement('input');
+            recordIdInput.type = 'hidden';
+            recordIdInput.name = 'record_id';
+
+            if (mode === 'update' || mode === 'delete') {
+                const numericId = record && record.id
+                    ? parseInt(String(record.id).split(':')[1], 10) : NaN;
+                if (!Number.isNaN(numericId)) recordIdInput.value = String(numericId);
+            }
+            if (mode === 'update' && record) {
+                const currentKind = isAsset ? record.category : record.contract_kind;
+                if (currentKind && [...kindSelect.options].some((option) => option.value === currentKind)) {
+                    kindSelect.value = currentKind;
+                }
+            }
+
             const submit = document.createElement('button');
             submit.type = 'submit';
-            submit.textContent = mode === 'delete' ? 'Delete' : 'Create proposal';
+            submit.textContent = mode === 'delete' ? 'Delete'
+                : mode === 'update' ? 'Update proposal' : 'Create proposal';
             submit.setAttribute('data-testid', isAsset ? 'submit-asset' : 'submit-contract');
 
             const cancel = document.createElement('button');
@@ -110,24 +129,35 @@
             status.setAttribute('data-testid', 'management-status');
             status.hidden = true;
 
-            form.appendChild(nameField);
-            form.appendChild(kindField);
+            form.appendChild(recordIdInput);
+            if (mode !== 'delete') {
+                form.appendChild(nameField);
+                form.appendChild(kindField);
+            }
             form.appendChild(submit);
             form.appendChild(cancel);
             form.appendChild(status);
 
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
-                const payload = {
-                    name: nameInput.value.trim(),
-                };
-                if (isAsset) {
-                    payload.category = kindSelect.value;
-                } else {
-                    payload.kind = kindSelect.value;
+                if (mode === 'delete'
+                    && !window.confirm('Delete this record? A delete proposal is created for owner approval.')) {
+                    return;
+                }
+                const payload = {};
+                if (mode !== 'delete') {
+                    payload.name = nameInput.value.trim();
+                    if (isAsset) {
+                        payload.category = kindSelect.value;
+                    } else {
+                        payload.kind = kindSelect.value;
+                    }
                 }
                 if (mode === 'update' || mode === 'delete') {
-                    payload.record_id = (record && record.recordId) || null;
+                    payload.record_id = parseInt(recordIdInput.value, 10);
+                }
+                if (mode === 'delete') {
+                    payload.change_reason = 'Owner removed';
                 }
                 try {
                     await this.submit(kind, mode, payload);
@@ -229,4 +259,7 @@
     };
 
     document.addEventListener('DOMContentLoaded', () => Management.init());
+
+    // Expose to window so memory.js can open per-record edit/delete forms.
+    window.MeridianManagement = Management;
 })();

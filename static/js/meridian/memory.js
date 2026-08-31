@@ -138,7 +138,40 @@
                 });
                 li.appendChild(links);
             }
+            if (workspace === 'accounts' && (item.kind === 'asset' || item.kind === 'contract')) {
+                this.appendRecordControls(li, item);
+            }
             return li;
+        },
+
+        appendRecordControls(li, item) {
+            // Per-record edit/delete entry points for the Accounts workspace.
+            // The management forms are owned by memory-manage.js, exposed as
+            // window.MeridianManagement.
+            const isAsset = item.kind === 'asset';
+            const kind = isAsset ? 'asset' : 'contract';
+            const actions = document.createElement('div');
+            actions.className = 'memory-item__actions';
+
+            const edit = document.createElement('button');
+            edit.type = 'button';
+            edit.textContent = 'Edit';
+            edit.setAttribute('data-testid', isAsset ? 'edit-asset' : 'edit-contract');
+            edit.addEventListener('click', () => {
+                window.MeridianManagement.openForm(kind, 'update', item);
+            });
+            actions.appendChild(edit);
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.textContent = 'Delete';
+            remove.setAttribute('data-testid', isAsset ? 'delete-asset' : 'delete-contract');
+            remove.addEventListener('click', () => {
+                window.MeridianManagement.openForm(kind, 'delete', item);
+            });
+            actions.appendChild(remove);
+
+            li.appendChild(actions);
         },
 
         renderEmpty(workspace, container) {

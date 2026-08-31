@@ -664,7 +664,9 @@
 .memory-item__evidence { margin: var(--m-space-1) 0 0; padding-left: var(--m-space-3); }
 .memory-management__actions { display: flex; gap: var(--m-space-2); margin-bottom: var(--m-space-3); }
 .pending-memory-proposal { display: flex; gap: var(--m-space-2); align-items: center; padding: var(--m-space-2) 0; }
+.memory-item__actions { display: flex; gap: var(--m-space-2); margin-top: var(--m-space-2); }
 .memory-management__actions button,
+.memory-item__actions button,
 .pending-memory-proposal button {
   min-height: 44px;
 }
