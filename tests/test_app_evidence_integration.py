@@ -8,6 +8,7 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_FILE", str(tmp_path / "app.db"))
     import app as app_module
     app_module.DB_FILE = str(tmp_path / "app.db")
+    app_module.init_db()
     app_module.app.secret_key = "0123456789abcdef0123456789abcdef"
     from meridian.evidence import EvidenceRepository
     from meridian.storage import EncryptedBlobStore, DerivedKeyProvider
@@ -33,6 +34,7 @@ def app(tmp_path, monkeypatch):
         },
     )
     assert response.status_code == 200, response.get_json()
+    assert response.get_json()["success"] is True
     return client, repo
 
 
