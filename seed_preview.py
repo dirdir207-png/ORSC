@@ -307,6 +307,72 @@ def seed():
     conn.commit()
 
     conn.close()
+
+    # ── Asset & contract memory (Task 26) ─────────────────────────────
+    from meridian.assets import Asset, AssetRepository, Warranty
+    from meridian.contracts import Contract, ContractRepository, Obligation
+    from meridian.evidence import EvidenceRepository
+    from meridian.storage import DerivedKeyProvider, EncryptedBlobStore
+
+    evidence_root = os.path.join(os.path.dirname(os.path.abspath(DB)), "evidence")
+    store = EncryptedBlobStore(evidence_root, DerivedKeyProvider(b"preview-seed-key"))
+    evidence = EvidenceRepository(DB)
+
+    receipt_blob = store.put(b"Laptop receipt (preview)", mime_type="text/plain")
+    receipt = evidence.add_item(
+        source_kind="manual", source_id="preview-receipt",
+        content_hash=receipt_blob.content_hash, mime_type="text/plain",
+        size_bytes=receipt_blob.size_bytes, title="Laptop receipt",
+    )
+    policy_blob = store.put(b"Home policy declarations (preview)", mime_type="text/plain")
+    policy = evidence.add_item(
+        source_kind="manual", source_id="preview-policy",
+        content_hash=policy_blob.content_hash, mime_type="text/plain",
+        size_bytes=policy_blob.size_bytes, title="Home policy declarations",
+    )
+
+    assets = AssetRepository(DB)
+    laptop = assets.save_asset(Asset(
+        id=None, name="Laptop", category="electronics", purchased_on="2026-08-01",
+        purchase_price=1500, return_until="2026-08-31", maintenance_interval_days=180,
+        replacement_reserve=1200, evidence_id=receipt.id, evidence_span="receipt",
+        confidence=0.98,
+    ))
+    assets.save_warranty(Warranty(
+        id=None, asset_id=laptop.id, provider="VendorCo", expires_on="2027-08-01",
+        deductible=100, evidence_id=receipt.id, evidence_span="receipt", confidence=0.98,
+    ))
+    assets.save_asset(Asset(
+        id=None, name="Bike", category="sport", purchased_on="2026-06-15",
+        purchase_price=800, return_until=None, maintenance_interval_days=None,
+        replacement_reserve=500, evidence_id=None, evidence_span="owner:managed",
+        confidence=1.0,
+    ))
+
+    contracts = ContractRepository(DB)
+    home = contracts.save_contract(Contract(
+        id=None, kind="insurance", name="Home policy", starts_on="2026-01-01",
+        ends_on="2026-12-31", renews_on="2027-01-01", cancel_by="2026-11-30",
+        escalation_percent=None, deductible=1000, evidence_id=policy.id,
+        evidence_span="declarations", confidence=0.96,
+    ))
+    contracts.save_contract(Contract(
+        id=None, kind="lease", name="Apartment lease", starts_on="2026-07-01",
+        ends_on="2027-06-30", renews_on=None, cancel_by="2027-05-01",
+        escalation_percent=3.0, deductible=None, evidence_id=None,
+        evidence_span="owner:managed", confidence=1.0,
+    ))
+    contracts.save_obligation(Obligation(
+        id=None, contract_id=home.id, name="Premium", amount=120.0,
+        due_on="2026-09-01", recurrence="monthly", commitment_id=None,
+        evidence_id=policy.id, evidence_span="declarations", confidence=0.96,
+    ))
+
+    evidence.add_link(evidence_id=receipt.id, target_kind="asset",
+                      target_id=str(laptop.id), relation="supports", provenance="receipt")
+    evidence.add_link(evidence_id=policy.id, target_kind="contract",
+                      target_id=str(home.id), relation="supports", provenance="declarations")
+
     print(f"✅ Seeded {DB} with preview data")
 
 if __name__ == "__main__":
