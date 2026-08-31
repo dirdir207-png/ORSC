@@ -315,7 +315,16 @@ def seed():
     from meridian.storage import DerivedKeyProvider, EncryptedBlobStore
 
     evidence_root = os.path.join(os.path.dirname(os.path.abspath(DB)), "evidence")
-    store = EncryptedBlobStore(evidence_root, DerivedKeyProvider(b"preview-seed-key"))
+
+    def _evidence_key():
+        conn = sqlite3.connect(DB)
+        try:
+            row = conn.execute("SELECT value FROM app_config WHERE key='secret_key'").fetchone()
+            return row[0].encode() if row else b"preview-seed-key"
+        finally:
+            conn.close()
+
+    store = EncryptedBlobStore(evidence_root, DerivedKeyProvider(_evidence_key()))
     evidence = EvidenceRepository(DB)
 
     receipt_blob = store.put(b"Laptop receipt (preview)", mime_type="text/plain")
