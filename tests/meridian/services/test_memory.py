@@ -5,47 +5,79 @@ from meridian.contracts import Contract, ContractRepository
 from meridian.services.memory import build_memory
 
 
-def test_memory_composes_attention_reserves_and_structure_with_evidence_links(tmp_path):
-    db_path = str(tmp_path / "memory.db")
+def _seed(db_path):
     assets = AssetRepository(db_path)
-    assets.save_asset(
-        Asset(
-            id=None,
-            name="Laptop",
-            category="electronics",
-            purchased_on="2026-08-01",
-            purchase_price=1500,
-            return_until="2026-08-31",
-            maintenance_interval_days=180,
-            replacement_reserve=1200,
-            evidence_id=9,
-            evidence_span="receipt",
-            confidence=0.98,
-        )
-    )
+    saved_asset = assets.save_asset(Asset(
+        id=None, name="Laptop", category="electronics", purchased_on="2026-08-01",
+        purchase_price=1500, return_until="2026-08-31", maintenance_interval_days=180,
+        replacement_reserve=1200, evidence_id=9, evidence_span="receipt", confidence=0.98,
+    ))
+    assets.save_warranty(_warranty(saved_asset.id))
     contracts = ContractRepository(db_path)
-    contracts.save_contract(
-        Contract(
-            id=None,
-            kind="insurance",
-            name="Home policy",
-            starts_on="2026-01-01",
-            ends_on="2026-12-31",
-            renews_on="2027-01-01",
-            cancel_by="2026-11-30",
-            escalation_percent=None,
-            deductible=1000,
-            evidence_id=10,
-            evidence_span="declarations",
-            confidence=0.96,
-        )
+    contracts.save_contract(Contract(
+        id=None, kind="insurance", name="Home policy", starts_on="2026-01-01",
+        ends_on="2026-12-31", renews_on="2027-01-01", cancel_by="2026-11-30",
+        escalation_percent=None, deductible=1000, evidence_id=10,
+        evidence_span="declarations", confidence=0.96,
+    ))
+    return saved_asset
+
+
+def _warranty(asset_id):
+    from meridian.assets import Warranty
+    return Warranty(
+        id=None, asset_id=asset_id, provider="VendorCo", expires_on="2027-01-01",
+        deductible=100.0, evidence_id=None, evidence_span="owner", confidence=1.0,
     )
 
-    result = build_memory(db_path, as_of=date(2026, 8, 20))
 
-    assert result["today"][0]["kind"] == "return_deadline"
-    assert result["plan"][0]["amount"] == 1200
-    assert result["accounts"]["assets"][0]["name"] == "Laptop"
-    assert result["accounts"]["contracts"][0]["name"] == "Home policy"
-    assert all("why_it_matters" in item for item in result["today"])
-    assert all("evidence_url" in item for item in result["today"])
+def test_today_memory_orders_by_urgency_and_carries_evidence(tmp_path):
+    db_path = str(tmp_path / "m.db")
+    _seed(db_path)
+    result = build_memory(db_path, "today", as_of=date(2026, 8, 20))
+    assert result["workspace"] == "today"
+    kinds = [item["kind"] for item in result["items"]]
+    assert kinds[0] == "return_deadline"  # overdue first
+    first = result["items"][0]
+    assert first["why_it_matters"]
+    assert first["evidence"] == [{"id": 9, "span": "receipt", "confidence": 0.98}]
+    assert all("reference_transaction_id" in item for item in result["items"])
+
+
+def test_plan_memory_reserves_and_obligations_with_escalation_field(tmp_path):
+    db_path = str(tmp_path / "m.db")
+    _seed(db_path)
+    result = build_memory(db_path, "plan", as_of=date(2026, 8, 20))
+    kinds = {item["kind"] for item in result["items"]}
+    assert "replacement_reserve" in kinds
+    reserve = next(i for i in result["items"] if i["kind"] == "replacement_reserve")
+    assert reserve["amount"] == 1200
+    assert "escalation_percent" in reserve  # always present, possibly None
+
+
+def test_activity_memory_lists_lifecycle_events_without_transactions(tmp_path):
+    db_path = str(tmp_path / "m.db")
+    _seed(db_path)
+    result = build_memory(db_path, "activity", as_of=date(2026, 8, 20))
+    assert result["workspace"] == "activity"
+    assert all(item["reference_transaction_id"] is None for item in result["items"])
+
+
+def test_accounts_memory_assets_contracts_with_nested_children(tmp_path):
+    db_path = str(tmp_path / "m.db")
+    _seed(db_path)
+    result = build_memory(db_path, "accounts", as_of=date(2026, 8, 20))
+    kinds = {item["kind"] for item in result["items"]}
+    assert {"asset", "contract"} <= kinds
+    asset = next(i for i in result["items"] if i["kind"] == "asset")
+    assert asset["warranties"][0]["provider"] == "VendorCo"
+
+
+def test_unknown_workspace_raises(tmp_path):
+    db_path = str(tmp_path / "m.db")
+    _seed(db_path)
+    try:
+        build_memory(db_path, "nope")
+        raise AssertionError("expected ValueError")
+    except ValueError:
+        pass
