@@ -990,7 +990,7 @@ def test_create_asset_propose_approve_execute_verify(tmp_path):
         "Owner records laptop",
         requested_by="owner",
     )
-    store.approve(request["id"], approved_by="owner")
+    store.approve(request["id"], decided_by="owner")
     result = execute_approved_action(store, request["id"], executors)
     assert result["state"] == "verified"
     assert result["result"]["asset_id"]
@@ -1017,7 +1017,7 @@ def test_update_asset_changes_fields(tmp_path):
         "Owner corrects price",
         requested_by="owner",
     )
-    store.approve(request["id"], approved_by="owner")
+    store.approve(request["id"], decided_by="owner")
     result = execute_approved_action(store, request["id"], executors)
     assert result["state"] == "verified"
     assert repo.get_asset(saved.id).purchase_price == 1400.0
@@ -1041,7 +1041,7 @@ def test_delete_asset_unlinks_evidence_but_keeps_items(tmp_path):
     store, executors = _store_and_executors(db_path)
     request = store.propose("delete_asset", {"record_id": saved.id, "change_reason": "sold"},
                             "Owner removes bike", requested_by="owner")
-    store.approve(request["id"], approved_by="owner")
+    store.approve(request["id"], decided_by="owner")
     result = execute_approved_action(store, request["id"], executors)
     assert result["state"] == "verified"
     assert repo.get_asset(saved.id) is None
