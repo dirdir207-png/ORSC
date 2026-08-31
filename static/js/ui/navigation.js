@@ -14,6 +14,22 @@
 
 // --- TAB SWITCHING ---
 function switchTab(tab) {
+    const meridianWorkspace = {
+        activity: 'activity',
+        expenses: 'plan',
+        bills: 'plan',
+        goals: 'plan',
+        pockets: 'plan',
+        family: 'accounts',
+        cards: 'accounts',
+        credit: 'accounts',
+        splitwise: 'accounts',
+        account: 'accounts'
+    }[tab] || 'today';
+    window.location.assign(`/meridian?workspace=${encodeURIComponent(meridianWorkspace)}`);
+    return;
+
+    /* istanbul ignore next -- retained only for rollback to the pre-Meridian shell. */
     // Clear Active Desktop
     document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
     // Clear Active Mobile (Bottom nav - deprecated)
@@ -81,7 +97,6 @@ function switchTab(tab) {
     if(tab === 'account') {
         loadAccountSettings();
         loadPendingActions();
-        advisorInit();
     }
 }
 

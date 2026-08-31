@@ -1,38 +1,87 @@
-import requests
+import base64
+import functools
+import json
+import os
 import secrets
 import sqlite3
-import time
-import functools
-import os
 import threading
-import json
-from datetime import datetime, date, timedelta
-from flask import Flask, render_template, jsonify, request, send_from_directory, redirect
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+import time
+import traceback
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
+import requests
+from flask import (
+    Flask,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
 from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
     generate_authentication_options,
-    verify_authentication_response,
+    generate_registration_options,
     options_to_json,
+    verify_authentication_response,
+    verify_registration_response,
 )
 from webauthn.helpers import (
-    parse_registration_credential_json,
     parse_authentication_credential_json,
-)
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria,
-    UserVerificationRequirement,
-    PublicKeyCredentialDescriptor,
-    AuthenticatorTransport,
-    AttestationConveyancePreference,
-    ResidentKeyRequirement,
+    parse_registration_credential_json,
 )
 from webauthn.helpers.cose import COSEAlgorithmIdentifier
+from webauthn.helpers.structs import (
+    AttestationConveyancePreference,
+    AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from crew.actions import ActionStore, IllegalTransitionError, UnknownActionTypeError
+from crew.advisor import (
+    AdvisorService,
+    AdvisorUnavailable,
+    FinancialContextBuilder,
+    build_llm_chain,
+    llm_model,
+)
+from crew.beacon import build_forecast, project_reserve
+from crew.browser_capture import create_mac_capturer
+from crew.client import CrewClient
+from crew.credentials import StoredBearerTokenProvider
+from crew.executors import ExecutorSpec, execute_approved_action, expire_stale_approvals
+from crew.health import CredentialHealthService
+from crew.proposals import ProposalError, build_transfer_proposal
+from crew.propose_key import get_or_create_local_key
+from crew.renewal import GuidedRenewalService, sanitize_status_payload
+from crew.transports import BrokerCrewTransport
+from meridian.ai.advisor import ContextualAdvisor, MeridianContextBuilder
+from meridian.api import meridian_api
+from meridian.commitments import CommitmentRepository, CommitmentType
+from meridian.providers.crew import CrewReadAdapter
+from meridian.repository import FinancialRepository
+from meridian.sync import sync_provider
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.getenv("FLASK_DEBUG") != "1",
+)
 
 @app.after_request
 def _no_store_critical(response):
@@ -45,6 +94,8 @@ def _no_store_critical(response):
 URL = "https://api.trycrew.com/willow/graphql"
 # In app.py
 DB_FILE = os.environ.get("DB_FILE", "savings_data.db")
+app.config["MERIDIAN_REPOSITORY_FACTORY"] = lambda: FinancialRepository(DB_FILE)
+app.register_blueprint(meridian_api, url_prefix="/api/meridian")
 
 def get_or_create_secret_key():
     """Get secret key from database, or generate and save a new one"""
@@ -717,14 +768,36 @@ def get_crew_bearer_token():
     # Fallback to env var for backward compatibility
     return os.environ.get("BEARER_TOKEN")
 
-# --- CREW INTEGRATION (Hybrid Gateway Foundation) ---
-from crew.client import CrewClient
-from crew.credentials import StoredBearerTokenProvider
-from crew.health import CredentialHealthService
-
 crew_credential_provider = StoredBearerTokenProvider(get_crew_bearer_token)
-crew_client = CrewClient(crew_credential_provider, endpoint=URL, timeout_seconds=15)
+crew_broker_url = os.environ.get("CREW_BROKER_URL")
+crew_broker_capability_file = os.environ.get("CREW_BROKER_CAPABILITY_FILE")
+if crew_broker_url and crew_broker_capability_file:
+    crew_client = BrokerCrewTransport(
+        crew_broker_url, Path(crew_broker_capability_file), timeout_seconds=15
+    )
+    crew_provider_description = "session_broker"
+else:
+    crew_client = CrewClient(crew_credential_provider, endpoint=URL, timeout_seconds=15)
+    crew_provider_description = crew_credential_provider.describe()
 crew_health_service = CredentialHealthService(crew_client)
+
+
+def sync_crew_snapshot():
+    """Mirror Crew reads into Meridian without affecting legacy API responses."""
+    try:
+        report = sync_provider(CrewReadAdapter(crew_client), FinancialRepository(DB_FILE))
+    except Exception:
+        app.logger.warning("Meridian Crew sync could not complete")
+        return None
+    app.logger.info(
+        "Meridian Crew sync provider=%s status=%s accounts=%d transactions=%d errors=%d",
+        report.provider,
+        report.status,
+        report.accounts_synced,
+        report.transactions_synced,
+        report.errors,
+    )
+    return report
 
 def store_crew_credential(value):
     """Persist a renewed Crew credential through the same path as manual saves."""
@@ -740,21 +813,12 @@ def store_crew_credential(value):
     conn.commit()
     conn.close()
 
-# --- GUIDED CREW CREDENTIAL RENEWAL (Milestone 2) ---
-from crew.browser_capture import create_mac_capturer
-from crew.renewal import GuidedRenewalService, sanitize_status_payload
-
 crew_renewal_service = GuidedRenewalService(
     capturer_factory=create_mac_capturer,
     storer=store_crew_credential,
     health_checker=lambda: crew_health_service.check(),
     timeout_seconds=300,
 )
-
-# --- ACTION PIPELINE (Milestone 3): propose -> approve -> execute -> verify ---
-from crew.actions import ActionStore, IllegalTransitionError, UnknownActionTypeError
-from crew.executors import ExecutorSpec, execute_approved_action, expire_stale_approvals
-from crew.proposals import build_transfer_proposal, ProposalError
 
 APPROVAL_TTL_SECONDS = 3600
 
@@ -764,15 +828,108 @@ def verify_transfer_action(params, result):
     confirmed = isinstance(transfer_id, str) and bool(transfer_id.strip())
     return {"ok": confirmed, "check": "confirmed-transfer-id"}
 
-action_store = ActionStore(db_path=DB_FILE, allowed_types=("move_money",))
-from crew.propose_key import get_or_create_local_key
 
+def _apply_funding_rule(params):
+    """Local-only write of planning metadata; never contacts Crew."""
+    from meridian.funding_repo import FundingRuleRepository
+
+    repository = FundingRuleRepository(DB_FILE)
+    rule = params.get("rule") or {}
+    rule_id = params.get("rule_id")
+    fields = {
+        key: rule[key]
+        for key in (
+            "amount", "percent", "cadence", "day_of_month", "start_date",
+            "horizon_end", "min_contribution", "max_contribution",
+            "paused", "one_time_override", "priority",
+        )
+        if key in rule
+    }
+    if rule_id:
+        stored = repository.update(int(rule_id), **fields)
+    else:
+        stored = repository.create(commitment_id=int(params["commitment_id"]), kind=rule["kind"], **fields)
+    return {"rule_id": stored.id, "kind": stored.kind}
+
+
+def verify_funding_rule_action(params, result):
+    from meridian.funding_repo import FundingRuleRepository
+
+    rule_id = (result or {}).get("rule_id")
+    if not rule_id:
+        return {"ok": False, "check": "missing-rule-id"}
+    stored = FundingRuleRepository(DB_FILE).get(int(rule_id))
+    rule = params.get("rule") or {}
+    ok = stored is not None and stored.kind == rule.get("kind")
+    return {"ok": bool(ok), "check": "funding-rule-state-reread"}
+
+
+def _apply_create_commitment(params):
+    repository = CommitmentRepository(DB_FILE)
+    commitment_type = CommitmentType(params.get("type"))
+    allowed_fields = {
+        key: params[key]
+        for key in (
+            "amount",
+            "target_amount",
+            "target_date",
+            "due_date",
+            "recurrence",
+            "cadence",
+            "minimum_payment",
+            "buffer_minimum",
+            "priority",
+            "currency",
+        )
+        if key in params
+    }
+    commitment = repository.create(
+        type=commitment_type,
+        name=params.get("name"),
+        **allowed_fields,
+    )
+    return {"commitment_id": commitment.id}
+
+
+def verify_create_commitment_action(params, result):
+    commitment_id = (result or {}).get("commitment_id")
+    stored = CommitmentRepository(DB_FILE).get(commitment_id) if commitment_id else None
+    return {
+        "ok": stored is not None and stored.name == params.get("name"),
+        "check": "commitment-state-reread",
+    }
+
+action_store = ActionStore(
+    db_path=DB_FILE,
+    allowed_types=(
+        "move_money",
+        "scheduled_move_money",
+        "update_funding_rule",
+        "create_commitment",
+    ),
+)
 local_proposer_key = get_or_create_local_key(DB_FILE)
 action_executors = {
     "move_money": ExecutorSpec(
         execute=lambda p: move_money(p["from_id"], p["to_id"], p["amount"], p.get("memo", "")),
         verifier=verify_transfer_action,
-    )
+    ),
+    # Scheduled funding rides the exact same vetted move_money path;
+    # proposals still require explicit owner approval before execution.
+    "scheduled_move_money": ExecutorSpec(
+        execute=lambda p: move_money(p["from_id"], p["to_id"], p["amount"], p.get("memo", "")),
+        verifier=verify_transfer_action,
+    ),
+    # Funding-rule changes are local planning metadata but stay
+    # approval-gated; the executor writes locally and never contacts Crew.
+    "update_funding_rule": ExecutorSpec(
+        execute=_apply_funding_rule,
+        verifier=verify_funding_rule_action,
+    ),
+    "create_commitment": ExecutorSpec(
+        execute=_apply_create_commitment,
+        verifier=verify_create_commitment_action,
+    ),
 }
 
 def resolve_crew_target(name):
@@ -787,17 +944,6 @@ def resolve_crew_target(name):
         if (sub.get("name") or "").strip().lower() == wanted:
             return sub.get("id")
     return None
-
-# --- AI ADVISOR (Milestone 5): chat that can only propose ---
-from crew.advisor import (
-    AdvisorService,
-    AdvisorUnavailable,
-    FinancialContextBuilder,
-    OpenAICompatClient,
-    build_llm_chain,
-    llm_configured,
-    llm_model,
-)
 
 def _financial_snapshot():
     snap = {"safe_to_spend": None, "accounts": [], "pockets": []}
@@ -831,8 +977,26 @@ advisor_service = AdvisorService(
     resolver=resolve_crew_target,
 )
 
-# --- BEACON BUDGET FORECAST (Milestone 6) ---
-from crew.beacon import build_forecast, project_reserve
+
+def _meridian_proposal_sink(proposal):
+    params = proposal.get("params") or {}
+    proposal_type = proposal.get("type")
+    summary = proposal.get("summary") or f"Proposed Meridian change: {proposal_type}"
+    action_store.propose(
+        proposal_type,
+        params,
+        summary,
+        requested_by="meridian-advisor",
+    )
+
+
+app.config["MERIDIAN_ADVISOR_FACTORY"] = lambda: ContextualAdvisor(
+    advisor_llm_chain,
+    MeridianContextBuilder(FinancialRepository(DB_FILE)),
+    provider="configured",
+    model=llm_model(),
+    proposal_sink=_meridian_proposal_sink,
+)
 
 @app.route('/api/beacon/forecast')
 @login_required
@@ -1019,7 +1183,7 @@ def send_sync_complete_notification(user_id, transaction_count, account_names):
 
     # Send via Web Push
     try:
-        from pywebpush import webpush, WebPushException
+        from pywebpush import WebPushException, webpush
 
         # Build notification payload
         payload = json.dumps({
@@ -1105,7 +1269,7 @@ def send_splitwise_notification(user_id, friends_changed):
 
     # Send via Web Push
     try:
-        from pywebpush import webpush, WebPushException
+        from pywebpush import WebPushException, webpush
 
         payload = json.dumps({
             "notification": {
@@ -1162,6 +1326,37 @@ def get_crew_headers():
         "authorization": bearer_token,
         "user-agent": "Crew/1 CFNetwork/3860.300.31 Darwin/25.2.0",
     }
+
+
+def sync_crew_to_meridian():
+    """Sync Crew data to Meridian financial graph.
+    
+    Called after a successful Crew data refresh. Logs counts and status,
+    never payloads. Returns SyncReport or None if sync cannot run.
+    """
+    try:
+        from meridian.providers.crew import CrewAdapter
+        from meridian.repository import FinancialRepository
+        from meridian.sync import sync_provider
+        
+        bearer_token = get_crew_bearer_token()
+        if not bearer_token:
+            print("⚠️ Meridian sync skipped: No Crew bearer token")
+            return None
+        
+        adapter = CrewAdapter(bearer_token)
+        repo = FinancialRepository(DB_FILE)
+        report = sync_provider(adapter, repo)
+        
+        print(f"🔄 Meridian sync: provider={report.provider} status={report.status} "
+              f"accounts={report.accounts_upserted} transactions={report.transactions_upserted}"
+              + (f" error={report.error}" if report.error else ""))
+        
+        return report
+    except Exception as e:
+        print(f"❌ Meridian sync failed: {e}")
+        return None
+
 
 # --- DATA FETCHERS ---
 @cached("primary_account_id")
@@ -1220,6 +1415,7 @@ def get_financial_data():
         if not results["checking"]:
             return {"error": "Checking account not found"}
 
+        sync_crew_snapshot()
         return results
 
     except Exception as e:
@@ -1276,7 +1472,7 @@ def get_transactions_data(search_term=None, min_date=None, max_date=None, min_am
                     "transferType": transfer_type
                 })
         except Exception as e:
-            return {"error": f"Parse Error: {str(e)}"}
+            return {"error": f"Parse Error: {e!s}"}
         return {"transactions": txs}
     except Exception as e:
         return {"error": str(e)}
@@ -1772,7 +1968,6 @@ def get_configured_timezone():
     try:
         from zoneinfo import ZoneInfo
     except ImportError:
-        from datetime import timezone as tz_module
         # Fallback for Python < 3.9
         return None
 
@@ -1793,7 +1988,12 @@ def get_configured_timezone():
         return None
 
 def move_money(from_id, to_id, amount, memo=""):
-    from crew.client import CrewAPIError, CrewAuthenticationError, CrewTransportError, CrewUncertainWriteError
+    from crew.client import (
+        CrewAPIError,
+        CrewAuthenticationError,
+        CrewTransportError,
+        CrewUncertainWriteError,
+    )
 
     query_string = """ mutation InitiateTransferScottie($input: InitiateTransferInput!) { initiateTransfer(input: $input) { result { id __typename } __typename } } """
     variables = {"input": {"amount": int(round(float(amount) * 100)), "accountFromId": from_id, "accountToId": to_id, "note": memo or "Transfer"}}
@@ -2568,6 +2768,46 @@ def create_bill_action(name, amount, frequency_key, day_of_month, match_string=N
 
 # --- ROUTES ---
 
+# --- MERIDIAN SHELL ---
+
+MERIDIAN_WORKSPACES = ("today", "plan", "activity", "accounts")
+LEGACY_WORKSPACE_MAP = {
+    "activity": "activity",
+    "expenses": "plan",
+    "bills": "plan",
+    "goals": "plan",
+    "pockets": "plan",
+    "family": "accounts",
+    "cards": "accounts",
+    "credit": "accounts",
+    "splitwise": "accounts",
+    "account": "accounts",
+}
+
+@app.route('/meridian')
+@login_required
+def meridian():
+    """Meridian responsive application shell (Today / Plan / Activity / Accounts)."""
+    workspace = request.args.get('workspace', 'today')
+    if workspace not in MERIDIAN_WORKSPACES:
+        return redirect(url_for('meridian'))
+    return render_template('meridian/index.html', active_workspace=workspace)
+
+
+@app.route('/meridian/settings')
+@login_required
+def meridian_settings():
+    """Meridian utility settings; financial workspaces remain unchanged."""
+    section = request.args.get('section', 'connections')
+    if section not in {'connections', 'payday'}:
+        return redirect(url_for('meridian_settings', section='connections'))
+    return render_template(
+        'meridian/settings.html',
+        active_workspace=None,
+        active_settings_section=section,
+        settings_active=True,
+    )
+
 # --- AUTHENTICATION ROUTES ---
 @app.route('/login')
 def login():
@@ -2798,7 +3038,7 @@ def webauthn_register_verify():
     # Verify user matches
     if user_id != current_user.id:
         conn.close()
-        print(f"[WebAuthn Register Verify] ERROR: User mismatch")
+        print("[WebAuthn Register Verify] ERROR: User mismatch")
         return jsonify({"success": False, "error": "User mismatch"}), 403
 
     try:
@@ -2817,7 +3057,7 @@ def webauthn_register_verify():
             expected_rp_id=rp_id,
         )
 
-        print(f"[WebAuthn Register Verify] Verification successful!")
+        print("[WebAuthn Register Verify] Verification successful!")
 
         # Save credential to database
         save_credential(current_user.id, {
@@ -2845,13 +3085,12 @@ def webauthn_register_verify():
         conn.commit()
         conn.close()
 
-        print(f"[WebAuthn Register Verify] Passkey saved successfully")
+        print("[WebAuthn Register Verify] Passkey saved successfully")
         return jsonify({"success": True})
 
     except Exception as e:
         conn.close()
         print(f"[WebAuthn Register Verify] ERROR: {type(e).__name__}: {str(e)}")
-        import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 400
 
@@ -2902,7 +3141,7 @@ def webauthn_authenticate_options():
             )
     else:
         # Discoverable credential mode: no username, browser will show all available passkeys
-        print(f"[WebAuthn Auth] Using discoverable credentials (no username provided)")
+        print("[WebAuthn Auth] Using discoverable credentials (no username provided)")
         # allow_credentials remains empty - browser will prompt for any stored passkey
 
     # Generate authentication options
@@ -2975,8 +3214,8 @@ def webauthn_authenticate_verify():
         parsed_credential = parse_authentication_credential_json(credential)
     except Exception as e:
         conn.close()
-        print(f"[WebAuthn Auth Verify] ERROR: Failed to parse credential: {str(e)}")
-        return jsonify({"success": False, "error": f"Failed to parse credential: {str(e)}"}), 400
+        print(f"[WebAuthn Auth Verify] ERROR: Failed to parse credential: {e!s}")
+        return jsonify({"success": False, "error": f"Failed to parse credential: {e!s}"}), 400
 
     # Convert base64url credential_id to bytes for database lookup
     credential_id_bytes = base64url_to_bytes(credential['rawId'])
@@ -2990,7 +3229,7 @@ def webauthn_authenticate_verify():
 
     if not cred_row:
         conn.close()
-        print(f"[WebAuthn Auth Verify] ERROR: Credential not found in database")
+        print("[WebAuthn Auth Verify] ERROR: Credential not found in database")
         return jsonify({"success": False, "error": "Credential not found"}), 404
 
     public_key, current_sign_count, cred_user_id = cred_row
@@ -2999,7 +3238,7 @@ def webauthn_authenticate_verify():
     # If user_id is None, we're in discoverable credential mode - use credential's user_id
     if user_id is not None and cred_user_id != user_id:
         conn.close()
-        print(f"[WebAuthn Auth Verify] ERROR: Credential/user mismatch")
+        print("[WebAuthn Auth Verify] ERROR: Credential/user mismatch")
         return jsonify({"success": False, "error": "Credential/user mismatch"}), 403
 
     # Use credential's user_id for discoverable mode
@@ -3022,7 +3261,7 @@ def webauthn_authenticate_verify():
             credential_current_sign_count=current_sign_count,
         )
 
-        print(f"[WebAuthn Auth Verify] Verification successful!")
+        print("[WebAuthn Auth Verify] Verification successful!")
 
         # Update sign count
         update_sign_count(credential_id_bytes, verification.new_sign_count)
@@ -3045,12 +3284,12 @@ def webauthn_authenticate_verify():
         conn.commit()
         conn.close()
 
-        print(f"[WebAuthn Auth Verify] Login successful!")
+        print("[WebAuthn Auth Verify] Login successful!")
         return jsonify({"success": True})
 
     except Exception as e:
         conn.close()
-        print(f"[WebAuthn Auth Verify] ERROR: {type(e).__name__}: {str(e)}")
+        print(f"[WebAuthn Auth Verify] ERROR: {type(e).__name__}: {e!s}")
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 400
@@ -3156,23 +3395,40 @@ def api_update_passkey(passkey_id):
 @app.route('/')
 @login_required
 def index():
-    # Check if onboarding is complete
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT is_completed FROM onboarding_config LIMIT 1")
-    row = c.fetchone()
-    conn.close()
+    workspace = LEGACY_WORKSPACE_MAP.get(request.args.get("tab", ""), "today")
+    return redirect(url_for("meridian", workspace=workspace))
 
-    is_onboarding_complete = bool(row and row[0] == 1) if row else False
 
-    if not is_onboarding_complete:
-        return render_template('onboarding.html')
+@app.route("/expenses")
+@app.route("/bills")
+@app.route("/goals")
+@app.route("/pockets")
+@login_required
+def legacy_plan():
+    return redirect(url_for("meridian", workspace="plan"))
 
-    return render_template('index.html')
+
+@app.route("/account")
+@app.route("/family")
+@app.route("/cards")
+@app.route("/credit")
+@app.route("/splitwise")
+@login_required
+def legacy_accounts():
+    return redirect(url_for("meridian", workspace="accounts"))
 
 @app.route('/debug')
 @login_required
 def debug(): return render_template('debug.html')
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"})
+
+@app.route('/meridian')
+@login_required
+def meridian_shell():
+    return render_template('meridian/index.html')
 
 # --- PWA ROUTES ---
 @app.route('/manifest.json')
@@ -3240,7 +3496,7 @@ def api_save_crew_token():
             return jsonify({"success": False, "error": "Invalid token"}), 400
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Token validation failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Token validation failed: {e!s}"}), 500
 
     # Save to database
     conn = sqlite3.connect(DB_FILE)
@@ -3373,7 +3629,7 @@ def api_account_update_crew_token():
             return jsonify({"success": False, "error": "Invalid token"}), 400
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Token validation failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Token validation failed: {e!s}"}), 500
 
     # Save to database
     conn = sqlite3.connect(DB_FILE)
@@ -3432,7 +3688,7 @@ def api_account_test_crew():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Connection test failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Connection test failed: {e!s}"}), 500
 
 @app.route('/api/account/crew-health')
 @login_required
@@ -3442,13 +3698,16 @@ def api_crew_health():
     return jsonify({
         "state": health.state.value,
         "message": health.message,
-        "provider": crew_credential_provider.describe(),
+        "provider": crew_provider_description,
     })
 
 @app.route('/api/account/crew/reconnect/start', methods=['POST'])
 @login_required
 def api_crew_reconnect_start():
     """Begin a guided renewal session; runs only on the local Mac"""
+    if crew_provider_description == "session_broker":
+        payload, status_code = crew_client.start_renewal()
+        return jsonify(payload), status_code
     result = crew_renewal_service.start()
     if "error" in result:
         return jsonify(result), 409
@@ -3458,6 +3717,9 @@ def api_crew_reconnect_start():
 @login_required
 def api_crew_reconnect_status(session_id):
     """Sanitized renewal status — never includes credential material"""
+    if crew_provider_description == "session_broker":
+        payload, status_code = crew_client.renewal_status(session_id)
+        return jsonify(payload), status_code
     payload = crew_renewal_service.status(session_id)
     if payload is None:
         return jsonify({"error": "Unknown renewal session"}), 404
@@ -3517,6 +3779,44 @@ def api_actions_propose():
     except UnknownActionTypeError as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify(created)
+
+@app.route('/api/meridian/funding-rules/propose', methods=['POST'])
+@login_required
+def api_meridian_funding_rule_propose():
+    """Propose a funding-rule change; the owner approves before it applies."""
+    data = request.json or {}
+    commitment_id = data.get('commitment_id')
+    rule = data.get('rule') or {}
+    if not isinstance(commitment_id, int) or not isinstance(rule, dict) or not rule.get('kind'):
+        return jsonify({"error": "commitment_id (int) and rule.kind are required"}), 400
+    rule_id = data.get('rule_id')
+    minor = rule.get('amount')
+    dedup = (
+        f"funding-rule:{rule_id if rule_id else 'new'}:{commitment_id}:{rule.get('kind')}:"
+        f"{minor if minor is not None else ''}"
+    )
+    verb = "Update" if rule_id else "Create"
+    rationale = (
+        f"{verb} a {rule.get('kind')} funding rule"
+        + (f" (${minor})" if minor is not None else "")
+        + f" for commitment #{commitment_id}. Applies locally after your approval; Crew is never contacted."
+    )
+    try:
+        created = action_store.propose(
+            'update_funding_rule',
+            {
+                'commitment_id': commitment_id,
+                'rule_id': rule_id,
+                'rule': rule,
+            },
+            rationale,
+            requested_by=getattr(current_user, 'username', 'owner'),
+            dedup_key=dedup,
+        )
+    except UnknownActionTypeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"proposal": created})
+
 
 @app.route('/api/actions/<action_id>/approve', methods=['POST'])
 @login_required
@@ -3603,7 +3903,7 @@ def api_account_bank_details():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Failed to fetch bank details: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Failed to fetch bank details: {e!s}"}), 500
 
 @app.route('/api/account/simplefin/update-token', methods=['POST'])
 @login_required
@@ -3635,7 +3935,7 @@ def api_account_update_simplefin_token():
             return jsonify({"success": False, "error": "Invalid response from SimpleFin"}), 400
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Token validation failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Token validation failed: {e!s}"}), 500
 
     # Save access URL to database
     conn = sqlite3.connect(DB_FILE)
@@ -3687,7 +3987,7 @@ def api_account_test_simplefin():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Connection test failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Connection test failed: {e!s}"}), 500
 
 @app.route('/api/account/lunchflow/update-key', methods=['POST'])
 @login_required
@@ -3711,7 +4011,7 @@ def api_account_update_lunchflow_key():
             return jsonify({"success": False, "error": "Invalid API key"}), 400
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Validation failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Validation failed: {e!s}"}), 500
 
     # Save to database
     conn = sqlite3.connect(DB_FILE)
@@ -3760,7 +4060,7 @@ def api_account_test_lunchflow():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Connection test failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Connection test failed: {e!s}"}), 500
 
 @app.route('/api/account/splitwise/update-key', methods=['POST'])
 @login_required
@@ -3781,7 +4081,7 @@ def api_account_update_splitwise_key():
             timeout=30
         )
     except Exception as e:
-        return jsonify({"success": False, "error": f"Network error: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Network error: {e!s}"}), 500
 
     if response.status_code == 200:
         user_data = response.json().get("user", {})
@@ -3831,7 +4131,7 @@ def api_account_test_splitwise():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Connection test failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Connection test failed: {e!s}"}), 500
 
 @app.route('/api/account/webauthn/config', methods=['GET'])
 @login_required
@@ -3876,8 +4176,7 @@ def api_account_update_webauthn_config():
         return jsonify({"success": False, "error": "Origin must start with http:// or https://"}), 400
 
     # Validate that origin doesn't have trailing slash
-    if origin.endswith('/'):
-        origin = origin[:-1]
+    origin = origin.removesuffix('/')
 
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -3901,7 +4200,7 @@ def api_account_update_webauthn_config():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Failed to update configuration: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Failed to update configuration: {e!s}"}), 500
 
 @app.route('/api/account/webauthn/test', methods=['POST'])
 @login_required
@@ -4793,7 +5092,13 @@ def api_set_card_spend():
 def api_savings():
     # Check if the frontend is asking for a forced refresh
     refresh = request.args.get('refresh') == 'true'
-    return jsonify(get_financial_data(force_refresh=refresh))
+    result = get_financial_data(force_refresh=refresh)
+    
+    # If this was a forced refresh and the fetch succeeded, sync to Meridian
+    if refresh and isinstance(result, dict) and "error" not in result:
+        sync_crew_to_meridian()
+    
+    return jsonify(result)
 
 @app.route('/api/history')
 @login_required
@@ -5133,7 +5438,7 @@ def api_save_lunchflow_key():
             return jsonify({"success": False, "error": "Invalid API key"}), 400
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"Validation failed: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Validation failed: {e!s}"}), 500
 
     # Save to database
     conn = sqlite3.connect(DB_FILE)
@@ -5176,13 +5481,13 @@ def api_lunchflow_accounts():
         # Return the data in the expected format with accounts array
         return jsonify(data)
     except requests.exceptions.ConnectionError as e:
-        return jsonify({"error": f"Connection error: Unable to connect to LunchFlow API. Please check your internet connection and try again. ({str(e)})"}), 500
+        return jsonify({"error": f"Connection error: Unable to connect to LunchFlow API. Please check your internet connection and try again. ({e!s})"}), 500
     except requests.exceptions.Timeout as e:
-        return jsonify({"error": f"Request timeout: LunchFlow API took too long to respond. ({str(e)})"}), 500
+        return jsonify({"error": f"Request timeout: LunchFlow API took too long to respond. ({e!s})"}), 500
     except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Request error: {str(e)}"}), 500
+        return jsonify({"error": f"Request error: {e!s}"}), 500
     except Exception as e:
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+        return jsonify({"error": f"Unexpected error: {e!s}"}), 500
 
 @app.route('/api/lunchflow/set-credit-card', methods=['POST'])
 @login_required
@@ -5233,9 +5538,9 @@ def api_get_balance(account_id):
         data = response.json()
         return jsonify(data)
     except requests.exceptions.ConnectionError as e:
-        return jsonify({"error": f"Connection error: {str(e)}"}), 500
+        return jsonify({"error": f"Connection error: {e!s}"}), 500
     except requests.exceptions.Timeout as e:
-        return jsonify({"error": f"Request timeout: {str(e)}"}), 500
+        return jsonify({"error": f"Request timeout: {e!s}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -5622,10 +5927,10 @@ def api_sync_balance():
         if abs(difference) > 0.01:  # Only transfer if difference is significant
             if difference > 0:
                 # Need to move money from Checking to Pocket
-                result = move_money(checking_subaccount_id, pocket_id, str(difference), f"Sync credit card balance")
+                result = move_money(checking_subaccount_id, pocket_id, str(difference), "Sync credit card balance")
             else:
                 # Need to move money from Pocket to Checking
-                result = move_money(pocket_id, checking_subaccount_id, str(abs(difference)), f"Sync credit card balance")
+                result = move_money(pocket_id, checking_subaccount_id, str(abs(difference)), "Sync credit card balance")
             
             if "error" in result:
                 return jsonify({"error": f"Failed to sync balance: {result['error']}"}), 500
@@ -5827,7 +6132,7 @@ def check_credit_card_transactions():
         else:
             for row in rows:
                 if row[2] == 'simplefin':
-                    print(f"⚠️ SimpleFin access URL not found in simplefin_config", flush=True)
+                    print("⚠️ SimpleFin access URL not found in simplefin_config", flush=True)
                     break
 
         # Batch fetch SimpleFin data for all due accounts in a single request
@@ -5937,10 +6242,6 @@ def check_lunchflow_transactions(conn, c, account_id, pocket_id, api_key):
     """Check LunchFlow for new transactions"""
     try:
         # Get when credit card was added
-        c.execute("SELECT created_at FROM credit_card_config WHERE account_id = ?", (account_id,))
-        config_row = c.fetchone()
-        added_date = config_row[0] if config_row else None
-
         # Fetch transactions from LunchFlow
         headers = {"x-api-key": api_key, "accept": "application/json"}
         try:
@@ -6016,15 +6317,15 @@ def check_lunchflow_transactions(conn, c, account_id, pocket_id, api_key):
 
                         if checking_subaccount_id and abs(difference) > 0.01:
                             if difference > 0:
-                                move_money(checking_subaccount_id, pocket_id, str(difference), f"LunchFlow credit card sync")
+                                move_money(checking_subaccount_id, pocket_id, str(difference), "LunchFlow credit card sync")
                             else:
-                                move_money(pocket_id, checking_subaccount_id, str(abs(difference)), f"LunchFlow credit card sync")
+                                move_money(pocket_id, checking_subaccount_id, str(abs(difference)), "LunchFlow credit card sync")
                         cache.clear()
 
         if new_transactions:
             print(f"✅ Found {len(new_transactions)} new LunchFlow credit card transactions")
         else:
-            print(f"🔄 LunchFlow credit card balance checked (no new transactions)")
+            print("🔄 LunchFlow credit card balance checked (no new transactions)")
 
     except Exception as e:
         print(f"Error checking LunchFlow transactions: {e}")
@@ -6084,7 +6385,7 @@ def check_simplefin_transactions(conn, c, account_id, pocket_id, access_url, is_
             if acc_id == account_id:
                 target_account = account
                 transactions = account.get("transactions", [])
-                print(f"  ✅ MATCH! This is our tracked account")
+                print("  ✅ MATCH! This is our tracked account")
                 break
 
         if not target_account:
@@ -6360,15 +6661,15 @@ def check_simplefin_transactions(conn, c, account_id, pocket_id, access_url, is_
 
                         if checking_subaccount_id and abs(difference) > 0.01:
                             if difference > 0:
-                                move_money(checking_subaccount_id, pocket_id, str(difference), f"SimpleFin credit card sync")
+                                move_money(checking_subaccount_id, pocket_id, str(difference), "SimpleFin credit card sync")
                             else:
-                                move_money(pocket_id, checking_subaccount_id, str(abs(difference)), f"SimpleFin credit card sync")
+                                move_money(pocket_id, checking_subaccount_id, str(abs(difference)), "SimpleFin credit card sync")
                         cache.clear()
 
         if new_transactions:
             print(f"✅ Found {len(new_transactions)} new SimpleFin credit card transactions")
         else:
-            print(f"🔄 SimpleFin credit card balance checked (no new transactions)")
+            print("🔄 SimpleFin credit card balance checked (no new transactions)")
 
     except Exception as e:
         print(f"❌ Error checking SimpleFin transactions: {e}")
@@ -6594,8 +6895,6 @@ def api_get_credit_card_transactions():
         return jsonify({"error": str(e)}), 500
 
 # --- SIMPLEFIN API ENDPOINTS ---
-import base64
-from urllib.parse import urlparse
 
 def store_simplefin_access_url(access_url):
     """Store or update the SimpleFin access URL in the global config table"""
@@ -6653,7 +6952,7 @@ def simplefin_claim_token(token):
     except base64.binascii.Error:
         return {"error": "Invalid token format. Token must be Base64-encoded."}
     except Exception as e:
-        return {"error": f"Failed to claim token: {str(e)}"}
+        return {"error": f"Failed to claim token: {e!s}"}
 
 def simplefin_get_accounts(access_url, account_id=None):
     """Fetch accounts from SimpleFin using the access URL"""
@@ -6707,7 +7006,7 @@ def simplefin_get_accounts(access_url, account_id=None):
 
         return {"accounts": accounts}
     except Exception as e:
-        return {"error": f"Failed to fetch accounts: {str(e)}"}
+        return {"error": f"Failed to fetch accounts: {e!s}"}
 
 @app.route('/api/simplefin/get-access-url')
 @login_required
@@ -6726,7 +7025,7 @@ def api_simplefin_get_access_url():
             print(f"✅ SimpleFin access URL found (url length: {len(row[0])})", flush=True)
             return jsonify({"success": True, "accessUrl": row[0]})
         else:
-            print(f"⚠️ No SimpleFin access URL found in database", flush=True)
+            print("⚠️ No SimpleFin access URL found in database", flush=True)
             return jsonify({"success": False, "accessUrl": None})
     except Exception as e:
         print(f"❌ ERROR fetching SimpleFin access URL: {e}", flush=True)
@@ -7033,9 +7332,9 @@ def api_simplefin_sync_balance():
         # Transfer money to/from pocket
         if abs(difference) > 0:  # Only transfer if difference is significant
             if difference > 0:
-                result = move_money(checking_subaccount_id, pocket_id, str(difference), f"SimpleFin sync credit card balance")
+                result = move_money(checking_subaccount_id, pocket_id, str(difference), "SimpleFin sync credit card balance")
             else:
-                result = move_money(pocket_id, checking_subaccount_id, str(abs(difference)), f"SimpleFin sync credit card balance")
+                result = move_money(pocket_id, checking_subaccount_id, str(abs(difference)), "SimpleFin sync credit card balance")
 
             if "error" in result:
                 return jsonify({"error": f"Failed to sync balance: {result['error']}"}), 500
@@ -7296,7 +7595,7 @@ def api_simplefin_disconnect():
 
                     # Return money to Checking
                     if checking_subaccount_id and current_balance > 0.01:
-                        move_money(pocket_id, checking_subaccount_id, str(current_balance), f"Disconnecting SimpleFin - returning funds")
+                        move_money(pocket_id, checking_subaccount_id, str(current_balance), "Disconnecting SimpleFin - returning funds")
 
                     # Delete the pocket
                     delete_subaccount_action(pocket_id)
@@ -7547,7 +7846,7 @@ def api_splitwise_save_key():
             timeout=30
         )
     except Exception as e:
-        return jsonify({"error": f"Network error: {str(e)}"}), 500
+        return jsonify({"error": f"Network error: {e!s}"}), 500
 
     if response.status_code == 200:
         user_data = response.json().get("user", {})
@@ -7581,7 +7880,7 @@ def api_splitwise_get_friends():
             timeout=30
         )
     except Exception as e:
-        return jsonify({"error": f"Network error: {str(e)}"}), 500
+        return jsonify({"error": f"Network error: {e!s}"}), 500
 
     if response.status_code == 200:
         friends = response.json().get("friends", [])
@@ -8041,8 +8340,10 @@ def api_splitwise_disconnect():
         print(f"❌ Error disconnecting Splitwise: {e}", flush=True)
         return jsonify({"error": str(e)}), 500
 
+# Initialize database tables on import (needed for gunicorn which doesn't run __main__)
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     print("Server running on http://127.0.0.1:8080")
     # Background thread will start automatically on first request
-    app.run(host='0.0.0.0', debug=True, port=8080)
+    app.run(host='0.0.0.0', debug=os.getenv("FLASK_DEBUG") == "1", port=8080)

@@ -39,7 +39,7 @@ SimpleCrew's own login/passkey is still required.
 
 Do not configure router port forwarding, a public reverse proxy, or `tailscale funnel` for Milestone 1.
 
-## 5. Replace an expired Crew token
+## 5. Renew an expired Crew session
 
 Two options:
 
@@ -47,9 +47,13 @@ Two options:
 
 1. Open SimpleCrew Account Settings → Crew Banking → Connection Health.
 2. Run **Check Crew connection**. If it reports the connection needs attention, a **Reconnect Crew** button appears.
-3. Click **Reconnect Crew** — a browser window opens at Crew's login page on this Mac.
+3. Confirm the Mac-local Crew broker is running, then click **Reconnect Crew on this Mac**. The broker opens an ephemeral browser window at Crew's login page.
 4. Log in interactively (including your SMS/email code). The window can be closed as soon as the app reports success.
-5. SimpleCrew captures the new credential server-side and re-checks health automatically. You never see or copy the token.
+5. The broker captures only the approved Crew session cookies, validates them with a read-only health query, encrypts them with an AES-GCM key held in macOS Keychain, and only then replaces the stored session. You never see or copy a cookie or token.
+
+The Docker app receives neither decrypted cookies nor the Keychain key. It reaches the broker through the configured host gateway and authenticates with the private capability file. The broker refuses non-loopback binds; do not publish its port through a reverse proxy, Funnel, or LAN interface.
+
+If health says `broker_unavailable`, start or reload `com.simplecrew.crew-broker` on the Mac. If it says `credential_locked`, unlock/repair Keychain access and reconnect; the existing encrypted database record is preserved. A backup contains ciphertext but not the Keychain key, so restoring on another Mac requires a fresh interactive login.
 
 One-time helper install (Mac only, not needed in Docker):
 ```bash

@@ -106,11 +106,24 @@ async function advisorFabSend() {
 
     if (sendBtn) sendBtn.disabled = true;
     try {
-        const response = await fetch('/api/advisor/chat', {
+        const contextualNode = document.querySelector('[data-advisor-context]:not([hidden])');
+        const isMeridian = document.querySelector('[data-meridian-shell]') !== null;
+        const context = contextualNode
+            ? {
+                kind: contextualNode.dataset.advisorContext,
+                object_id: contextualNode.dataset.objectId || 'current',
+                evidence_ids: contextualNode.dataset.objectId
+                    ? [`${contextualNode.dataset.advisorContext}:${contextualNode.dataset.objectId}`]
+                    : [],
+            }
+            : { kind: 'forecast', object_id: 'current', evidence_ids: [] };
+        const response = await fetch(isMeridian ? '/api/meridian/advisor' : '/api/advisor/chat', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, history: advisorFabHistory.slice(-10) }),
+            body: JSON.stringify(isMeridian
+                ? { question: message, context }
+                : { message, history: advisorFabHistory.slice(-10) }),
         });
         const data = await response.json();
         const log = _advisorLog();
@@ -120,11 +133,12 @@ async function advisorFabSend() {
         if (!response.ok) {
             replyText = data.error || 'Advisor error.';
         } else {
-            replyText = data.reply || '';
-            if (data.proposal) {
-                replyText += `\n\n📋 Proposal drafted: ${data.proposal.summary}\nReview it under Account → Pending Actions.`;
+            replyText = isMeridian ? (data.answer || '') : (data.reply || '');
+            const proposal = data.proposal || ((data.proposals || [])[0]);
+            if (proposal) {
+                replyText += `\n\n📋 Proposal drafted: ${proposal.summary || proposal.type}\nReview it before approval.`;
                 if (typeof loadPendingActions === 'function') loadPendingActions();
-                haptic([15, 40, 15]);
+                if (typeof haptic === 'function') haptic([15, 40, 15]);
             }
         }
         advisorBubble('assistant', replyText);
@@ -147,7 +161,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const send = document.getElementById('advisor-fab-send');
     const input = document.getElementById('advisor-fab-input');
 
-    if (fab) fab.addEventListener('click', () => { haptic(8); advisorSetOpen(true); });
+    if (fab) fab.addEventListener('click', () => {
+        if (typeof haptic === 'function') haptic(8);
+        advisorSetOpen(true);
+    });
     if (close) close.addEventListener('click', () => advisorSetOpen(false));
     if (send) send.addEventListener('click', advisorFabSend);
     if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') advisorFabSend(); });

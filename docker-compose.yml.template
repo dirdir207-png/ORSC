@@ -8,7 +8,11 @@ services:
       - "8080:8080"
     volumes:
       - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - BEARER_TOKEN=${BEARER_TOKEN}
       - LUNCHFLOW_API_KEY=${LUNCHFLOW_API_KEY}
+      - CREW_BROKER_URL=http://host.docker.internal:8765
+      - CREW_BROKER_CAPABILITY_FILE=/app/data/crew-broker.capability
     restart: unless-stopped

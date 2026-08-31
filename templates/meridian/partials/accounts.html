@@ -1,0 +1,21 @@
+<div class="m-accounts" data-accounts aria-busy="true">
+  <p class="m-chip" data-accounts-freshness data-state="unavailable">Loading account structure</p>
+  <div data-accounts-groups></div>
+
+  <section class="m-account-section" aria-labelledby="reimbursements-heading" data-reimbursements hidden>
+    <h2 id="reimbursements-heading" class="m-section-label">Expected reimbursements</h2>
+    <div class="m-account-list" data-reimbursement-list></div>
+  </section>
+
+  <section id="connections" class="m-account-section" aria-labelledby="connections-heading" data-connections>
+    <div class="m-section-heading-row">
+      <div>
+        <h2 id="connections-heading" class="m-section-label">Connections</h2>
+        <p class="m-section-copy">Provider setup and health live here, separate from your financial structure.</p>
+      </div>
+      <a class="m-button" href="#connections" data-connections-action>View connections</a>
+    </div>
+    <div class="m-account-list" data-connections-list></div>
+  </section>
+  <p class="m-inline-error" data-accounts-error role="alert" hidden></p>
+</div>

@@ -1,5 +1,10 @@
 from crew.client import CrewAPIError, CrewAuthenticationError, CrewTransportError
-from crew.health import CredentialHealthService, CrewHealthState
+from crew.health import (
+    BrokerUnavailableError,
+    CredentialHealthService,
+    CredentialLockedError,
+    CrewHealthState,
+)
 
 
 class StubClient:
@@ -31,3 +36,15 @@ def test_health_is_unreachable_for_transport_failure():
 def test_health_is_api_error_for_graphql_failure():
     health = CredentialHealthService(StubClient(error=CrewAPIError("bad query"))).check()
     assert health.state is CrewHealthState.API_ERROR
+
+
+def test_health_is_broker_unavailable_when_local_broker_cannot_be_reached():
+    health = CredentialHealthService(StubClient(error=BrokerUnavailableError("detail"))).check()
+    assert health.state is CrewHealthState.BROKER_UNAVAILABLE
+    assert "detail" not in health.message
+
+
+def test_health_is_credential_locked_when_broker_cannot_decrypt_session():
+    health = CredentialHealthService(StubClient(error=CredentialLockedError("detail"))).check()
+    assert health.state is CrewHealthState.CREDENTIAL_LOCKED
+    assert "detail" not in health.message

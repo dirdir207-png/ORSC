@@ -1,0 +1,13 @@
+<aside class="m-settings-nav" aria-label="Settings sections">
+  <h1>Settings</h1>
+  <nav>
+    <a
+      href="/meridian/settings?section=connections"
+      {% if active_settings_section == 'connections' %}aria-current="page"{% endif %}
+    >Connections</a>
+    <a
+      href="/meridian/settings?section=payday"
+      {% if active_settings_section == 'payday' %}aria-current="page"{% endif %}
+    >Payday &amp; Funding</a>
+  </nav>
+</aside>

@@ -157,15 +157,15 @@ function renderCrewHealthState(statusEl, data) {
     statusEl.dataset.state = data.state || 'api_error';
     const reconnectBtn = document.getElementById('crew-reconnect');
     if (reconnectBtn) {
-        reconnectBtn.style.display = data.state === 'unauthorized' ? 'inline-block' : 'none';
+        reconnectBtn.style.display = ['unauthorized', 'credential_locked'].includes(data.state) ? 'inline-block' : 'none';
     }
 }
 
 let crewReconnectPollTimer = null;
 
 /**
- * Guided renewal: opens a local browser window for interactive Crew login,
- * captures the new credential server-side, then re-checks health.
+ * Guided renewal asks the Mac-local broker to open an interactive Crew login,
+ * validates the session server-side, then re-checks health.
  */
 async function reconnectCrew() {
     const status = document.getElementById('crew-connection-status');
@@ -496,81 +496,5 @@ async function testSplitwiseConnection() {
         }
     } catch (error) {
         appAlert('✗ Connection test failed');
-    }
-}
-
-// --- AI ADVISOR ---
-
-let advisorHistory = [];
-
-async function advisorInit() {
-    const status = document.getElementById('advisor-status');
-    if (!status) return;
-    try {
-        const response = await fetch('/api/advisor/status', { credentials: 'same-origin' });
-        const data = await response.json();
-        if (data.configured) {
-            status.textContent = `Connected · ${data.model || 'AI'} · proposals require your approval`;
-            document.getElementById('advisor-log').style.display = 'flex';
-            document.getElementById('advisor-input-row').style.display = 'flex';
-            advisorBubble('assistant', "Hi! Ask about your balances, pockets, or spending — or tell me to move money and I'll draft a proposal for your approval.");
-        } else {
-            status.innerHTML = 'Not configured — set <code>OPENAI_API_KEY</code> (optionally <code>OPENAI_BASE_URL</code>, <code>OPENAI_MODEL</code>) and restart.';
-        }
-    } catch (error) {
-        status.textContent = 'Advisor unavailable.';
-    }
-}
-
-function advisorBubble(role, text) {
-    const log = document.getElementById('advisor-log');
-    if (!log) return;
-    const bubble = document.createElement('div');
-    bubble.style.cssText = `max-width:85%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.45;white-space:pre-wrap;${role === 'user'
-        ? 'align-self:flex-end;background:var(--simple-blue);color:#fff;'
-        : 'align-self:flex-start;background:var(--bg-elevated);color:var(--text-dark);border:1px solid var(--border-color);'}`;
-    bubble.textContent = text;
-    log.appendChild(bubble);
-    log.scrollTop = log.scrollHeight;
-}
-
-async function advisorSend() {
-    const input = document.getElementById('advisor-input');
-    const send = document.getElementById('advisor-send');
-    const log = document.getElementById('advisor-log');
-    const message = (input.value || '').trim();
-    if (!message) return;
-
-    input.value = '';
-    advisorBubble('user', message);
-    if (send) { send.disabled = true; }
-    advisorBubble('assistant', 'Thinking…');
-
-    try {
-        const response = await fetch('/api/advisor/chat', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, history: advisorHistory }),
-        });
-        const data = await response.json();
-        if (log.lastChild) log.lastChild.remove();
-        if (!response.ok) {
-            advisorBubble('assistant', data.error || 'Advisor error.');
-        } else {
-            advisorBubble('assistant', data.reply || '');
-            if (data.proposal) {
-                advisorBubble('assistant', `📋 Proposal drafted: ${data.proposal.summary}\nReview it under Pending Actions above.`);
-                loadPendingActions();
-                if (navigator.vibrate) navigator.vibrate([15, 40, 15]);
-            }
-        }
-        advisorHistory.push({ role: 'user', content: message }, { role: 'assistant', content: data.reply || '' });
-        if (advisorHistory.length > 20) advisorHistory = advisorHistory.slice(-10);
-    } catch (error) {
-        if (log.lastChild) log.lastChild.remove();
-        advisorBubble('assistant', 'Could not reach the advisor.');
-    } finally {
-        if (send) send.disabled = false;
     }
 }

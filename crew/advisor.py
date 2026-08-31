@@ -20,6 +20,16 @@ class AdvisorUnavailable(RuntimeError):
     pass
 
 
+class MeridianAdvisorBridge:
+    """Expose the contextual Meridian advisor through Crew's global advisor boundary."""
+
+    def __init__(self, contextual_advisor):
+        self._contextual_advisor = contextual_advisor
+
+    def ask(self, context, question):
+        return self._contextual_advisor.ask(context, question)
+
+
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_MODEL = "gpt-4o-mini"
 LLM_TIMEOUT_SECONDS = 30

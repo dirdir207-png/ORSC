@@ -1,0 +1,372 @@
+/* Meridian responsive application shell.
+   Desktop: 150px forest rail | flexible canvas | optional inspector rail.
+   Mobile: identity bar on top, workspace dock at the bottom (safe-area aware). */
+
+[data-meridian-shell] {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "rail canvas inspector"
+    "rail canvas inspector";
+  min-height: 100dvh;
+  background: var(--m-canvas);
+  color: var(--m-ink);
+}
+
+/* The hidden attribute always wins, even over component display values. */
+[hidden] {
+  display: none !important;
+}
+
+/* Meridian exposes the advisor through intentional in-context controls. */
+body:has([data-meridian-shell]) #advisor-fab {
+  display: none !important;
+}
+
+/* ---------- Theme support ---------- */
+
+.m-theme-light {
+  /* Light tokens are in :root */
+}
+
+.m-theme-dark {
+  /* Dark tokens are in @media (prefers-color-scheme: dark) */
+}
+
+/* ---------- Primary navigation: rail on desktop, dock on mobile ---------- */
+
+.m-nav {
+  grid-area: rail;
+  align-self: start;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--m-space-2);
+  padding: var(--m-space-6) var(--m-space-4) var(--m-space-5);
+  background: var(--m-healthy);
+  border-right: 1px solid var(--m-border);
+}
+
+.m-brand {
+  width: auto;
+  height: auto;
+  display: block;
+  margin-bottom: var(--m-space-5);
+  font-family: var(--m-font-serif);
+  font-size: var(--m-text-xl);
+  color: #fffdf8;
+  text-decoration: none;
+}
+
+.m-branded-wordmark {
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.m-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.m-nav-item {
+  position: relative;
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: var(--m-space-2) var(--m-space-3);
+  border-radius: var(--m-radius-md);
+  color: rgba(255, 253, 248, 0.72);
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-xs);
+  letter-spacing: 0.01em;
+  text-decoration: none;
+}
+
+.m-nav-item svg {
+  display: block;
+}
+
+.m-nav-item:hover {
+  background: rgba(255, 253, 248, 0.1);
+  color: #fffdf8;
+}
+
+.m-nav-item[aria-current="page"] {
+  background: rgba(255, 253, 248, 0.15);
+  color: #fffdf8;
+}
+
+.m-nav-item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 25%;
+  bottom: 25%;
+  width: 3px;
+  border-radius: var(--m-radius-pill);
+  background: #fffdf8;
+}
+
+/* ---------- Canvas ---------- */
+
+.m-topbar {
+  display: none;
+}
+
+.m-nav-profile {
+  margin-top: auto;
+  padding: var(--m-space-4) var(--m-space-2) 0;
+  border-top: 1px solid rgba(255, 253, 248, 0.22);
+  color: #fffdf8;
+  font-size: var(--m-text-xs);
+}
+
+.m-nav-profile strong,
+.m-nav-profile span {
+  display: block;
+}
+
+.m-nav-profile span {
+  margin-top: var(--m-space-1);
+  opacity: 0.68;
+}
+
+.m-main {
+  grid-area: canvas;
+  min-width: 0;
+  padding: var(--m-space-6) clamp(var(--m-space-4), 3.2vw, var(--m-space-7));
+  width: 100%;
+}
+
+.m-workspace-kicker {
+  margin: 0 0 var(--m-space-2);
+  color: var(--m-healthy);
+  font-size: var(--m-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.m-workspace-heading {
+  font-family: var(--m-font-serif);
+  font-weight: 500;
+  font-size: var(--m-text-xl);
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--m-space-2);
+}
+
+.m-workspace-heading:focus-visible {
+  outline: none;
+  box-shadow: var(--m-focus-ring);
+  border-radius: var(--m-radius-sm);
+}
+
+.m-workspace-subline {
+  font-size: var(--m-text-sm);
+  color: var(--m-ink-muted);
+  margin: 0 0 var(--m-space-6);
+}
+
+/* Empty-state used until a slice fills a workspace */
+.m-empty-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--m-space-2);
+  padding: var(--m-space-3) var(--m-space-4);
+  border: 1px dashed var(--m-border-strong);
+  border-radius: var(--m-radius-md);
+  color: var(--m-ink-muted);
+  font-size: var(--m-text-sm);
+}
+
+/* ---------- Inspector rail (optional, desktop) ---------- */
+
+.m-inspector,
+[data-inspector-rail] {
+  grid-area: inspector;
+  width: min(400px, 34vw);
+  background: var(--m-surface);
+  border-left: 1px solid var(--m-border);
+  padding: var(--m-space-6) var(--m-space-5);
+}
+
+.m-inspector[hidden],
+[data-inspector-rail][hidden] {
+  display: none;
+}
+
+/* ---------- Mobile composition ---------- */
+
+@media (max-width: 900px) {
+  [data-meridian-shell] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "topbar"
+      "canvas"
+      "dock";
+    row-gap: 0;
+    min-height: 100svh;
+  }
+
+  .m-nav {
+    grid-area: dock;
+    position: sticky;
+    top: auto;
+    bottom: 0;
+    z-index: 30;
+    height: auto;
+    flex-direction: row;
+    padding: var(--m-space-1) max(var(--m-space-2), env(safe-area-inset-right))
+      max(var(--m-space-1), env(safe-area-inset-bottom))
+      max(var(--m-space-2), env(safe-area-inset-left));
+    background: var(--m-surface);
+    border-right: none;
+    border-top: 1px solid var(--m-border);
+  }
+
+  .m-nav .m-brand {
+    display: none;
+  }
+
+  .m-nav-profile {
+    display: none;
+  }
+
+  .m-nav-list {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .m-nav-list > li {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .m-nav-item {
+    width: auto;
+    flex: 1;
+    min-height: 56px;
+    border-radius: var(--m-radius-sm);
+    color: var(--m-ink-muted);
+    justify-content: center;
+  }
+
+  .m-nav-item:hover,
+  .m-nav-item[aria-current="page"] {
+    background: var(--m-surface-muted);
+    color: var(--m-ink);
+  }
+
+  .m-nav-item[aria-current="page"]::before {
+    left: 25%;
+    right: 25%;
+    top: 4px;
+    bottom: auto;
+    width: auto;
+    height: 3px;
+    background: var(--m-healthy);
+  }
+
+  .m-topbar {
+    grid-area: topbar;
+    display: flex;
+    align-items: center;
+    gap: var(--m-space-3);
+    padding: calc(var(--m-space-2) + env(safe-area-inset-top))
+      max(var(--m-space-4), env(safe-area-inset-right)) var(--m-space-2)
+      max(var(--m-space-4), env(safe-area-inset-left));
+    background: var(--m-surface);
+    border-bottom: 1px solid var(--m-border);
+  }
+
+  .m-brand--compact {
+    margin-bottom: 0;
+    height: 44px;
+    width: auto;
+    padding: 0 var(--m-space-3);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--m-space-2);
+    cursor: default;
+    color: var(--m-ink);
+  }
+
+  .m-topbar-title {
+    font-family: var(--m-font-serif);
+    font-size: var(--m-text-lg);
+  }
+
+  .m-main {
+    padding: var(--m-space-5) var(--m-space-4)
+      calc(var(--m-space-6) + env(safe-area-inset-bottom));
+  }
+
+  .m-inspector,
+  [data-inspector-rail] {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    width: 100%;
+    border-left: none;
+    overflow-y: auto;
+    padding: calc(var(--m-space-5) + env(safe-area-inset-top))
+      max(var(--m-space-4), env(safe-area-inset-right))
+      calc(var(--m-space-5) + env(safe-area-inset-bottom))
+      max(var(--m-space-4), env(safe-area-inset-left));
+  }
+}
+
+/* Shared focus treatment */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--m-focus-ring);
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: var(--m-space-4);
+  top: var(--m-space-2);
+  z-index: 100;
+  transform: translateY(-200%);
+  padding: var(--m-space-2) var(--m-space-4);
+  background: var(--m-surface);
+  color: var(--m-ink);
+  border: 1px solid var(--m-border-strong);
+  border-radius: var(--m-radius-md);
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-sm);
+  text-decoration: none;
+  transition: transform var(--m-motion-fast) var(--m-ease-out);
+}
+
+.skip-link:focus-visible,
+.skip-link:focus {
+  transform: none;
+}
+
+.m-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

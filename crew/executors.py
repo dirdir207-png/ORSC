@@ -6,11 +6,12 @@ execution. Executors inherit the safety semantics of the functions they wrap
 (e.g., move_money's no-retry / uncertain-write contract).
 """
 
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
-from .actions import ActionState, ActionStore
+from .actions import ActionState, ActionStore, IllegalTransitionError
 
 
 @dataclass(frozen=True)
@@ -32,16 +33,9 @@ def execute_approved_action(
     store: ActionStore,
     request_id: str,
     executors: Dict[str, ExecutorSpec],
+    execution_key: Optional[str] = None,
 ) -> Dict[str, Any]:
-    request = store.get(request_id)
-    if not request:
-        from .actions import IllegalTransitionError
-
-        raise IllegalTransitionError("Unknown action request")
-    if request["state"] != ActionState.APPROVED.value:
-        from .actions import IllegalTransitionError
-
-        raise IllegalTransitionError(f"Action is not approved (state={request['state']})")
+    request = store.claim_for_execution(request_id, execution_key or uuid.uuid4().hex)
 
     spec = executors.get(request["type"])
     if spec is None:
@@ -55,7 +49,11 @@ def execute_approved_action(
     except Exception as exc:
         return store.mark_failed(
             request_id,
-            _failure({}, str(exc) or "Executor raised an exception", "executor_exception"),
+            _failure(
+                {"verify_state": True},
+                str(exc) or "Executor raised an exception",
+                "executor_exception",
+            ),
         )
 
     if not isinstance(result, dict) or not result.get("success"):
@@ -114,6 +112,9 @@ def expire_stale_approvals(
         except ValueError:
             continue
         if age >= ttl_seconds:
-            store.expire(request["id"])
+            try:
+                store.expire(request["id"])
+            except IllegalTransitionError:
+                continue
             expired_ids.append(request["id"])
     return expired_ids

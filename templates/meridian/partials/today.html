@@ -1,0 +1,101 @@
+<div class="m-today" data-today-root>
+  <div class="m-today-layout">
+    <div class="m-today-primary">
+      <header class="m-command-header">
+        <div>
+          <p class="m-workspace-kicker">Today · <span data-today-date>Current position</span></p>
+          <h2 class="m-editorial-headline" data-editorial-headline>You are covered through payday.</h2>
+          <p class="m-editorial-subline">Meridian reconciles what is available, what is already spoken for, and what changed.</p>
+        </div>
+        <button class="m-primary-button" type="button" data-open-advisor>Ask Meridian</button>
+      </header>
+
+      <div class="m-today-hero" data-today-hero>
+        <dl class="m-surface m-sts">
+          <dt class="m-sts-label" data-sts-label>Safe to spend until next payday</dt>
+          <dd class="m-sts-figure-block">
+            <span class="m-sts-figure" data-sts-figure aria-live="polite">—</span>
+            <span class="m-sts-change" data-sts-change hidden></span>
+            <span class="m-sts-note" data-sts-note hidden></span>
+          </dd>
+          <dd class="m-forecast-wrap">
+            <svg class="m-forecast" data-forecast viewBox="0 0 500 120" role="img" aria-label="Projected balance unavailable">
+              <line class="m-forecast-floor" x1="0" y1="92" x2="500" y2="92"></line>
+              <path class="m-forecast-shade" d="M0 48 C70 42 100 63 155 59 S245 82 315 67 S405 50 500 58 L500 110 L0 110Z"></path>
+              <path class="m-forecast-line" d="M0 48 C70 42 100 63 155 59 S245 82 315 67 S405 50 500 58"></path>
+            </svg>
+            <div class="m-forecast-labels" data-forecast-labels aria-hidden="true">
+              <span data-forecast-label>Today</span>
+              <span data-forecast-label>Payday</span>
+              <span data-forecast-label>Rent</span>
+              <span data-forecast-label>Insurance</span>
+              <span data-forecast-label>Next payday</span>
+            </div>
+          </dd>
+          <dd class="m-sts-chip-row">
+            <span class="m-chip" data-freshness data-state="unavailable"></span>
+          </dd>
+        </dl>
+
+        <section class="m-surface m-beacon-card" aria-labelledby="beacon-heading">
+          <p class="m-section-label">Beacon</p>
+          <h3 id="beacon-heading" data-beacon-title>Your plan is steady</h3>
+          <div class="m-beacon-change">
+            <strong data-beacon-summary>No urgent changes have been detected.</strong>
+            <p data-beacon-detail>Meridian will surface material changes here with their evidence.</p>
+          </div>
+          <button class="m-secondary-button" type="button" data-open-beacon>See the evidence</button>
+        </section>
+      </div>
+
+      <section class="m-metric-grid" aria-label="Financial position">
+        <article class="m-surface m-metric" data-supporting-metric>
+          <p class="m-section-label">Available cash</p>
+          <strong data-coming-in>—</strong>
+          <span data-coming-in-note>Next expected income</span>
+        </article>
+        <article class="m-surface m-metric" data-supporting-metric>
+          <p class="m-section-label">Committed</p>
+          <strong data-committed>—</strong>
+          <span>Known obligations</span>
+        </article>
+        <article class="m-surface m-metric" data-supporting-metric>
+          <p class="m-section-label">Runway</p>
+          <strong data-runway>—</strong>
+          <span data-runway-note>Confidence unavailable</span>
+        </article>
+      </section>
+
+      <div class="m-today-support">
+        <section class="m-surface m-inputs">
+          <h3 class="m-section-label">What this includes</h3>
+          <ul class="m-input-list" data-today-inputs></ul>
+          <p class="m-today-reason" data-today-reason hidden></p>
+        </section>
+
+        <section class="m-surface m-upcoming">
+          <h3 class="m-section-label">Upcoming money moments</h3>
+          <p class="m-empty-note" data-upcoming-empty>No scheduled money moments yet.</p>
+          <ul class="m-input-list" data-upcoming-list></ul>
+        </section>
+      </div>
+    </div>
+
+    <aside class="m-today-brief" data-today-brief aria-labelledby="today-brief-heading">
+      <p class="m-section-label">Advisor</p>
+      <h3 id="today-brief-heading">Morning brief</h3>
+      <p class="m-brief-intro">Your plan absorbs the visible horizon. One connection is worth reviewing.</p>
+      <div class="m-brief-insight">
+        <span aria-hidden="true"></span>
+        <div>
+          <strong data-brief-title>A useful connection</strong>
+          <p data-brief-summary>Nothing needs your attention right now.</p>
+        </div>
+      </div>
+      <button class="m-primary-button" type="button" data-open-advisor>Explore scenario</button>
+      <p class="m-brief-footnote">Every suggestion links back to source evidence.</p>
+    </aside>
+  </div>
+
+  <p class="m-inline-error" data-today-error role="alert" hidden></p>
+</div>

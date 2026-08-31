@@ -336,10 +336,6 @@ body { overflow-y: auto !important; height: auto !important; }
     box-sizing: border-box;
 }
 
-/* Beacon card header spacing */
-#beacon-card { padding: 16px 18px !important; }
-#beacon-card > div:first-child { padding-right: 6px; }
-
 /* Mobile: single column, sidebar becomes normal flow */
 @media (max-width: 1023px) {
     .main-grid { grid-template-columns: 1fr !important; }

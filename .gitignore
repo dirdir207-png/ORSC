@@ -62,3 +62,11 @@ Thumbs.db
 
 # Deployment config is machine-local (untracked by design)
 docker-compose.yml
+
+# Machine-local secrets and ephemeral snapshots (never commit)
+cookies.txt
+backups/workspace-snapshot-*
+
+# Broker runtime secrets and PIDs (never commit)
+*.capability
+*.pid

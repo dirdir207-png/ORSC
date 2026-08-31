@@ -6,20 +6,35 @@ from .client import (
     CrewTransportError,
     CrewUncertainWriteError,
 )
-from .credentials import CredentialProvider, MacCredentialProvider, StoredBearerTokenProvider
-from .health import CredentialHealthService, CrewHealth, CrewHealthState
+from .credentials import (
+    CredentialProvider,
+    MacCredentialProvider,
+    StoredBearerTokenProvider,
+)
+from .health import (
+    BrokerUnavailableError,
+    CredentialHealthService,
+    CredentialLockedError,
+    CrewHealth,
+    CrewHealthState,
+)
+from .transports import BrokerCrewTransport, SessionCookieTransport
 
 __all__ = [
+    "BrokerCrewTransport",
+    "BrokerUnavailableError",
+    "CredentialHealthService",
+    "CredentialLockedError",
     "CredentialProvider",
-    "MacCredentialProvider",
-    "StoredBearerTokenProvider",
     "CrewAPIError",
     "CrewAuthenticationError",
     "CrewClient",
     "CrewError",
-    "CrewTransportError",
-    "CrewUncertainWriteError",
-    "CredentialHealthService",
     "CrewHealth",
     "CrewHealthState",
+    "CrewTransportError",
+    "CrewUncertainWriteError",
+    "MacCredentialProvider",
+    "SessionCookieTransport",
+    "StoredBearerTokenProvider",
 ]

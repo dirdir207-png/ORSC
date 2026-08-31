@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Settings · Meridian</title>
+  <meta name="theme-color" content="#f6f4ef">
+  <link rel="stylesheet" href="/static/css/meridian/tokens.css">
+  <link rel="stylesheet" href="/static/css/meridian/shell.css">
+  <link rel="stylesheet" href="/static/css/meridian/workspaces.css">
+  <link rel="stylesheet" href="/static/css/meridian/settings.css">
+  <link rel="stylesheet" href="/static/css/meridian/motion.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <div class="m-settings-shell" data-meridian-shell data-settings-shell>
+    {% include 'meridian/partials/navigation.html' %}
+
+    <header class="m-topbar" data-topbar>
+      <a class="m-brand m-brand--compact" href="/meridian?workspace=today">
+        M <span class="m-topbar-title">Meridian</span>
+      </a>
+      <strong class="m-settings-mobile-title">Settings</strong>
+    </header>
+
+    {% include 'meridian/partials/settings-navigation.html' %}
+
+    <main id="main" class="m-settings-main" tabindex="-1">
+      {% if active_settings_section == 'connections' %}
+        {% include 'meridian/partials/connections.html' %}
+      {% else %}
+        <p class="m-empty-note">Payday &amp; Funding is the next implementation slice.</p>
+      {% endif %}
+    </main>
+
+    <aside class="m-settings-inspector" data-connection-inspector data-connection-sheet aria-label="Connection details" hidden>
+      <button class="m-settings-close" type="button" data-close-connection aria-label="Close connection details">×</button>
+      <p class="m-section-label">Connection</p>
+      <h2 data-detail-name>Connection details</h2>
+      <p class="m-settings-state" data-detail-state></p>
+      <section>
+        <h3>What Meridian uses this for</h3>
+        <p data-detail-uses></p>
+      </section>
+      <section>
+        <h3>Permissions</h3>
+        <p data-detail-permissions>Read-only access. Meridian cannot change this source.</p>
+      </section>
+      <section>
+        <h3>Your safeguards</h3>
+        <ul class="m-safeguard-list">
+          <li>Read-only by design</li>
+          <li>Individually revocable</li>
+          <li>Financial changes require approval</li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+  <script type="module" src="/static/js/meridian/connections.js"></script>
+</body>
+</html>

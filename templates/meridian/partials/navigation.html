@@ -1,0 +1,68 @@
+{% set workspaces = [
+  ('today', 'Today'),
+  ('plan', 'Plan'),
+  ('activity', 'Activity'),
+  ('accounts', 'Accounts')
+] -%}
+<nav class="m-nav" data-primary-nav aria-label="Primary">
+  <a class="m-brand" data-meridian-wordmark href="/meridian?workspace=today" aria-label="Meridian home">
+    <span class="m-branded-wordmark">Meridian</span>
+  </a>
+  <ul class="m-nav-list">
+    <li>
+      <a
+        class="m-nav-item"
+        href="/meridian?workspace=today"
+        data-workspace="today"
+        {% if active_workspace == 'today' %}aria-current="page"{% endif %}
+      >
+        <span data-nav-icon data-workspace-icon="today"></span>
+        <span class="m-nav-label">Today</span>
+      </a>
+    </li>
+    <li>
+      <a
+        class="m-nav-item"
+        href="/meridian?workspace=plan"
+        data-workspace="plan"
+        {% if active_workspace == 'plan' %}aria-current="page"{% endif %}
+      >
+        <span data-nav-icon data-workspace-icon="plan"></span>
+        <span class="m-nav-label">Plan</span>
+      </a>
+    </li>
+    <li>
+      <a
+        class="m-nav-item"
+        href="/meridian?workspace=activity"
+        data-workspace="activity"
+        {% if active_workspace == 'activity' %}aria-current="page"{% endif %}
+      >
+        <span data-nav-icon data-workspace-icon="activity"></span>
+        <span class="m-nav-label">Activity</span>
+      </a>
+    </li>
+    <li>
+      <a
+        class="m-nav-item"
+        href="/meridian?workspace=accounts"
+        data-workspace="accounts"
+        {% if active_workspace == 'accounts' %}aria-current="page"{% endif %}
+      >
+        <span data-nav-icon data-workspace-icon="accounts"></span>
+        <span class="m-nav-label">Accounts</span>
+      </a>
+    </li>
+  </ul>
+  <div class="m-nav-profile">
+    <strong>Personal</strong>
+    <span data-profile-summary>All sources current</span>
+    <span class="m-profile-freshness" data-profile-freshness>Sync: 2m ago</span>
+  </div>
+  <a
+    class="m-settings-link"
+    data-settings-link
+    href="/meridian/settings?section=connections"
+    {% if settings_active %}aria-current="page"{% endif %}
+  >Settings</a>
+</nav>

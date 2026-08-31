@@ -1,13 +1,22 @@
 # Enhanced SimpleCrew — Current Status
 
-Last consolidated: 2026-08-25 (Milestone 2 implementation)
+Last consolidated: 2026-08-31 (OpenRouter/ORSC build handoff)
 
 ## Canonical sources
 
-- Repository: `dirdir207-png/SimpleCrew`
-- Default branch: `main` (protected; do not work directly on it)
-- Approved design: bundle artifact `Enhanced_SimpleCrew_Design_Spec` / `2026-08-24-hybrid-gateway-foundation-design.md`
-- Milestone 2 design: `docs/designs/2026-08-25-guided-credential-renewal.md`
+> This copy of the project is the **separate OpenRouter build** living on
+> `dirdir207-png/ORSC`. It does not touch the preexisting SimpleCrew repository
+> (`dirdir207-png/SimpleCrew`), its branches, or the upstream project, which
+> continue independently. All work here stays on ORSC.
+
+- Repository: `dirdir207-png/ORSC` (separate Meridian build)
+- Default branch: `main` (unchanged; this build is developed on a branch)
+- Implementation branch: `feat/meridian-implementation` (on ORSC)
+- SimpleCrew-side branches (`ox-alpha/meridian-overhaul` and others) are owned by the other project and are not used by this build
+- Approved design: `docs/superpowers/specs/2026-08-26-meridian-product-overhaul-design.md`
+- Implementation plan: `docs/superpowers/plans/2026-08-26-meridian-overhaul-implementation.md`
+- Model strategy: `docs/superpowers/plans/2026-08-26-meridian-model-and-token-strategy.md`
+- Codex CLI handoff: `docs/project/CODEX_CLI_HANDOFF.md`
 - Approved specifications override informal chat history when they conflict.
 
 ## Architecture and safety decisions
@@ -21,74 +30,92 @@ Last consolidated: 2026-08-25 (Milestone 2 implementation)
 
 ## Milestone status
 
-### Milestone 1 — Hybrid Gateway Foundation: COMPLETE (merged PR #2, hardening PR #3)
+### Slice 1 — Trustworthy foundation and shell: COMPLETE ✅
 
-- All eight approved TDD tasks executed: credential-provider boundary, `CrewClient`, health classification, Flask/UI wiring, transfer migration, first safe-read migration, Tailscale docs, verification gate.
-- Live verification server-side against real Crew: valid token → `healthy`, junk token → `unauthorized`, blackhole endpoint → `unreachable`.
-- Deployment: local Docker build (`build: .`, image `simplecrew-local`) running against a copy of production data; original untouched at `~/Documents/SimpleCrew`.
-- Stored tokens with literal `Bearer ` prefix are normalized before header injection.
+Tasks 1–8 fully implemented, tested, and pushed to `feat/meridian-implementation`:
+- Production config, CI, Docker, browser-smoke gates (Task 1)
+- Atomic/idempotent action execution with EXECUTING claim state (Task 2)
+- Versioned migrations (001–004), normalized financial read model (Task 3)
+- Crew data adapter → Meridian graph (Task 4)
+- `/api/meridian/*` read APIs (Task 5)
+- Editorial Wealth design tokens, responsive shell (Task 6)
+- Today workspace, Activity ledger with cursor pagination (Task 7)
+- Transaction inspector (Task 8)
+- **Slice 1 Docker gate passed: 204 tests, Ruff clean, meridian:slice1 image verified**
 
-### Milestone 2 — Guided credential renewal: IMPLEMENTED (branch `feat/guided-credential-renewal`, pending owner verification)
+### Slice 2 — Commitments and funding: COMPLETE ✅
 
-- Design: `docs/designs/2026-08-25-guided-credential-renewal.md`.
-- `crew/renewal.py` `GuidedRenewalService`: single-flight sessions, uuid ids, deadline expiry, late-capture discard, sanitized status payloads (whitelisted fields; health reduced to state/message).
-- `crew/browser_capture.py`: Playwright Chromium capturer listening for the first `authorization` header sent to `api.trycrew.com`; lazy import with actionable install guidance when absent.
-- Flask: `POST /api/account/crew/reconnect/start`, `GET /api/account/crew/reconnect/status/<id>` (login required, 404 on unknown id, route-level whitelist sanitization); renewed credentials stored via the same path as manual saves.
-- UI: **Reconnect Crew** button appears when health is `unauthorized`; polls status and re-checks health after capture.
-- Test suite on branch: 41 passing (renewal lifecycle 8, capturer 4, endpoints/UI regressions included). No test opens a browser or contacts Crew.
-- Pending manual gate: end-to-end renewal with real Crew login (requires Playwright install + invalid-token simulation).
+Tasks 9–12 fully implemented, tested, and pushed to `feat/meridian-implementation`:
+- Unified Meridian Commitments with dataclass + repository (Task 9)
+- Funding calculus with 7 rule kinds, DST-immune, carry-forward (Task 10)
+- Idempotent scheduled funding proposals with dedup (Task 11)
+- Plan workspace: service, API, UI (Task 12)
+- **Slice 2 Docker gate passed: 259 tests + 28 browser skips, Ruff clean, meridian:slice2 image verified**
 
-### Milestone 3 — Action pipeline foundation: IMPLEMENTED (branch `feat/action-pipeline`)
+### Crew Session Broker — COMPLETE ✅ (merged to main)
 
-- Design: `docs/designs/2026-08-25-action-pipeline.md`.
-- `crew/actions.py`: durable SQLite store; enforced one-way lifecycle `PROPOSED → APPROVED → EXECUTED → VERIFIED` (+ rejected/expired/failed); unknown types rejected at propose.
-- `crew/executors.py`: registry binding action type → vetted function adapter + verifier; failures normalized (`no_executor`, `executor_exception`, `action_failed`, `verification_failed`); `expire_stale_approvals` gives approvals a 1-hour execution window.
-- Flask: `/api/actions/pending|propose|<id>/approve|reject|execute`, login required, conflicts → 409.
-- UI: Pending Actions card (approve/reject). Execution is deliberately API-only for now: an approval opens a one-hour window during which an authorized runner may execute; nothing auto-executes.
-- Test suite on branch: 58 passing + 1 skip. No Crew contact.
+- AES-256-GCM encrypted credential storage, macOS Keychain adapter
+- Loopback broker API with capability authentication
+- Cookie-aware transport, Docker-side broker transport
+- Renewal endpoints, LaunchAgent installer, Docker Compose template
+- **150 broker-focused tests passing** (2 pre-existing Meridian advisor failures unrelated)
 
-### Milestone 3b — Action proposer interface: IMPLEMENTED (branch `feat/action-proposer`)
+### Slice 3 — Unified providers and transaction intelligence: COMPLETE IN CURRENT BRANCH ✅
 
-- Design: `docs/designs/2026-08-25-action-proposer.md`.
-- `crew/proposals.py`: name→id resolution + validated transfer proposals with human-readable summaries.
-- `POST /api/actions/propose/local`: loopback-only (403 otherwise); a Mac-local assistant can create inert proposals ("move $50 from Checking to Rent") that surface in the owner's Pending Actions card.
-- Real resolver adapter over existing lookups (`get_primary_account_id` + subaccount list); failures are explicit, never guessed ids.
+- Tasks 13–16 (providers, reconciliation hardening) are consolidated in the ORSC `feat/meridian-implementation` branch.
 
-### Milestone 5 — AI advisor: IMPLEMENTED (branch `feat/ai-advisor`)
+### Slice 4 — Advanced intelligence and consolidation: COMPLETE IN CURRENT BRANCH ✅
 
-- Design: `docs/designs/2026-08-25-ai-advisor.md`.
-- Provider-agnostic OpenAI-compatible client via env (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`); graceful not-configured state.
-- `AdvisorService`: display-safe financial context -> LLM -> reply; proposal JSON blocks validated through the same whitelist/resolver as all proposers; only `move_money`; stored as pending actions (`requested_by=ai-advisor`).
-- API: `/api/advisor/status`, `/api/advisor/chat` (login required; AdvisorUnavailable -> 503).
-- UI: AI Advisor chat card in Account view; drafted proposals surface in Pending Actions.
-- Suite: 96 passing + 1 skip. No real network calls in tests.
+- Tasks 17–20 are consolidated in the ORSC `feat/meridian-implementation` branch.
 
-### Milestones 6+7 — Beacon budget & UI polish: IMPLEMENTED (branch `feat/beacon-and-polish`, stacked on M5)
+### Slice 5 — Document Intelligence: COMPLETE IN CURRENT BRANCH ✅
 
-- `crew/beacon.py`: explainable 30-day forecast from balance history (avg daily burn over 14-day lookback, runway, low point); unavailable state until enough history.
-- `/api/beacon/forecast` + 📡 Beacon card at top of Pockets dashboard view.
-- UI polish: global interaction transitions/depth/focus rings (`polish.css`), Move-Money amount slider synced both ways, haptics on slider ticks / transfer success / advisor proposals.
+- Tasks 21–23 are consolidated in the ORSC `feat/meridian-implementation` branch.
 
-### Review blockers from prior work — REPRODUCED AND REMEDIATED (merged PR #3)
+### Slice 6 — Life Context: COMPLETE IN CURRENT BRANCH ✅
 
-1. Truthy non-string transfer ID mistaken for confirmed success → reproduced by regression test; `move_money` now requires a non-empty string `result.id`.
-2. Missing `.dockerignore` → confirmed missing (prior image build could include databases/`.env`/caches); added covering secrets, data, venv, git metadata, caches, docs/tests.
+- Task 24 is consolidated in the ORSC `feat/meridian-implementation` branch.
 
-## Prior-work recovery note
+### Slice 7 — Asset and Contract Memory: IN PROGRESS
 
-The previously reported 103-test result belonged to unrecoverable local commit `32fe0b8`. Recovery is moot for Milestone 1 scope: the milestone was re-implemented from the authoritative bundle and merged. The two review blockers it flagged were reproduced against the new implementation and fixed here.
+- Task 25 is consolidated in the ORSC `feat/meridian-implementation` branch.
+- Task 26 has untracked RED test scaffolding but no memory service or frontend implementation yet.
 
-## Roadmap
+> Historical per-task commit SHAs (`726e00e`…`a092c4a`) were local-only and never
+> existed on GitHub; this build tracks the ORSC branch tip instead.
+- Task 26 has untracked RED test scaffolding but no memory service or frontend implementation yet.
 
-1. ~~Milestone 2 — automatic Crew credential renewal~~ (merged PR #4; owner E2E click-through still to be observed at a natural expiry)
-2. ~~Milestone 3a — action pipeline foundation~~ (implemented on `feat/action-pipeline`)
-3. **Milestone 3b — AI proposer**: natural-language/command layer that may only *propose* actions through the app API; approval stays human. Base44/AI consumers never receive Crew credentials.
+## Current test suite
+
+- The repository currently contains 365 Python test functions, including untracked Task 26 tests.
+- Historical Slice 2 evidence remains 259 unit tests plus 28 browser skips with Ruff and Docker gates passing.
+- A fresh full-suite, Ruff, browser, audit, and Docker release gate is required before reporting current pass counts.
 
 ## Current blockers
 
-- AI providers: owner's OpenAI key has no credits (429); OpenRouter free-tier quota tight. Code now surfaces truthful per-provider errors; add OpenAI billing or await OpenRouter window.
-- Verification workflow upgraded: Playwright screenshot harness against isolated instance now gates all UI changes.
+- TokenX routing unavailable: sub-agent spawning is blocked in this session, so parallel execution must occur in a verified Codex CLI environment or run sequentially in the parent.
+- AI providers: owner's OpenAI key has no credits (429); OpenRouter free-tier quota tight
+- Verification workflow: Playwright screenshot harness against isolated instance gates all UI changes
+
+## Codex CLI handoff
+
+A corrected handoff document has been created at `docs/project/CODEX_CLI_HANDOFF.md` containing:
+- All project document references
+- Current repository state
+- Git evidence that Tasks 13–25 are implemented
+- Task 26 scope and file locations
+- Parallel agent lanes with disjoint write scopes
+- TDD workflow requirements
+- Model routing strategy
+- Safety rules and commit conventions
+- Final automated and owner-only acceptance gates
 
 ## Next action
 
-Merge `feat/action-pipeline` after review; design the proposer interface (local command + later Base44) against the pipeline's propose-only boundary.
+Launch the Codex CLI coding task using the handoff document. The task should:
+1. Read `docs/project/CODEX_CLI_HANDOFF.md`
+2. Complete Task 26 following TDD
+3. Run the final release gate and reconcile documentation from actual evidence
+4. Stop before browser login / live acceptance
+
+Remaining gate (desktop / owner): start the Mac broker and an isolated Docker deployment, complete one interactive Crew login, confirm `healthy`, and run read-only sync while verifying no secret leakage.

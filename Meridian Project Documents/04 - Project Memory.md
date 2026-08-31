@@ -1,0 +1,123 @@
+# Meridian Project Memory
+
+**Recorded:** August 26, 2026  
+**Repository:** `dirdir207-png/SimpleCrew`  
+**Product name:** Meridian  
+**Implementation branch:** `feat/meridian-implementation`
+
+## Product thesis
+
+Meridian is a high-trust financial operating system for individuals and households. It replaces fragmented budgeting pages with a coherent view of what happened, what is coming, why the system believes it, and what requires attention. The product must feel editorial, calm, graphical, modular, and premium while retaining full mobile capability.
+
+## Approved experience
+
+- Four primary workspaces: Today, Plan, Activity, and Accounts.
+- A context-aware advisor that remains accessible throughout the product.
+- A unified Commitment model replacing overlapping bills, expenses, and pockets.
+- Proper funding schedules and granular transaction details.
+- Provider-neutral outside accounts folded into one financial picture.
+- Automatic AI transaction assignment with confidence, review, and correction-derived rules.
+- User rules and corrections always outrank AI classifications.
+- AI may change local classifications and forecasts; creating Commitments, changing funding rules, modifying Crew state, or moving money requires an explained proposal and owner approval.
+- Mobile exposes the same core capabilities through responsive composition and progressive disclosure.
+- Splitwise, Crew, SimpleFin, LunchFlow, and future providers must not fragment the visual language.
+
+## Visual direction
+
+The approved direction is the Command Center shell, led by Editorial Wealth and supported by Quiet Precision. Aurora effects are rare emphasis, not decoration. The interface must meet WCAG 2.2 AA, keyboard and screen-reader requirements, reduced-motion preferences, safe-area behavior, and 44 CSS-pixel touch targets.
+
+## Intelligence architecture
+
+Meridian's long-term differentiator is a Financial Evidence Graph connecting:
+
+- Accounts, balances, and transactions
+- Commitments and funding schedules
+- Bills, statements, receipts, and payment confirmations
+- Email evidence with explicit read-only authorization
+- Shared obligations and reimbursements
+- Payroll, calendar, and travel signals
+- Contracts, warranties, renewals, and maintenance
+- Direct biller monitoring, approved payment-method switching, and partner-mediated bill payment as the final roadmap priority
+- Provider provenance, freshness, external identifiers, and confidence
+- User corrections and deterministic rules
+
+The graph should reconcile documents, charges, reimbursements, obligations, and payments into economic events rather than presenting unrelated provider records.
+
+## Delivery program
+
+The approved implementation plan contains 26 tasks across seven slices:
+
+1. Trustworthy foundation and shell
+2. Commitments and funding
+3. Unified providers and transaction intelligence
+4. Advanced intelligence and consolidation
+5. Document Intelligence
+6. Life Context
+7. Asset and Contract Memory
+
+An approved eighth and final-priority slice, Connected Billers, will be appended to the implementation plan after written-spec review. It progresses from read-only monitoring to approved payment-method switching, then regulated partner-mediated payment. A partner-backed Meridian bill account remains optional and contingent on validated demand.
+
+The implementation uses versioned, non-destructive SQLite migrations, stable `/api/meridian/*` read models, compatibility adapters, vanilla ES2020 modules, Flask, pytest, Playwright, Docker, and GitHub Actions. New business logic must not be added to the existing monolithic `app.py`.
+
+## Model and cost strategy
+
+- Terra leads routine multi-file implementation and integration work.
+- Sol governs architecture, security, concurrency, migrations, release gates, and final review.
+- Luna handles bounded mechanical work with complete specifications.
+- Expected full-roadmap consumption: approximately 26-46 million input tokens and 4.0-7.4 million output/reasoning tokens.
+- Estimated API-equivalent cost: approximately $105-$190, with a prudent ceiling of $300.
+- These are forecasts for the complete roadmap, not usage already consumed.
+
+## Commercial thesis
+
+Launch Meridian as a premium subscription for financially complex households, not as a generic budgeting application. The initial promise is automatic reconciliation of accounts, documents, obligations, charges, reimbursements, and payments into one trustworthy picture.
+
+Suggested initial tiers:
+
+- Individual: approximately $15-$20 per month.
+- Household: approximately $30-$45 per month.
+
+Begin with 10 deeply engaged design partners and expand to 25-50 founding households through white-glove onboarding and referrals. Measure weekly retention, correction rate, classification accuracy, time saved, detected savings, avoided fees, and willingness to pay. Expand only after consumer validation into advisor tooling, employer financial wellness, and white-label intelligence infrastructure.
+
+Meridian must never depend on advertising, selling customer financial data, or paid placement disguised as advice.
+
+## Intellectual-property posture
+
+Copyright can protect human-authored code, visual expression, written specifications, and creative assets, but not the general idea, workflow, method, algorithm, or system. Trademark may protect Meridian and its identifiers subject to clearance. Trade-secret controls may protect unpublished reconciliation logic, scoring, prompts, evaluation methods, and proprietary datasets.
+
+The strongest patent candidate is not the broad concept of AI reading bills. It is a potentially novel, provenance-preserving evidence architecture that resolves heterogeneous documents and financial records into confidence-scored events, forecasts, explanations, and reversible proposals while separating informational automation from approval-required financial actions. Patent counsel and prior-art review should occur before further public technical disclosure if international rights matter.
+
+Because AI assisted development, preserve evidence of human direction, selection, arrangement, revision, testing, and product judgment.
+
+## Current engineering state
+
+- Product design, implementation plan, model strategy, and evidence-graph expansion are committed.
+- An isolated implementation worktree exists at `.worktrees/meridian`.
+- Baseline Docker build succeeded and the original suite passed 116 tests.
+- Task 1 is complete and independently approved. Production uses Gunicorn; dependency audit, configured lint, Docker artifact identity, CI, and browser smoke gates pass.
+- Task 2 is complete after two review rounds. Financial actions are atomically claimed before external execution; expiry races cannot overwrite claims; uncertain outcomes require manual verification and are never automatically retried.
+- Task 3 is complete after one review round. Meridian has transactional, append-only, resumable migrations plus immutable provider-neutral account and transaction read models with freshness precedence, provenance integrity, stable cursor pagination, and concurrent-startup coverage.
+- Task 4 is complete with hardening rounds: Crew reads normalize into the Meridian graph (cents→currency, redaction, transfer hints), idempotent sync with partial-failure freshness preservation, provenance and freshness hardening.
+- Task 5 is complete with hardening rounds: stable `/api/meridian/*` read APIs (today, accounts, activity with cursor pagination, transaction detail) behind login, stable error objects, provider-scoped freshness, canonical activity cursors, and timestamp canonicalization moved into versioned migration 004 with quarantine flags and resume-safe reruns.
+- Task 6 is complete: Editorial Wealth design tokens (independent light/dark), responsive shell (72px rail / canvas / inspector on desktop, identity bar + safe-area dock on mobile), URL-persisted workspaces, accessibility primitives, verified at 1440×900 and 390×844.
+- Task 7 is complete: Today composition (dominant safe-to-spend area with explicit unavailable state and explanation inputs) and the Activity ledger (local-date grouping, signed amounts, cursor pagination that never disturbs existing rows, account filter, loading/empty/error states).
+- Task 8 is complete: transaction inspector with complete detail context, explicit empty states for classification/recurrence/transfers/notes, provider mark and freshness, desktop side panel vs mobile full-screen dialog, URL-addressable selection, focus restoration, and advisor context metadata for the next slices.
+- Slice 1 release gate passed on 2026-08-27: Ruff clean, full suite green (204 passed + browser skips), `meridian:slice1` image built and serving via Gunicorn, and all 16 browser tests pass against the containerized build with a fresh database.
+- The verified suite currently reports 205+ tests passing locally, with configured Ruff clean.
+- All work through Task 8 plus the gate fix is pushed to GitHub on `feat/meridian-implementation`.
+- No merge to `main`, deployment, or production financial mutation has been performed. The remaining Slice 1 manual step is the owner-observed read-only verification against real Crew data.
+- Slice 2 (Tasks 9–12) is implemented and pushed on `feat/meridian-implementation`:
+  - Task 9 — Unified Meridian Commitments: `CommitmentType`/`Commitment` dataclass, `CommitmentRepository` (create/update/get/get_commitment_by_legacy/list_active/archive/build/insert_record), migration `005_commitments.sql` (commitments, migration_previews, migration_review_queue, partial unique legacy identity), `meridian/migrate_legacy.py` (`preview_legacy_migration`/`apply_legacy_migration(preview_id, *, db_path)`/`resolve_review`), idempotent, single-transaction apply, `_allow_pending_target` escape hatch.
+  - Task 10 — Funding calculus: migration `006_funding_rules.sql`; `meridian/funding.py` pure `FundingRule`/`FundingEvent`/`FundingProjection` (kinds: fixed_per_paycheck / percent_of_paycheck / calendar with short-month clamp / even_by_due_date / priority_waterfall / weekly / biweekly; DST-immune; carry-forward reservations; strict-cash only when cash events present; one_time_override honored; skip/pause/caps; deficit recorded per event). Property tests: conservation, caps, non-negative, determinism.
+  - Task 11 — Scheduled funding proposals: `crew/actions.py` `dedup_key` column + partial unique index, `propose(..., dedup_key=None)` resolving existing under `BEGIN IMMEDIATE`, `get_by_dedup_key`; `meridian/funding_proposals.py` `propose_due_funding` returns idempotent `scheduled_move_money` actions (params from_id/to_id/amount/memo/rule_id/event_date/calculation{source,explanation,projection_total,projection_shortfall,as_of}, rationale, requested_by=`meridian-funding`, dedup=`funding:<rule_id>:<date>:<amount_minor>`). `app.py` allowed types + `scheduled_move_money` executor (reuses vetted move_money).
+  - Task 12 — Plan workspace: `meridian/funding_repo.py` `FundingRuleRepository` (CRUD, list_for_commitment/list_all/update, money-quantized cents); `meridian/services/plan.py` `build_plan` ({summary, commitments, timeline, allocation, data_freshness}). `meridian/api.py` GET `/api/meridian/plan` (`?as_of=` validated), `/commitments`, `/funding-rules`; `POST /api/meridian/funding-rules/propose` (action-store-backed, requested_by=current_user); `meridianPropose` whitelisted to that path. `static/js/meridian/plan.js` + `static/css/meridian/plan.css` + `templates/meridian/partials/plan.html`. Browser tests 3/3. Full browser suite 27/27 (259 unit + 28 skipped) against the dev server on :8181.
+  - Slice 2 Docker gate passed on 2026-08-29: Ruff clean, full suite green (259 passed + 28 browser skips), `meridian:slice2` image built and serving via Gunicorn, migrations applied cleanly and idempotently (no Crew/financial mutation), and all 27 browser tests pass against the containerized build with a fresh database. Slice 2 (Tasks 9-12) is now closed.
+- Next: Task 13 (Slice 3 — provider adapters: SimpleFin / LunchFlow / Splitwise + unified reconciliation), then Tasks 14–16 (deterministic classification, AI classification with schema validation, Review/Patterns). Tasks 21–26 (evidence/documents/context) follow.
+
+## Binding safety rules
+
+- Credentials and provider secrets remain server-side and never enter browser payloads, AI prompts, logs, or fixtures.
+- Financial mutations are never retried automatically; uncertain outcomes require state verification.
+- Existing migrations remain non-destructive, versioned, idempotent, and resumable.
+- Every normalized record retains provenance, freshness, and external identifiers.
+- Every task requires implementation, tests, independent review, and explicit completion evidence.

@@ -6,9 +6,9 @@ import pytest
 _TEST_DIR = tempfile.mkdtemp(prefix="simplecrew_test_")
 os.environ["DB_FILE"] = os.path.join(_TEST_DIR, "savings_data.db")
 
-import app as simplecrew  # noqa: E402
-from crew.client import CrewUncertainWriteError  # noqa: E402
-from crew.health import CrewHealth, CrewHealthState  # noqa: E402
+import app as simplecrew
+from crew.client import CrewUncertainWriteError
+from crew.health import CrewHealth, CrewHealthState
 
 
 @pytest.fixture(scope="module")
@@ -44,6 +44,21 @@ def test_crew_health_endpoint_never_exposes_token(monkeypatch, authenticated_cli
     body = str(payload)
     assert "super-secret-sentinel-value" not in body
     assert "authorization:" not in body.lower()
+
+
+def test_crew_health_reports_configured_transport_provider(monkeypatch, authenticated_client):
+    class StubHealth:
+        def check(self):
+            return CrewHealth(CrewHealthState.BROKER_UNAVAILABLE, "The Crew session broker is unavailable")
+
+    monkeypatch.setattr(simplecrew, "crew_health_service", StubHealth())
+    monkeypatch.setattr(simplecrew, "crew_provider_description", "session_broker")
+    payload = authenticated_client.get("/api/account/crew-health").get_json()
+    assert payload == {
+        "state": "broker_unavailable",
+        "message": "The Crew session broker is unavailable",
+        "provider": "session_broker",
+    }
 
 
 def test_move_money_delegates_exactly_once_to_crew_client(monkeypatch):
@@ -100,6 +115,74 @@ def test_primary_account_read_uses_crew_client(monkeypatch):
     assert len(calls) == 1
     assert calls[0][0] == "CurrentUser"
     assert calls[0][2] is False
+
+
+def test_financial_refresh_syncs_meridian_without_changing_legacy_response(monkeypatch):
+    class StubResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "data": {
+                    "currentUser": {
+                        "accounts": [
+                            {
+                                "subaccounts": [
+                                    {
+                                        "id": "checking-1",
+                                        "name": "Checking",
+                                        "overallBalance": 12345,
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+
+    sync_calls = []
+    monkeypatch.setattr(simplecrew.requests, "post", lambda *args, **kwargs: StubResponse())
+    monkeypatch.setattr(simplecrew, "sync_crew_snapshot", lambda: sync_calls.append(True))
+
+    result = simplecrew.get_financial_data.__wrapped__()
+
+    assert result == {
+        "checking": {"name": "Checking", "balance": "$123.45", "raw_balance": 123.45},
+        "total_goals": 0.0,
+    }
+    assert sync_calls == [True]
+
+
+def test_financial_refresh_keeps_legacy_response_when_meridian_sync_fails(monkeypatch):
+    class StubResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "data": {
+                    "currentUser": {
+                        "accounts": [
+                            {
+                                "subaccounts": [
+                                    {"id": "checking-1", "name": "Checking", "overallBalance": 12345}
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+
+    monkeypatch.setattr(simplecrew.requests, "post", lambda *args, **kwargs: StubResponse())
+    monkeypatch.setattr(simplecrew, "sync_provider", lambda *args: (_ for _ in ()).throw(RuntimeError("offline")))
+
+    result = simplecrew.get_financial_data.__wrapped__()
+
+    assert result == {
+        "checking": {"name": "Checking", "balance": "$123.45", "raw_balance": 123.45},
+        "total_goals": 0.0,
+    }
 
 
 def test_move_money_rejects_truthy_result_without_confirmed_string_id(monkeypatch):
@@ -192,6 +275,25 @@ def test_reconnect_requires_login():
     assert response.status_code == 302
 
 
+def test_reconnect_routes_proxy_to_configured_broker(authenticated_client, monkeypatch):
+    class Broker:
+        def start_renewal(self): return {"session_id": "broker-1"}, 202
+        def renewal_status(self, session_id):
+            assert session_id == "broker-1"
+            return {"status": "healthy", "message": "Crew connection is healthy"}, 200
+
+    monkeypatch.setattr(simplecrew, "crew_client", Broker())
+    monkeypatch.setattr(simplecrew, "crew_provider_description", "session_broker")
+
+    started = authenticated_client.post("/api/account/crew/reconnect/start")
+    status = authenticated_client.get("/api/account/crew/reconnect/status/broker-1")
+
+    assert started.status_code == 202
+    assert started.get_json() == {"session_id": "broker-1"}
+    assert status.status_code == 200
+    assert status.get_json() == {"status": "healthy", "message": "Crew connection is healthy"}
+
+
 @pytest.fixture
 def action_env(tmp_path, monkeypatch):
     from crew.actions import ActionStore
@@ -230,10 +332,55 @@ def test_action_pipeline_full_lifecycle_over_http(authenticated_client, action_e
     body = executed.get_json()
     assert body["state"] == "verified"
     assert body["verification"]["ok"] is True
+    assert body["execution_key"]
+    assert body["execution_started_at"]
+    assert calls == [{"from_id": "a", "to_id": "b", "amount": 5}]
+
+    repeated = authenticated_client.post(f"/api/actions/{action_id}/execute")
+    assert repeated.status_code == 409
     assert calls == [{"from_id": "a", "to_id": "b", "amount": 5}]
 
     pending = authenticated_client.get("/api/actions/pending")
     assert pending.get_json()["actions"] == []
+
+
+def test_pending_endpoint_tolerates_claim_during_expiry_sweep(authenticated_client, tmp_path, monkeypatch):
+    from datetime import datetime, timedelta
+
+    from crew import actions as actions_module
+    from crew.actions import ActionState, ActionStore
+
+    class ClaimingActionStore(ActionStore):
+        claim_during_sweep = None
+
+        def list_by_state(self, state):
+            requests = super().list_by_state(state)
+            if state == ActionState.APPROVED and self.claim_during_sweep:
+                claimed_id = self.claim_during_sweep
+                self.claim_during_sweep = None
+                self.claim_for_execution(claimed_id, "http-sweep-race-key")
+                requests.sort(key=lambda request: request["id"] != claimed_id)
+            return requests
+
+    old_time = datetime.now() - timedelta(hours=2)
+    monkeypatch.setattr(actions_module, "_now", lambda: old_time)
+    store = ClaimingActionStore(
+        db_path=str(tmp_path / "actions.db"),
+        allowed_types=("move_money",),
+    )
+    claimed = store.propose("move_money", {"amount": 10}, "race", "owner")
+    store.approve(claimed["id"], decided_by="owner")
+    expires = store.propose("move_money", {"amount": 20}, "expire", "owner")
+    store.approve(expires["id"], decided_by="owner")
+    store.claim_during_sweep = claimed["id"]
+    monkeypatch.setattr(simplecrew, "action_store", store)
+
+    response = authenticated_client.get("/api/actions/pending")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"actions": []}
+    assert store.get(claimed["id"])["state"] == ActionState.EXECUTING.value
+    assert store.get(expires["id"])["state"] == ActionState.EXPIRED.value
 
 
 def test_propose_unknown_type_is_400(authenticated_client):
@@ -350,13 +497,13 @@ def test_advisor_requires_login():
 
 
 def test_advisor_status_reports_configuration(authenticated_client, monkeypatch):
-    monkeypatch.setattr(simplecrew, "llm_configured", lambda: False)
+    monkeypatch.setattr(simplecrew.advisor_llm_chain, "providers", lambda: [])
     response = authenticated_client.get("/api/advisor/status")
     assert response.status_code == 200
     assert response.get_json()["configured"] is False
 
 
 def test_advisor_unconfigured_chat_is_503(authenticated_client, monkeypatch):
-    monkeypatch.setattr(simplecrew, "llm_configured", lambda: False)
+    monkeypatch.setattr(simplecrew.advisor_service, "_client", None)
     response = authenticated_client.post("/api/advisor/chat", json={"message": "hi"})
     assert response.status_code == 503

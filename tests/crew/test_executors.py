@@ -1,8 +1,10 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
 from crew.actions import ActionState, ActionStore, IllegalTransitionError
 from crew.executors import ExecutorSpec, execute_approved_action, expire_stale_approvals
-
 
 ALLOWED_TYPES = ("move_money",)
 
@@ -35,8 +37,14 @@ def test_approved_action_executes_and_verifies(store):
         return {"ok": True, "checked": "transfer-id-present"}
 
     action_id = seed_approved_action(store)
-    final = execute_approved_action(store, action_id, make_executors(verifier=verifier))
+    final = execute_approved_action(
+        store,
+        action_id,
+        make_executors(verifier=verifier),
+        execution_key="execute-once-key",
+    )
     assert final["state"] == ActionState.VERIFIED.value
+    assert final["execution_key"] == "execute-once-key"
     assert final["result"]["result"]["id"] == "tx-1"
     assert final["verification"]["ok"] is True
     assert verifications[0][0] == {"amount": 100}
@@ -55,17 +63,27 @@ def test_error_contract_lands_in_failed_without_verification(store):
     final = execute_approved_action(store, action_id, make_executors(fn=executor, verifier=verifier))
     assert final["state"] == ActionState.FAILED.value
     assert final["result"]["error_code"] == "uncertain_write"
+    assert final["result"]["verify_state"] is True
     assert calls == []
 
 
-def test_executor_exception_becomes_normalized_failure(store):
+def test_executor_exception_persists_uncertain_outcome_without_retry_or_verification(store):
+    calls = {"executor": 0, "verifier": 0}
+
     def broken(params):
+        calls["executor"] += 1
         raise RuntimeError("boom")
 
+    def verifier(params, result):
+        calls["verifier"] += 1
+        return {"ok": True}
+
     action_id = seed_approved_action(store)
-    final = execute_approved_action(store, action_id, make_executors(fn=broken))
+    final = execute_approved_action(store, action_id, make_executors(fn=broken, verifier=verifier))
     assert final["state"] == ActionState.FAILED.value
     assert final["result"]["error_code"] == "executor_exception"
+    assert final["result"]["verify_state"] is True
+    assert calls == {"executor": 1, "verifier": 0}
 
 
 def test_unapproved_action_cannot_execute(store):
@@ -90,6 +108,42 @@ def test_failed_verification_overrides_success(store):
     )
     assert final["state"] == ActionState.FAILED.value
     assert final["result"]["verification"]["reason"] == "balance unchanged"
+
+
+def test_concurrent_execution_claims_action_once(store):
+    start = threading.Barrier(2)
+    executor_calls = []
+    executor_calls_lock = threading.Lock()
+    concurrent_executor_calls = threading.Barrier(2)
+
+    def executor(params):
+        with executor_calls_lock:
+            executor_calls.append(params)
+        try:
+            concurrent_executor_calls.wait(timeout=0.5)
+        except threading.BrokenBarrierError:
+            pass
+        return {"success": True, "result": {"id": "tx-concurrent"}}
+
+    action_id = seed_approved_action(store)
+
+    def execute():
+        start.wait()
+        try:
+            return execute_approved_action(store, action_id, make_executors(fn=executor))
+        except IllegalTransitionError as exc:
+            return exc
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: execute(), range(2)))
+
+    assert len(executor_calls) == 1
+    conflicts = [result for result in results if isinstance(result, IllegalTransitionError)]
+    terminal_results = [result for result in results if isinstance(result, dict)]
+    assert len(conflicts) == 1
+    assert str(conflicts[0]) == "Action is not available for execution"
+    assert len(terminal_results) == 1
+    assert terminal_results[0]["state"] == ActionState.VERIFIED.value
 
 
 def test_stale_approvals_expire_recent_ones_survive(store, monkeypatch):
@@ -117,3 +171,37 @@ def test_stale_approvals_expire_recent_ones_survive(store, monkeypatch):
 
     with pytest.raises(IllegalTransitionError):
         execute_approved_action(store, stale_id, make_executors())
+
+
+def test_expiry_sweep_tolerates_claim_race_and_continues(tmp_path):
+    from datetime import datetime, timedelta
+
+    class ClaimingActionStore(ActionStore):
+        claim_during_sweep = None
+
+        def list_by_state(self, state):
+            requests = super().list_by_state(state)
+            if state == ActionState.APPROVED and self.claim_during_sweep:
+                claimed_id = self.claim_during_sweep
+                self.claim_during_sweep = None
+                self.claim_for_execution(claimed_id, "sweep-race-key")
+                requests.sort(key=lambda request: request["id"] != claimed_id)
+            return requests
+
+    racing_store = ClaimingActionStore(
+        db_path=str(tmp_path / "actions.db"),
+        allowed_types=ALLOWED_TYPES,
+    )
+    claimed_id = seed_approved_action(racing_store)
+    expired_id = seed_approved_action(racing_store)
+    racing_store.claim_during_sweep = claimed_id
+
+    expired_ids = expire_stale_approvals(
+        racing_store,
+        ttl_seconds=3600,
+        now=datetime.now() + timedelta(hours=2),
+    )
+
+    assert expired_ids == [expired_id]
+    assert racing_store.get(claimed_id)["state"] == ActionState.EXECUTING.value
+    assert racing_store.get(expired_id)["state"] == ActionState.EXPIRED.value
