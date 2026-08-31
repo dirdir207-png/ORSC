@@ -134,6 +134,8 @@
                     status.textContent = 'proposal created';
                     status.hidden = false;
                     submit.disabled = true;
+                    // Surface the freshly created proposal in the pending list.
+                    await this.loadPending();
                 } catch (error) {
                     status.textContent = error.message;
                     status.hidden = false;
@@ -209,6 +211,11 @@
                 } else if (step === 'execute') {
                     if (statusEl) statusEl.textContent = 'executed';
                     if (row) row.remove();
+                    // Hide the container when no pending proposals remain.
+                    const container = document.querySelector('[data-testid=pending-memory-proposals]');
+                    if (container && !container.querySelector('.pending-memory-proposal')) {
+                        container.hidden = true;
+                    }
                     // The action is now applied; refresh the accounts memory region
                     // so the newly created/updated record shows up.
                     document.dispatchEvent(new CustomEvent('memory:refresh', {
