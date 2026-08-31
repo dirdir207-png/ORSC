@@ -2,7 +2,7 @@ from datetime import date
 
 from meridian.assets import Asset, AssetRepository
 from meridian.contracts import Contract, ContractRepository
-from meridian.evidence import EvidenceRepository
+from meridian.evidence import EvidenceRepository, _now
 from meridian.services.memory import build_memory
 
 
@@ -89,3 +89,26 @@ def test_unknown_workspace_raises(tmp_path):
         raise AssertionError("expected ValueError")
     except ValueError:
         pass
+
+
+def test_expired_evidence_is_omitted_but_live_evidence_remains(tmp_path):
+    db_path = str(tmp_path / "m.db")
+    _seed(db_path)
+    evidence = EvidenceRepository(db_path)
+    expired = evidence.add_item(
+        source_kind="manual", source_id="seed-expired", content_hash="b" * 64,
+        mime_type="text/plain", size_bytes=10, title="expired", expires_at=_now(),
+    )
+    assets = AssetRepository(db_path)
+    assets.save_asset(Asset(
+        id=None, name="Old printer", category="electronics", purchased_on="2026-08-01",
+        purchase_price=200, return_until="2026-08-25", maintenance_interval_days=180,
+        replacement_reserve=0, evidence_id=expired.id, evidence_span="expired",
+        confidence=0.9,
+    ))
+
+    result = build_memory(db_path, "today", as_of=date(2026, 8, 20))
+    printer = next(i for i in result["items"] if "Old printer" in i["title"])
+    laptop = next(i for i in result["items"] if "Laptop" in i["title"])
+    assert printer["evidence"] == []  # materialized-expired evidence hidden
+    assert laptop["evidence"][0]["span"] == "receipt"  # live evidence still appears

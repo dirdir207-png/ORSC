@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List
 
 from meridian.assets import Asset, AssetRepository, Warranty, asset_events
@@ -8,6 +8,10 @@ from meridian.evidence import EvidenceRepository
 WORKSPACES = ("today", "plan", "activity", "accounts")
 
 
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 def _evidence_entries(
     db_path: str, evidence_id: int | None, span: str | None, confidence: float | None
 ) -> list[Dict[str, Any]]:
@@ -15,6 +19,8 @@ def _evidence_entries(
         return []
     item = EvidenceRepository(db_path).get_item(evidence_id)
     if item is None:
+        return []
+    if item.expires_at is not None and item.expires_at <= _now_iso():
         return []
     return [{"id": item.id, "span": span or item.title or "record", "confidence": confidence}]
 
