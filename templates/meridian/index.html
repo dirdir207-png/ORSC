@@ -8,12 +8,27 @@
   <title>Meridian</title>
   <link rel="icon" type="image/png" href="/static/images/favicon.png">
   <meta name="theme-color" content="#f6f4ef">
+  {# Apply the persisted theme before first paint so the panel never flashes the wrong theme. #}
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("meridian-theme");
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = t;
+      } catch (_) {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="/static/css/meridian/tokens.css">
   <link rel="stylesheet" href="/static/css/meridian/shell.css">
   <link rel="stylesheet" href="/static/css/meridian/workspaces.css">
   <link rel="stylesheet" href="/static/css/meridian/plan.css">
   <link rel="stylesheet" href="/static/css/meridian/inspector.css">
   <link rel="stylesheet" href="/static/css/meridian/motion.css">
+  <script src="/static/js/meridian/theme.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -26,6 +41,20 @@
         M
         <span class="m-topbar-title">Meridian</span>
       </span>
+      <span class="m-topbar-spacer" aria-hidden="true"></span>
+      <a class="m-topbar-settings" data-settings-link href="/meridian/settings?section=connections" {% if settings_active %}aria-current="page"{% endif %}>Settings</a>
+      <button
+        class="m-theme-toggle m-theme-toggle--compact"
+        type="button"
+        data-theme-toggle
+        aria-pressed="false"
+        aria-label="Toggle dark mode"
+      >
+        <span class="m-theme-toggle-track" aria-hidden="true">
+          <span class="m-theme-toggle-thumb"></span>
+        </span>
+        <span class="m-theme-toggle-label" data-theme-label>Dark</span>
+      </button>
     </header>
 
     <main id="main" class="m-main" data-workspace-canvas tabindex="-1">

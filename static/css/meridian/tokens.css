@@ -54,6 +54,14 @@ textarea {
     transparent 60%
   );
 
+  /* Brand forest: the rail surface and its ink. Deep and independently stable
+     in both themes — it is a brand surface, not an invertible token. */
+  --m-forest: #22453c;
+  --m-forest-deep: #1c3a32;
+  --m-forest-ink: #f5f2e9;
+  --m-forest-muted: rgba(245, 242, 233, 0.66);
+  --m-forest-wash: rgba(245, 242, 233, 0.09);
+
   /* Typography */
   --m-font-serif: "Iowan Old Style", Baskerville, Georgia, "Times New Roman", serif;
   --m-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -100,8 +108,55 @@ textarea {
   color-scheme: light;
 }
 
+/* Explicit light wins over any system dark (user chose light). */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Dark theme, applied by an explicit [data-theme="dark"] choice (the theme
+   toggle and the inline pre-paint script, which resolves an unset preference
+   from the system). Surfaces stay distinguishable, borders are lifted slightly,
+   and the ink hierarchy is preserved rather than mechanically inverted. */
+:root[data-theme="dark"] {
+  --m-canvas: #14110d;
+  --m-surface: #1d1915;
+  --m-surface-muted: #26211b;
+  --m-border: #332d25;
+  --m-border-strong: #4a4237;
+
+  --m-ink: #ece7de;
+  --m-ink-muted: #a89f90;
+  --m-ink-faint: #9f9686;
+
+  --m-healthy: #55b88b;
+  --m-healthy-wash: rgba(85, 184, 139, 0.14);
+  --m-caution: #dfa94e;
+  --m-caution-wash: rgba(223, 169, 78, 0.14);
+  --m-risk: #e88c8c;
+  --m-risk-wash: rgba(232, 140, 140, 0.12);
+  --m-information: #7fb0dc;
+  --m-information-wash: rgba(127, 176, 220, 0.12);
+
+  --m-aurora: radial-gradient(
+    120% 90% at 20% 0%,
+    rgba(85, 184, 139, 0.14),
+    transparent 60%
+  );
+
+  --m-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --m-elevation-2: 0 2px 4px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --m-elevation-3: 0 8px 28px rgba(0, 0, 0, 0.55);
+
+  --m-focus-ring: 0 0 0 2px var(--m-canvas), 0 0 0 4px var(--m-information);
+
+  color-scheme: dark;
+}
+
+/* No-script / pre-JS fallback: follow the system preference only when no
+   explicit choice has been recorded. Once a user picks a theme the data-theme
+   rules above win (the media query is scoped to :not([data-theme])). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --m-canvas: #14110d;
     --m-surface: #1d1915;
     --m-surface-muted: #26211b;

@@ -46,8 +46,25 @@ body:has([data-meridian-shell]) #advisor-fab {
   justify-content: flex-start;
   gap: var(--m-space-2);
   padding: var(--m-space-6) var(--m-space-4) var(--m-space-5);
-  background: var(--m-healthy);
-  border-right: 1px solid var(--m-border);
+  background: var(--m-forest);
+  border-right: 1px solid var(--m-forest-deep);
+}
+
+/* Forest/brand treatment: a soft aurora wash and a faint vertical hairline
+   texture sit behind the wordmark, not a flat fill. */
+.m-nav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 18% 4%, rgba(85, 184, 139, 0.18), transparent 60%),
+    linear-gradient(180deg, var(--m-forest) 0%, var(--m-forest-deep) 100%);
+  border-radius: inherit;
+}
+
+.m-nav > * {
+  position: relative;
 }
 
 .m-brand {
@@ -56,15 +73,20 @@ body:has([data-meridian-shell]) #advisor-fab {
   display: block;
   margin-bottom: var(--m-space-5);
   font-family: var(--m-font-serif);
-  font-size: var(--m-text-xl);
-  color: #fffdf8;
+  font-size: clamp(1.4rem, 2.1vw, 1.9rem);
+  line-height: 0.95;
+  color: var(--m-forest-ink);
   text-decoration: none;
 }
 
 .m-branded-wordmark {
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.m-branded-wordmark:hover {
+  text-decoration: none;
 }
 
 .m-nav-list {
@@ -83,38 +105,43 @@ body:has([data-meridian-shell]) #advisor-fab {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  gap: var(--m-space-2);
   padding: var(--m-space-2) var(--m-space-3);
   border-radius: var(--m-radius-md);
-  color: rgba(255, 253, 248, 0.72);
+  color: var(--m-forest-muted);
   font-family: var(--m-font-sans);
   font-size: var(--m-text-xs);
   letter-spacing: 0.01em;
   text-decoration: none;
+  transition: background-color var(--m-motion-fast) var(--m-ease-out),
+    color var(--m-motion-fast) var(--m-ease-out);
 }
 
 .m-nav-item svg {
   display: block;
+  flex: 0 0 auto;
 }
 
 .m-nav-item:hover {
-  background: rgba(255, 253, 248, 0.1);
-  color: #fffdf8;
+  background: var(--m-forest-wash);
+  color: var(--m-forest-ink);
 }
 
 .m-nav-item[aria-current="page"] {
-  background: rgba(255, 253, 248, 0.15);
-  color: #fffdf8;
+  color: var(--m-forest-ink);
 }
 
+/* Editorial active state: an accent bar in the healthy green, muted-ink label,
+   no boxy chip. */
 .m-nav-item[aria-current="page"]::before {
   content: "";
   position: absolute;
-  left: -12px;
-  top: 25%;
-  bottom: 25%;
+  left: calc(-1 * var(--m-space-3));
+  top: 22%;
+  bottom: 22%;
   width: 3px;
   border-radius: var(--m-radius-pill);
-  background: #fffdf8;
+  background: var(--m-healthy);
 }
 
 /* ---------- Canvas ---------- */
@@ -125,9 +152,9 @@ body:has([data-meridian-shell]) #advisor-fab {
 
 .m-nav-profile {
   margin-top: auto;
-  padding: var(--m-space-4) var(--m-space-2) 0;
-  border-top: 1px solid rgba(255, 253, 248, 0.22);
-  color: #fffdf8;
+  padding: var(--m-space-4) var(--m-space-2) var(--m-space-2);
+  border-top: 1px solid rgba(245, 242, 233, 0.22);
+  color: var(--m-forest-ink);
   font-size: var(--m-text-xs);
 }
 
@@ -138,14 +165,75 @@ body:has([data-meridian-shell]) #advisor-fab {
 
 .m-nav-profile span {
   margin-top: var(--m-space-1);
-  opacity: 0.68;
+  opacity: 0.66;
+}
+
+/* Theme toggle: editorial switch that reads as a quiet control, never a
+   competing primary action. */
+.m-theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--m-space-2);
+  min-height: 44px;
+  padding: var(--m-space-2) var(--m-space-3);
+  border: 0;
+  border-radius: var(--m-radius-md);
+  background: var(--m-forest-wash);
+  color: var(--m-forest-muted);
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-xs);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+
+.m-theme-toggle:hover {
+  color: var(--m-forest-ink);
+}
+
+.m-theme-toggle[aria-pressed="true"] {
+  color: var(--m-forest-ink);
+}
+
+.m-theme-toggle-track {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  border-radius: var(--m-radius-pill);
+  background: rgba(245, 242, 233, 0.22);
+  transition: background-color var(--m-motion-fast) var(--m-ease-out);
+}
+
+.m-theme-toggle[aria-pressed="true"] .m-theme-toggle-track {
+  background: var(--m-healthy);
+}
+
+.m-theme-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--m-radius-pill);
+  background: currentColor;
+  transition: transform var(--m-motion-fast) var(--m-ease-spring);
+}
+
+.m-theme-toggle[aria-pressed="true"] .m-theme-toggle-thumb {
+  transform: translateX(12px);
+}
+
+.m-theme-toggle-label {
+  min-width: 3.5ch;
+  text-align: left;
 }
 
 .m-main {
   grid-area: canvas;
   min-width: 0;
-  padding: var(--m-space-6) clamp(var(--m-space-4), 3.2vw, var(--m-space-7));
   width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--m-space-6) clamp(var(--m-space-4), 3.2vw, var(--m-space-7));
 }
 
 .m-workspace-kicker {
@@ -235,11 +323,21 @@ body:has([data-meridian-shell]) #advisor-fab {
     border-top: 1px solid var(--m-border);
   }
 
+  /* The forest brand treatment belongs to the desktop rail, not the dock. */
+  .m-nav::before {
+    background: none;
+  }
+
   .m-nav .m-brand {
     display: none;
   }
 
   .m-nav-profile {
+    display: none;
+  }
+
+  .m-nav .m-theme-toggle,
+  .m-nav .m-settings-link {
     display: none;
   }
 
@@ -306,6 +404,37 @@ body:has([data-meridian-shell]) #advisor-fab {
   .m-topbar-title {
     font-family: var(--m-font-serif);
     font-size: var(--m-text-lg);
+  }
+
+  .m-topbar-spacer {
+    flex: 1;
+  }
+
+  .m-topbar-settings {
+    font-family: var(--m-font-sans);
+    font-size: var(--m-text-sm);
+    color: var(--m-ink-muted);
+    text-decoration: none;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: var(--m-space-2) var(--m-space-3);
+  }
+
+  .m-topbar-settings:hover,
+  .m-topbar-settings[aria-current="page"] {
+    color: var(--m-ink);
+  }
+
+  .m-theme-toggle--compact {
+    padding: var(--m-space-1) var(--m-space-2);
+    background: var(--m-surface-muted);
+    color: var(--m-ink-muted);
+  }
+
+  .m-theme-toggle--compact:hover,
+  .m-theme-toggle--compact[aria-pressed="true"] {
+    color: var(--m-ink);
   }
 
   .m-main {
