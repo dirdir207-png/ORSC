@@ -78,6 +78,7 @@ from meridian.memory_actions import (
 )
 from meridian.providers.crew import CrewReadAdapter
 from meridian.repository import FinancialRepository
+from meridian.refresh import MeridianRefreshService
 from meridian.sync import sync_provider
 
 app = Flask(__name__)
@@ -100,6 +101,7 @@ URL = "https://api.trycrew.com/willow/graphql"
 # In app.py
 DB_FILE = os.environ.get("DB_FILE", "savings_data.db")
 app.config["MERIDIAN_REPOSITORY_FACTORY"] = lambda: FinancialRepository(DB_FILE)
+app.config["MERIDIAN_REFRESH_SERVICE"] = None
 
 
 def _evidence_store_factory():
@@ -813,6 +815,32 @@ def sync_crew_snapshot():
         report.errors,
     )
     return report
+
+
+# Automatic live-data refresh: a background thread that periodically pulls the
+# CrewWorkAssistant snapshot (Keychain-backed mobile/API auth) and syncs it
+# into the Meridian graph so workspaces stay fresh without manual scripts.
+meridian_refresh_interval = int(os.environ.get("MERIDIAN_REFRESH_INTERVAL", "300"))
+_meridian_refresh_service: "MeridianRefreshService | None" = None
+
+
+def _meridian_refresh_sync_once():
+    """Zero-arg live-sync callable used by the refresh thread (lazy import)."""
+    from meridian.live import build_sync_once
+
+    return build_sync_once(DB_FILE)()
+
+
+def get_meridian_refresh_service() -> "MeridianRefreshService":
+    global _meridian_refresh_service
+    if _meridian_refresh_service is None:
+        _meridian_refresh_service = MeridianRefreshService(
+            _meridian_refresh_sync_once,
+            interval_seconds=meridian_refresh_interval,
+            logger=app.logger.info,
+        )
+        app.config["MERIDIAN_REFRESH_SERVICE"] = _meridian_refresh_service
+    return _meridian_refresh_service
 
 def store_crew_credential(value):
     """Persist a renewed Crew credential through the same path as manual saves."""
@@ -6873,6 +6901,16 @@ def start_background_thread_once():
             transaction_thread.start()
             print("🔄 Credit card transaction checker started (checks every 30 seconds)", flush=True)
             _background_thread_started = True
+
+
+def ensure_meridian_refresh():
+    """Start the Meridian live-data refresh loop (idempotent, thread-safe)."""
+    try:
+        get_meridian_refresh_service().start()
+        print("🔄 Meridian live-data refresh started (every %ss)" % meridian_refresh_interval, flush=True)
+    except Exception as exc:  # noqa: BLE001 - refresh must never break startup
+        app.logger.warning("Meridian refresh start failed: %s", exc)
+        print("❌ Meridian refresh start failed: %s" % exc, flush=True)
 
 @app.before_request
 def ensure_background_thread():

@@ -60,7 +60,10 @@
       </div>
       <div class="m-connection-list" data-connections-list></div>
       <p class="m-connection-last" data-connection-last>Last material connector</p>
-      <a class="m-button" href="/meridian/settings?section=connections" data-connections-action>View connections</a>
+      <div class="m-connection-actions">
+        <button class="m-button" type="button" data-connections-refresh aria-busy="false">Refresh now</button>
+        <a class="m-button" href="/meridian/settings?section=connections" data-connections-action>View connections</a>
+      </div>
     </aside>
   </div>
 

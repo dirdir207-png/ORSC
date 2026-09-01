@@ -247,9 +247,20 @@
   line-height: 1.5;
 }
 
+.m-connection-actions {
+  display: grid;
+  gap: var(--m-space-2);
+  margin-top: var(--m-space-3);
+}
+
 .m-connection-health .m-button {
   width: 100%;
   text-align: center;
+}
+
+.m-connection-actions .m-button[aria-busy="true"] {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 /* ---------- Assets & Contracts (memory management) ---------- */

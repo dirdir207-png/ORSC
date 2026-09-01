@@ -266,6 +266,43 @@ def today():
     return jsonify(build_today(graph, commitments, rules))
 
 
+@meridian_api.get("/sync")
+@login_required
+def sync_now():
+    """Trigger a live data refresh on demand. Single-flight and safe.
+
+    This is an idempotent read-side synchronization (not a financial mutation),
+    so it uses GET for compatibility with the read-only fetch client.
+    ``?wait=false`` returns immediately with the current report; the default
+    waits for the refresh to finish (snapshots take a few seconds).
+    """
+    service = current_app.config.get("MERIDIAN_REFRESH_SERVICE")
+    if service is None:
+        return jsonify({"success": False, "error": "refresh_unavailable"}), 503
+    wait = request.args.get("wait", "true").lower() != "false"
+    try:
+        if wait:
+            report = service.refresh_once()
+            if report is None:
+                return jsonify({"success": False, "error": "refresh_failed"}), 502
+            return jsonify(
+                {
+                    "success": True,
+                    "provider": report.provider,
+                    "status": report.status,
+                    "accounts_synced": report.accounts_synced,
+                    "transactions_synced": report.transactions_synced,
+                    "errors": report.errors,
+                    "refreshed_at": None,
+                }
+            )
+        # Non-blocking: kick a refresh if none is running, report in_progress.
+        report = service.refresh_once()
+        return jsonify({"success": True, "status": report.status if report else "in_progress"})
+    except Exception:  # noqa: BLE001 - the browser never sees provider errors
+        return jsonify({"success": False, "error": "refresh_unavailable"}), 502
+
+
 @meridian_api.get("/accounts")
 @login_required
 @_safe_read

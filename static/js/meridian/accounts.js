@@ -245,3 +245,30 @@ async function loadAccounts() {
 }
 
 loadAccounts();
+
+/* ---------- Refresh now (live-data trigger) ---------- */
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-connections-refresh]");
+  if (!button || !root) return;
+  event.preventDefault();
+  button.setAttribute("aria-busy", "true");
+  button.disabled = true;
+  const previousLabel = button.textContent;
+  button.textContent = "Refreshing…";
+  try {
+    const result = await meridianFetch("/api/meridian/sync");
+    if (result && result.success) {
+      button.textContent = "Updated";
+      await loadAccounts();
+      window.setTimeout(() => { button.textContent = "Refresh now"; }, 1500);
+    } else {
+      button.textContent = "Retry";
+    }
+  } catch (_) {
+    button.textContent = "Retry";
+  } finally {
+    button.removeAttribute("aria-busy");
+    button.disabled = false;
+  }
+});
