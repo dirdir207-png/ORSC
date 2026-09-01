@@ -1,0 +1,155 @@
+/* Accounts workspace composition (visual recovery Task 6).
+   Loaded after workspaces.css so workspace rules win over the shared base. */
+
+
+
+/* ---------- Activity ---------- */
+
+/* ---------- Accounts ---------- */
+
+.m-accounts,
+.m-account-section {
+  display: grid;
+  gap: var(--m-space-4);
+}
+
+
+
+.m-accounts {
+  gap: var(--m-space-7);
+}
+
+
+
+.m-account-list {
+  border-top: 1px solid var(--m-border);
+}
+
+
+
+.m-account-row,
+.m-connection-row,
+.m-section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--m-space-4);
+}
+
+
+
+.m-account-row,
+.m-connection-row {
+  min-width: 0;
+  padding: var(--m-space-4) 0;
+  border-bottom: 1px solid var(--m-border);
+}
+
+
+
+.m-account-identity {
+  min-width: 0;
+}
+
+
+
+.m-account-name {
+  margin: 0;
+  font: 500 var(--m-text-md)/1.3 var(--m-font-sans);
+  color: var(--m-ink);
+}
+
+
+
+.m-account-source,
+.m-section-copy {
+  margin: var(--m-space-1) 0 0;
+  font-size: var(--m-text-xs);
+  color: var(--m-ink-muted);
+}
+
+
+
+.m-account-source {
+  text-transform: capitalize;
+}
+
+
+
+.m-account-balance {
+  flex: none;
+  font-size: var(--m-text-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+
+
+@media (max-width: 600px) {
+  .m-command-header,
+  .m-today-hero,
+  .m-today-support,
+  .m-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .m-command-header {
+    display: grid;
+  }
+
+  .m-editorial-headline {
+    max-width: 14ch;
+    font-size: 2.25rem;
+  }
+
+  .m-section-heading-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .m-section-heading-row .m-button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+
+@media (max-width: 600px) {
+  .m-today-primary {
+    gap: var(--m-space-4);
+  }
+
+  .m-command-header .m-primary-button {
+    display: none;
+  }
+
+  .m-today-hero {
+    gap: var(--m-space-3);
+  }
+
+  .m-sts,
+  .m-beacon-card,
+  .m-today-brief {
+    padding: var(--m-space-4);
+  }
+
+  .m-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .m-metric {
+    min-height: 106px;
+    padding: var(--m-space-3);
+  }
+
+  .m-metric strong {
+    font-size: var(--m-text-lg);
+  }
+
+  .m-metric .m-section-label {
+    font-size: 0.625rem;
+  }
+
+  .m-today-support {
+    display: none;
+  }
+}

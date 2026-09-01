@@ -1,0 +1,143 @@
+/* Activity workspace composition (visual recovery Task 5).
+   Loaded after workspaces.css so workspace rules win over the shared base. */
+
+
+
+.m-activity {
+  display: grid;
+  gap: var(--m-space-5);
+}
+
+
+
+/* Reserve room so loading/empty states never collapse the workspace. */
+.m-ledger {
+  min-height: var(--m-space-8);
+}
+
+
+
+.m-activity-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--m-space-4);
+  flex-wrap: wrap;
+}
+
+
+
+.m-select {
+  min-height: 44px;
+  min-width: 200px;
+  padding: 0 var(--m-space-3);
+  border: 1px solid var(--m-border-strong);
+  border-radius: var(--m-radius-md);
+  background: var(--m-surface);
+  color: var(--m-ink);
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-md);
+}
+
+
+
+.m-day-group + .m-day-group {
+  margin-top: var(--m-space-6);
+}
+
+
+
+.m-day-heading {
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--m-ink-faint);
+  margin: 0 0 var(--m-space-2);
+}
+
+
+
+.m-transaction-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--m-space-4);
+  width: 100%;
+  padding: var(--m-space-3) var(--m-space-2);
+  border-bottom: 1px solid var(--m-border);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--m-radius-sm);
+}
+
+
+
+[data-day-rows] > .m-transaction-row:last-child {
+  border-bottom-color: transparent;
+}
+
+
+
+.m-row-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+
+
+.m-row-title {
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-md);
+  font-weight: 500;
+  color: var(--m-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+
+.m-row-sub {
+  font-size: var(--m-text-xs);
+  color: var(--m-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+
+.m-row-amount {
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-md);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+
+
+.m-row-amount.is-income {
+  color: var(--m-healthy);
+}
+
+
+
+.m-row-amount.is-spend {
+  color: var(--m-ink);
+}
+
+
+
+@media (max-width: 900px) {
+  .m-sts-figure {
+    font-size: clamp(2.25rem, 12vw, 3rem);
+  }
+
+  .m-select {
+    min-width: 0;
+    flex: 1;
+  }
+}
