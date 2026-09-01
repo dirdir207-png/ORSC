@@ -97,6 +97,8 @@
   font-size: var(--m-text-xl);
 }
 
+/* ---------- Scannable labelled sections ---------- */
+
 .m-inspector-section {
   margin: 0 0 var(--m-space-5);
 }
@@ -110,8 +112,100 @@
   margin: 0 0 var(--m-space-2);
 }
 
+/* AI assignment lead: category + confidence on one baseline. */
+.m-assignment {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--m-space-3);
+  padding: var(--m-space-3) 0;
+  border-bottom: 1px solid var(--m-border);
+}
+
+.m-assignment-label {
+  font-size: var(--m-text-sm);
+  color: var(--m-ink-muted);
+}
+
+.m-assignment-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--m-space-2);
+  font-size: var(--m-text-md);
+  color: var(--m-ink);
+  text-align: right;
+}
+
+.m-confidence {
+  font-weight: 600;
+  color: var(--m-healthy);
+  white-space: nowrap;
+}
+
+/* Secondary labelled fact (e.g. matched bill). */
+.m-inspector-fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--m-space-3);
+  padding: var(--m-space-3) 0;
+  border-bottom: 1px solid var(--m-border);
+}
+
+.m-inspector-fact:last-child {
+  border-bottom-color: transparent;
+}
+
+.m-inspector-fact-label {
+  font-size: var(--m-text-sm);
+  color: var(--m-ink-muted);
+}
+
+.m-inspector-fact-value {
+  font-size: var(--m-text-md);
+  color: var(--m-ink);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Honest missing-evidence: quiet, single-line, never dominates. */
 .m-state-line {
   margin: 0;
   font-size: var(--m-text-md);
   color: var(--m-ink-muted);
+}
+
+.m-inspector-section .m-state-line:not(:last-child) {
+  margin-bottom: var(--m-space-2);
+}
+
+/* Document evidence as scannable linked chips. */
+.m-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-space-2);
+}
+
+.m-evidence-list a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--m-space-2);
+  width: fit-content;
+  padding: var(--m-space-2) var(--m-space-3);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-pill);
+  background: var(--m-surface);
+  color: var(--m-ink);
+  text-decoration: none;
+  font-size: var(--m-text-sm);
+}
+
+.m-evidence-list a:hover {
+  background: var(--m-surface-muted);
+}
+
+.m-retention-state {
+  margin-top: var(--m-space-2);
+  font-size: var(--m-text-xs);
+  color: var(--m-ink-faint);
 }

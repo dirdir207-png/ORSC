@@ -1,31 +1,132 @@
 /* Accounts workspace composition (visual recovery Task 6).
-   Loaded after workspaces.css so workspace rules win over the shared base. */
+   Net-position financial structure: editorial command header, available-cash
+   and liability summaries, provider-neutral account identity rows, and a
+   connection-health rail. Loaded after workspaces.css so workspace rules win. */
 
+/* The shell renders a generic kicker/heading/subline before every workspace
+   except Today. Accounts carries its own editorial command header inside the
+   partial, so the shell's copy is visually hidden but stays in the a11y tree
+   (it is still the section's aria-labelledby anchor and focus target). */
+#workspace-accounts > .m-workspace-kicker,
+#workspace-accounts > .m-workspace-heading,
+#workspace-accounts > .m-workspace-subline {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
+/* ---------- Accounts root ---------- */
 
-/* ---------- Activity ---------- */
-
-/* ---------- Accounts ---------- */
-
-.m-accounts,
-.m-account-section {
+.m-accounts {
   display: grid;
+  gap: var(--m-space-6);
+}
+
+/* ---------- Command header ---------- */
+
+.m-accounts-command {
+  gap: var(--m-space-6);
+}
+
+.m-accounts-command-copy {
+  min-width: 0;
+}
+
+.m-accounts-connect {
+  flex: none;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--m-space-2);
+}
+
+.m-accounts-connect svg {
+  flex: none;
+}
+
+/* ---------- Net-position summary cards ---------- */
+
+.m-accounts-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--m-space-4);
 }
 
-
-
-.m-accounts {
-  gap: var(--m-space-7);
+.m-accounts-net-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: var(--m-space-2);
 }
 
+.m-accounts-net-card .m-section-label {
+  color: var(--m-ink-muted);
+}
 
+.m-accounts-figure {
+  display: block;
+  font-family: var(--m-font-serif);
+  font-weight: 500;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  font-variant-numeric: tabular-nums;
+  color: var(--m-ink);
+}
+
+.m-accounts-figure-note {
+  margin: var(--m-space-1) 0 0;
+  color: var(--m-ink-muted);
+  font-size: var(--m-text-xs);
+  line-height: 1.45;
+}
+
+/* ---------- Account structure + connection-health layout ---------- */
+
+.m-accounts-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--m-space-6);
+  align-items: start;
+}
+
+.m-accounts-primary {
+  min-width: 0;
+  display: grid;
+  gap: var(--m-space-6);
+}
+
+/* Account structure sheet (white rounded card) */
+.m-account-list-sheet {
+  padding: var(--m-space-3) var(--m-space-5);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  box-shadow: var(--m-elevation-1);
+}
+
+.m-account-group {
+  padding: var(--m-space-4) 0 0;
+}
+
+.m-account-group + .m-account-group {
+  margin-top: var(--m-space-2);
+}
+
+.m-account-group > .m-section-label {
+  margin: 0 0 var(--m-space-2);
+  color: var(--m-ink-faint);
+}
 
 .m-account-list {
   border-top: 1px solid var(--m-border);
 }
-
-
 
 .m-account-row,
 .m-connection-row,
@@ -36,30 +137,43 @@
   gap: var(--m-space-4);
 }
 
-
-
-.m-account-row,
-.m-connection-row {
+.m-account-row {
   min-width: 0;
   padding: var(--m-space-4) 0;
   border-bottom: 1px solid var(--m-border);
 }
 
+.m-account-row:last-child {
+  border-bottom: 0;
+}
 
+/* Identity icon tile (line icon set) */
+.m-account-icon {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--m-radius-md);
+  background: var(--m-surface-muted);
+  color: var(--m-ink-muted);
+}
+
+.m-account-icon svg {
+  width: 22px;
+  height: 22px;
+}
 
 .m-account-identity {
   min-width: 0;
+  flex: 1 1 auto;
 }
-
-
 
 .m-account-name {
   margin: 0;
   font: 500 var(--m-text-md)/1.3 var(--m-font-sans);
   color: var(--m-ink);
 }
-
-
 
 .m-account-source,
 .m-section-copy {
@@ -68,37 +182,103 @@
   color: var(--m-ink-muted);
 }
 
-
-
-.m-account-source {
-  text-transform: capitalize;
-}
-
-
-
 .m-account-balance {
   flex: none;
   font-size: var(--m-text-lg);
   font-variant-numeric: tabular-nums;
+  color: var(--m-ink);
 }
 
+/* ---------- Connection-health rail ---------- */
 
+.m-connection-health {
+  position: sticky;
+  top: var(--m-space-6);
+  padding: var(--m-space-5);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  box-shadow: var(--m-elevation-1);
+  display: grid;
+  gap: var(--m-space-4);
+}
+
+.m-connection-health-head {
+  padding-bottom: var(--m-space-4);
+  border-bottom: 1px solid var(--m-border);
+  display: grid;
+  gap: var(--m-space-2);
+}
+
+.m-connection-status {
+  margin: 0;
+  font-family: var(--m-font-serif);
+  font-size: var(--m-text-xl);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.m-connection-list {
+  display: grid;
+  gap: var(--m-space-2);
+}
+
+.m-connection-row {
+  min-width: 0;
+  padding: var(--m-space-3) 0;
+  border-bottom: 1px solid var(--m-border);
+}
+
+.m-connection-row:last-child {
+  border-bottom: 0;
+}
+
+.m-connection-age {
+  flex: none;
+  color: var(--m-ink-muted);
+  font-size: var(--m-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.m-connection-last {
+  margin: var(--m-space-2) 0 0;
+  color: var(--m-ink-muted);
+  font-size: var(--m-text-xs);
+  line-height: 1.5;
+}
+
+.m-connection-health .m-button {
+  width: 100%;
+  text-align: center;
+}
+
+/* ---------- Assets & Contracts (memory management) ---------- */
+
+.memory-management {
+  display: grid;
+  gap: var(--m-space-3);
+}
+
+.memory-management__actions {
+  display: flex;
+  gap: var(--m-space-2);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .m-accounts-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .m-connection-health {
+    position: static;
+  }
+}
 
 @media (max-width: 600px) {
-  .m-command-header,
-  .m-today-hero,
-  .m-today-support,
-  .m-metric-grid {
+  .m-accounts-summary {
     grid-template-columns: 1fr;
-  }
-
-  .m-command-header {
-    display: grid;
-  }
-
-  .m-editorial-headline {
-    max-width: 14ch;
-    font-size: 2.25rem;
   }
 
   .m-section-heading-row {
@@ -110,46 +290,8 @@
     width: 100%;
     text-align: center;
   }
-}
 
-
-@media (max-width: 600px) {
-  .m-today-primary {
-    gap: var(--m-space-4);
-  }
-
-  .m-command-header .m-primary-button {
-    display: none;
-  }
-
-  .m-today-hero {
-    gap: var(--m-space-3);
-  }
-
-  .m-sts,
-  .m-beacon-card,
-  .m-today-brief {
-    padding: var(--m-space-4);
-  }
-
-  .m-metric-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .m-metric {
-    min-height: 106px;
-    padding: var(--m-space-3);
-  }
-
-  .m-metric strong {
-    font-size: var(--m-text-lg);
-  }
-
-  .m-metric .m-section-label {
-    font-size: 0.625rem;
-  }
-
-  .m-today-support {
-    display: none;
+  .m-account-list-sheet {
+    padding: var(--m-space-2) var(--m-space-4);
   }
 }

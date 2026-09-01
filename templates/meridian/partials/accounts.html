@@ -1,26 +1,79 @@
 <div class="m-accounts" data-accounts aria-busy="true">
-  <p class="m-chip" data-accounts-freshness data-state="unavailable">Loading account structure</p>
-  <div data-accounts-groups></div>
-
-  <section class="m-account-section" aria-labelledby="reimbursements-heading" data-reimbursements hidden>
-    <h2 id="reimbursements-heading" class="m-section-label">Expected reimbursements</h2>
-    <div class="m-account-list" data-reimbursement-list></div>
-  </section>
-
-  <section id="connections" class="m-account-section" aria-labelledby="connections-heading" data-connections>
-    <div class="m-section-heading-row">
-      <div>
-        <h2 id="connections-heading" class="m-section-label">Connections</h2>
-        <p class="m-section-copy">Provider setup and health live here, separate from your financial structure.</p>
-      </div>
-      <a class="m-button" href="#connections" data-connections-action>View connections</a>
+  {# Net-position command header: editorial statement + connect action.
+     The shell's generic kicker/heading/subline is replaced for this section
+     (see accounts.css), matching the atlas command header. #}
+  <header class="m-command-header m-accounts-command" aria-label="Accounts overview">
+    <div class="m-accounts-command-copy">
+      <p class="m-workspace-kicker">Accounts</p>
+      <h2 class="m-editorial-headline">Structure without provider clutter.</h2>
+      <p class="m-editorial-subline">
+        Accounts, pockets, cards, assets, and shared balances retain provenance
+        while reading as one system.
+      </p>
     </div>
-    <div class="m-account-list" data-connections-list></div>
+    <a class="m-primary-button m-accounts-connect" href="/meridian/settings?section=connections" data-connect-account>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      Connect account
+    </a>
+  </header>
+
+  {# Net-position summary cards. The two dominant figures are computed by
+     accounts.js from the provider-neutral account structure. #}
+  <section class="m-accounts-summary" aria-label="Net position">
+    <article class="m-surface m-accounts-net-card">
+      <p class="m-section-label">Available cash</p>
+      <strong class="m-accounts-figure" data-available-cash>—</strong>
+      <p class="m-accounts-figure-note" data-available-note></p>
+    </article>
+    <article class="m-surface m-accounts-net-card">
+      <p class="m-section-label">Liabilities</p>
+      <strong class="m-accounts-figure" data-liabilities>—</strong>
+      <p class="m-accounts-figure-note" data-liabilities-note></p>
+    </article>
   </section>
+
+  {# Provider-neutral account structure + connection-health rail. #}
+  <div class="m-accounts-layout">
+    <div class="m-accounts-primary">
+      <section class="m-account-list-sheet" aria-label="Account structure">
+        <div data-accounts-groups></div>
+      </section>
+
+      <section class="m-account-section" aria-labelledby="reimbursements-heading" data-reimbursements hidden>
+        <div class="m-section-heading-row">
+          <div>
+            <h2 id="reimbursements-heading" class="m-section-label">Expected reimbursements</h2>
+            <p class="m-section-copy">Money others owe back to you.</p>
+          </div>
+        </div>
+        <div class="m-account-list" data-reimbursement-list></div>
+      </section>
+    </div>
+
+    <aside class="m-connection-health" aria-labelledby="connections-heading" data-connections>
+      <div class="m-connection-health-head">
+        <p id="connections-heading" class="m-section-label">Connection health</p>
+        <h3 class="m-connection-status" data-connection-status>All sources current</h3>
+        <span class="m-chip" data-accounts-freshness data-state="unavailable">Checking sources</span>
+      </div>
+      <div class="m-connection-list" data-connections-list></div>
+      <p class="m-connection-last" data-connection-last>Last material connector</p>
+      <a class="m-button" href="/meridian/settings?section=connections" data-connections-action>View connections</a>
+    </aside>
+  </div>
+
   <p class="m-inline-error" data-accounts-error role="alert" hidden></p>
 
+  {# Assets & Contracts — proposal-only management, kept reachable. #}
   <section class="memory-management" aria-labelledby="memory-management-title">
-    <h2 id="memory-management-title">Assets &amp; Contracts</h2>
+    <div class="m-section-heading-row">
+      <div>
+        <h2 id="memory-management-title" class="m-section-label">Assets &amp; Contracts</h2>
+        <p class="m-section-copy">Tracked items that carry your financial structure forward.</p>
+      </div>
+    </div>
     <div class="memory-management__actions">
       <button type="button" data-testid="add-asset">Add asset</button>
       <button type="button" data-testid="add-contract">Add contract</button>

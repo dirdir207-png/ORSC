@@ -3,7 +3,21 @@
 import { MeridianApiError, meridianFetch } from "./api.js";
 import { dayKey, dayLabel, formatCurrency } from "./format.js";
 
-const state = { cursor: null, accountId: null, mode: "timeline", controller: null, accountsLoaded: false };
+const state = {
+  cursor: null,
+  accountId: null,
+  category: "",
+  mode: "timeline",
+  controller: null,
+  accountsLoaded: false,
+};
+
+/* Show an explicit sign so income reads "+$" and spend reads "−$", matching the
+   atlas. formatCurrency keeps the locale grouping; we only add the sign. */
+function signedAmount(amount, currency) {
+  const sign = amount < 0 ? "\u2212" : "+";
+  return `${sign}${formatCurrency(Math.abs(amount), currency)}`;
+}
 
 function buildRow(transaction) {
   const row = document.createElement("div");
@@ -37,13 +51,19 @@ function buildRow(transaction) {
       : (transaction.provider || "");
   left.append(title, sub);
 
+  const category = document.createElement("span");
+  category.className = "m-row-category";
+  category.setAttribute("data-row-category", "");
+  category.textContent =
+    transaction.classification?.category || "Unassigned";
+
   const amount = document.createElement("span");
   amount.className = `m-row-amount ${
     transaction.amount < 0 ? "is-spend" : "is-income"
   }`;
-  amount.textContent = formatCurrency(transaction.amount, transaction.currency);
+  amount.textContent = signedAmount(transaction.amount, transaction.currency);
 
-  row.append(left, amount);
+  row.append(left, category, amount);
   if (state.mode === "review") {
     const confidence = document.createElement("span");
     confidence.className = "m-chip";
@@ -63,7 +83,10 @@ function buildRow(transaction) {
     correct.className = "m-button";
     correct.dataset.reviewCorrect = "";
     correct.textContent = "Correct";
-    row.append(confidence, select, approve, correct);
+    const actions = document.createElement("span");
+    actions.className = "m-row-review-actions";
+    actions.append(confidence, select, approve, correct);
+    row.append(actions);
   }
   return row;
 }
@@ -102,6 +125,61 @@ function setChip(root, freshness) {
   chip.textContent = labels[chip.dataset.state] || chip.dataset.state;
 }
 
+/* Collect the distinct classification categories seen so far into the filter
+   select, preserving the current selection. */
+function populateCategories(root, transactions) {
+  const select = root.querySelector("[data-category-filter]");
+  if (!select) {
+    return;
+  }
+  const known = new Set(
+    [...select.options].map((option) => option.value).filter(Boolean)
+  );
+  for (const transaction of transactions || []) {
+    const category = transaction.classification?.category;
+    if (category && !known.has(category)) {
+      known.add(category);
+      const option = document.createElement("option");
+      option.value = category;
+      option.textContent = category;
+      select.appendChild(option);
+    }
+  }
+}
+
+/* Client-side category filter. Timeline rows carry data-classification-category;
+   day groups that end up with no matching row are collapsed. Pattern cards are
+   never filtered (category is a timeline notion). */
+function applyCategoryFilter(root) {
+  const category = state.category;
+  const groups = root.querySelectorAll("[data-day-group]");
+  let visibleRows = 0;
+  let hasPattern = false;
+  for (const group of groups) {
+    if (group.hasAttribute("data-pattern-card")) {
+      group.hidden = false;
+      hasPattern = true;
+      continue;
+    }
+    const rows = group.querySelectorAll("[data-transaction-row]");
+    let visible = 0;
+    for (const row of rows) {
+      const rowCategory = row.dataset.classificationCategory || "";
+      const show = !category || rowCategory === category;
+      row.hidden = !show;
+      if (show) {
+        visible += 1;
+      }
+    }
+    group.hidden = visible === 0;
+    visibleRows += visible;
+  }
+  const empty = root.querySelector("[data-activity-empty]");
+  if (empty) {
+    empty.hidden = visibleRows > 0 || hasPattern;
+  }
+}
+
 function renderPage(root, payload, { append }) {
   const ledger = root.querySelector("[data-ledger]");
   const empty = root.querySelector("[data-activity-empty]");
@@ -136,6 +214,8 @@ function renderPage(root, payload, { append }) {
   state.cursor = payload.next_cursor || null;
   loadMore.hidden = !state.cursor;
   setChip(root, payload.data_freshness);
+  populateCategories(root, transactions);
+  applyCategoryFilter(root);
 }
 
 async function populateAccounts(select) {
@@ -240,6 +320,31 @@ document.addEventListener("change", (event) => {
   const value = select.value ? Number(select.value) : null;
   state.accountId = value;
   loadActivity({ accountId: value, cursor: null });
+});
+
+document.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-category-filter]");
+  if (!select) {
+    return;
+  }
+  state.category = select.value || "";
+  const root = document.querySelector("[data-activity-root]");
+  if (root) {
+    applyCategoryFilter(root);
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-filter-toggle]");
+  if (!toggle) {
+    return;
+  }
+  const panel = document.querySelector("[data-filter-panel]");
+  const expanded = toggle.getAttribute("aria-expanded") === "true";
+  toggle.setAttribute("aria-expanded", String(!expanded));
+  if (panel) {
+    panel.hidden = expanded;
+  }
 });
 
 document.addEventListener("meridian:workspacechange", (event) => {

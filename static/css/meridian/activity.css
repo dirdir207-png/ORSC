@@ -1,31 +1,97 @@
 /* Activity workspace composition (visual recovery Task 5).
    Loaded after workspaces.css so workspace rules win over the shared base. */
 
-
+/* The shell renders a generic kicker/heading/subline for every workspace except
+   Today. Activity carries its own editorial command header inside the partial,
+   so the shell's copy is visually hidden but stays in the accessibility tree
+   (it is still the section's aria-labelledby anchor and focus target). */
+#workspace-activity > .m-workspace-kicker,
+#workspace-activity > .m-workspace-heading,
+#workspace-activity > .m-workspace-subline {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .m-activity {
   display: grid;
   gap: var(--m-space-5);
 }
 
+/* ---------- Editorial command header ---------- */
 
-
-/* Reserve room so loading/empty states never collapse the workspace. */
-.m-ledger {
-  min-height: var(--m-space-8);
+.m-activity-command {
+  align-items: flex-end;
 }
 
+.m-activity-command .m-editorial-headline {
+  max-width: 15ch;
+}
 
+.m-activity-command .m-editorial-subline {
+  max-width: 52ch;
+}
+
+.m-filter-button {
+  min-width: 44px;
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--m-ink-muted);
+}
+
+.m-filter-button[aria-expanded="true"] {
+  color: var(--m-ink);
+}
+
+/* ---------- Compact filter controls ---------- */
 
 .m-activity-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--m-space-4);
   flex-wrap: wrap;
 }
 
+.m-segmented {
+  display: inline-flex;
+  gap: var(--m-space-1);
+  padding: var(--m-space-1);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-pill);
+  background: var(--m-surface);
+}
 
+.m-segmented .m-button {
+  min-height: 40px;
+  padding: var(--m-space-2) var(--m-space-4);
+  border: 0;
+  border-radius: var(--m-radius-pill);
+  background: transparent;
+  color: var(--m-ink-muted);
+}
+
+.m-segmented .m-button:hover {
+  background: var(--m-surface-muted);
+}
+
+.m-segmented .m-button[aria-pressed="true"] {
+  background: var(--m-ink);
+  color: var(--m-canvas);
+}
+
+.m-activity-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--m-space-3);
+  flex-wrap: wrap;
+}
 
 .m-select {
   min-height: 44px;
@@ -39,13 +105,57 @@
   font-size: var(--m-text-md);
 }
 
-
-
-.m-day-group + .m-day-group {
-  margin-top: var(--m-space-6);
+.m-freshness-chip {
+  align-self: center;
 }
 
+/* ---------- Ledger / detail split ---------- */
 
+.m-activity-body {
+  display: grid;
+  gap: var(--m-space-5);
+}
+
+.m-ledger-card {
+  padding: var(--m-space-4) var(--m-space-5) var(--m-space-5);
+}
+
+.m-ledger-cols {
+  display: flex;
+  gap: var(--m-space-4);
+  margin: 0 0 var(--m-space-2);
+  padding: 0 var(--m-space-2);
+  font-size: var(--m-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--m-ink-faint);
+}
+
+.m-ledger-cols span:nth-child(1) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.m-ledger-cols span:nth-child(2) {
+  flex: 0 0 auto;
+  width: 160px;
+}
+
+.m-ledger-cols span:nth-child(3) {
+  flex: 0 0 auto;
+  min-width: 96px;
+  text-align: right;
+}
+
+/* Reserve room so loading/empty states never collapse the workspace. */
+.m-ledger {
+  min-height: var(--m-space-8);
+}
+
+.m-day-group + .m-day-group {
+  margin-top: var(--m-space-5);
+}
 
 .m-day-heading {
   font-family: var(--m-font-sans);
@@ -57,12 +167,9 @@
   margin: 0 0 var(--m-space-2);
 }
 
-
-
 .m-transaction-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--m-space-4);
   width: 100%;
   padding: var(--m-space-3) var(--m-space-2);
@@ -72,21 +179,20 @@
   border-radius: var(--m-radius-sm);
 }
 
-
+.m-transaction-row:hover {
+  background: var(--m-surface-muted);
+}
 
 [data-day-rows] > .m-transaction-row:last-child {
   border-bottom-color: transparent;
 }
 
-
-
 .m-row-text {
   display: grid;
   gap: 2px;
   min-width: 0;
+  flex: 1 1 auto;
 }
-
-
 
 .m-row-title {
   font-family: var(--m-font-sans);
@@ -98,8 +204,6 @@
   text-overflow: ellipsis;
 }
 
-
-
 .m-row-sub {
   font-size: var(--m-text-xs);
   color: var(--m-ink-muted);
@@ -108,30 +212,132 @@
   text-overflow: ellipsis;
 }
 
-
+.m-row-category {
+  flex: 0 0 auto;
+  width: 160px;
+  font-size: var(--m-text-sm);
+  color: var(--m-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .m-row-amount {
+  flex: 0 0 auto;
+  min-width: 96px;
+  text-align: right;
   font-family: var(--m-font-sans);
   font-size: var(--m-text-md);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-
-
 .m-row-amount.is-income {
   color: var(--m-healthy);
 }
-
-
 
 .m-row-amount.is-spend {
   color: var(--m-ink);
 }
 
+.m-row-review-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--m-space-2);
+}
 
+.m-load-more {
+  width: 100%;
+  margin-top: var(--m-space-4);
+}
+
+/* ---------- Mobile selected-transaction summary ---------- */
+
+.m-selected-summary {
+  display: none;
+  flex-direction: column;
+  gap: var(--m-space-2);
+  padding: var(--m-space-4);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  box-shadow: var(--m-elevation-1);
+}
+
+.m-selected-summary strong {
+  display: block;
+  font-family: var(--m-font-serif);
+  font-size: var(--m-text-lg);
+  font-weight: 500;
+  line-height: 1.2;
+  margin-top: var(--m-space-1);
+}
+
+.m-selected-summary-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--m-space-3);
+  margin: var(--m-space-1) 0 0;
+}
+
+.m-selected-summary-meta span:first-child {
+  color: var(--m-ink-muted);
+  font-size: var(--m-text-sm);
+}
+
+.m-selected-summary-meta span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: var(--m-ink);
+}
+
+@media (max-width: 600px) {
+  .m-activity-command {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--m-space-4);
+  }
+
+  .m-filter-button {
+    align-self: stretch;
+    width: 100%;
+    text-align: center;
+  }
+
+  .m-activity-body {
+    gap: var(--m-space-4);
+  }
+
+  .m-selected-summary {
+    display: flex;
+  }
+
+  .m-selected-summary .m-button {
+    width: 100%;
+    margin-top: var(--m-space-2);
+    text-align: center;
+  }
+
+  .m-ledger-cols {
+    display: none;
+  }
+
+  .m-row-category {
+    width: auto;
+  }
+}
 
 @media (max-width: 900px) {
+  .m-activity-filters .m-select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .m-selected-summary {
+    display: flex;
+  }
+
   .m-sts-figure {
     font-size: clamp(2.25rem, 12vw, 3rem);
   }

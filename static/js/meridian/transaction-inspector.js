@@ -12,6 +12,35 @@ function isMobileViewport() {
   return window.matchMedia("(max-width: 900px)").matches;
 }
 
+function signedAmount(amount, currency) {
+  const sign = amount < 0 ? "\u2212" : "+";
+  return `${sign}${formatCurrency(Math.abs(amount), currency)}`;
+}
+
+/* Keep the mobile selected-transaction summary in sync with the open detail so
+   closing the sheet still shows which transaction was last selected. */
+function updateSelectedSummary(transaction) {
+  const summary = document.querySelector("[data-selected-summary]");
+  if (!summary) {
+    return;
+  }
+  const title =
+    transaction.merchant || transaction.description || `Transaction ${transaction.id}`;
+  summary.hidden = false;
+  summary.dataset.selectedId = String(transaction.id);
+  const nodes = {
+    "[data-selected-summary-title]": title,
+    "[data-selected-summary-category]": transaction.classification?.category || "Unassigned",
+    "[data-selected-summary-amount]": signedAmount(transaction.amount, transaction.currency),
+  };
+  for (const [selector, text] of Object.entries(nodes)) {
+    const node = summary.querySelector(selector);
+    if (node) {
+      node.textContent = text;
+    }
+  }
+}
+
 async function accountName(accountId) {
   if (state.accounts === null) {
     try {
@@ -110,6 +139,7 @@ function render(transaction, freshness, evidence = []) {
     classification.evidence || "No classification evidence"
   );
   renderEvidence(evidence);
+  updateSelectedSummary(transaction);
 
   const chip = document.querySelector("[data-inspector-rail] [data-freshness]");
   const view = freshnessText(freshness);
@@ -190,6 +220,14 @@ document.addEventListener("click", (event) => {
   const row = event.target.closest("[data-transaction-row]");
   if (row) {
     open(Number(row.dataset.transactionId), { opener: row });
+    return;
+  }
+  if (event.target.closest("[data-selected-summary-open]")) {
+    const summary = document.querySelector("[data-selected-summary]");
+    const id = summary && summary.dataset.selectedId;
+    if (id) {
+      open(Number(id));
+    }
     return;
   }
   if (event.target.closest("[data-inspector-close]")) {

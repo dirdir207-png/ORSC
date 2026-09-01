@@ -98,8 +98,11 @@
             const li = document.createElement('li');
             li.className = `memory-item memory-item--${item.urgency || 'scheduled'}`;
             li.setAttribute('data-memory-kind', item.kind);
+            if (item.id) li.setAttribute('data-memory-id', item.id);
+            li.setAttribute('aria-label', `${item.title || item.kind} memory item`);
 
             const title = document.createElement('strong');
+            title.className = 'memory-item__title';
             title.textContent = item.title || item.kind;
             li.appendChild(title);
 
@@ -109,19 +112,25 @@
                 why.textContent = item.why_it_matters;
                 li.appendChild(why);
             }
-            if (item.amount !== null && item.amount !== undefined) {
-                const amount = document.createElement('span');
-                amount.className = 'memory-item__amount';
-                amount.textContent = new Intl.NumberFormat('en-US', {
-                    style: 'currency', currency: 'USD',
-                }).format(item.amount);
-                li.appendChild(amount);
-            }
-            if (item.confidence !== null && item.confidence !== undefined) {
-                const confidence = document.createElement('span');
-                confidence.className = 'memory-item__confidence';
-                confidence.textContent = `${Math.round(item.confidence * 100)}% confidence`;
-                li.appendChild(confidence);
+            if ((item.amount !== null && item.amount !== undefined) ||
+                (item.confidence !== null && item.confidence !== undefined)) {
+                const meta = document.createElement('div');
+                meta.className = 'memory-item__meta';
+                if (item.amount !== null && item.amount !== undefined) {
+                    const amount = document.createElement('span');
+                    amount.className = 'memory-item__amount';
+                    amount.textContent = new Intl.NumberFormat('en-US', {
+                        style: 'currency', currency: 'USD',
+                    }).format(item.amount);
+                    meta.appendChild(amount);
+                }
+                if (item.confidence !== null && item.confidence !== undefined) {
+                    const confidence = document.createElement('span');
+                    confidence.className = 'memory-item__confidence';
+                    confidence.textContent = `${Math.round(item.confidence * 100)}% confidence`;
+                    meta.appendChild(confidence);
+                }
+                li.appendChild(meta);
             }
             if (Array.isArray(item.evidence) && item.evidence.length > 0) {
                 const links = document.createElement('ul');

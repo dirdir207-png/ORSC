@@ -1,28 +1,66 @@
+{# Activity workspace: a concise ledger / detail split.
+   The shell renders a generic workspace heading for Activity; the partial carries
+   the editorial command header so the copy matches the atlas. That generic shell
+   header is visually hidden in activity.css (#workspace-activity > .m-workspace-*). #}
 <div class="m-activity" data-activity-root>
+  <header class="m-command-header m-activity-command">
+    <div class="m-activity-command-copy">
+      <p class="m-workspace-kicker">Activity</p>
+      <h2 class="m-editorial-headline">One financial timeline.</h2>
+      <p class="m-editorial-subline">Transactions, transfers, reimbursements, documents, and corrections stay connected without double counting.</p>
+    </div>
+    <button type="button" class="m-button m-filter-button" data-filter-toggle aria-expanded="true">Filter</button>
+  </header>
+
   <div class="m-activity-toolbar">
     <div class="m-segmented" role="group" aria-label="Activity mode">
       <button type="button" class="m-button" data-activity-mode="timeline" aria-pressed="true">Timeline</button>
       <button type="button" class="m-button" data-activity-mode="review" aria-pressed="false">Review</button>
       <button type="button" class="m-button" data-activity-mode="patterns" aria-pressed="false">Patterns</button>
     </div>
-    <label class="m-field">
-      <span class="m-field-label">Account</span>
-      <select class="m-select" data-account-filter>
-        <option value="">All accounts</option>
-      </select>
-    </label>
-    <span class="m-chip" data-freshness data-state="unavailable"></span>
+
+    <div class="m-activity-filters" data-filter-panel>
+      <label class="m-field">
+        <span class="m-field-label">Account</span>
+        <select class="m-select" data-account-filter>
+          <option value="">All accounts</option>
+        </select>
+      </label>
+      <label class="m-field">
+        <span class="m-field-label">Category</span>
+        <select class="m-select" data-category-filter>
+          <option value="">All categories</option>
+        </select>
+      </label>
+      <span class="m-chip m-freshness-chip" data-freshness data-state="unavailable"></span>
+    </div>
   </div>
 
-  <div class="m-ledger" data-ledger></div>
+  <div class="m-activity-body">
+    <section class="m-surface m-ledger-card" aria-label="Transactions">
+      <p class="m-ledger-cols" aria-hidden="true">
+        <span>Transaction</span>
+        <span>Assignment</span>
+        <span>Amount</span>
+      </p>
+      <div class="m-ledger" data-ledger></div>
+      <p class="m-empty-note" data-activity-empty hidden>No transactions yet.</p>
+      <button type="button" class="m-button m-load-more" data-load-more hidden>Load more</button>
+      <p class="m-inline-error" data-activity-error role="alert" hidden></p>
+    </section>
+
+    <aside class="m-selected-summary" data-selected-summary hidden aria-live="polite">
+      <p class="m-section-label">Selected</p>
+      <strong data-selected-summary-title>—</strong>
+      <p class="m-selected-summary-meta">
+        <span data-selected-summary-category>Unassigned</span>
+        <span data-selected-summary-amount>—</span>
+      </p>
+      <button type="button" class="m-button" data-selected-summary-open>Open details</button>
+    </aside>
+  </div>
 
   <button type="button" class="m-button" data-batch-review hidden>Review selected</button>
-
-  <p class="m-empty-note" data-activity-empty hidden>No transactions yet.</p>
-
-  <button type="button" class="m-button" data-load-more hidden>Load more</button>
-
-  <p class="m-inline-error" data-activity-error role="alert" hidden></p>
 
   <div data-memory-activity aria-label="Activity memory items"></div>
 </div>

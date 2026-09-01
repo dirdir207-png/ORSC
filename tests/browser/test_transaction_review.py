@@ -42,5 +42,6 @@ def test_review_modes_show_confidence_patterns_and_preserve_inspector(browser):
     page.locator('[data-transaction-id="101"]').click()
     page.locator('[data-activity-mode="patterns"]').click()
     assert page.locator("[data-inspector-rail]").is_visible()
+    page.wait_for_selector('[data-pattern-card="recurrence"]')
     assert page.locator('[data-pattern-card="recurrence"]').is_visible()
     context.close()

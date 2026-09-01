@@ -32,41 +32,59 @@
     </dl>
 
     <section class="m-inspector-section" aria-label="Classification">
-      <h3>Classification</h3>
-      <p class="m-state-line" data-category-state>Unassigned</p>
-      <p class="m-state-line" data-confidence-state>Confidence unavailable</p>
+      <h3 class="m-section-label">Classification</h3>
+      <div class="m-assignment">
+        <span class="m-assignment-label">AI assignment</span>
+        <span class="m-assignment-value">
+          <span data-category-state>Unassigned</span>
+          <span class="m-confidence" data-confidence-state>Confidence unavailable</span>
+        </span>
+      </div>
       <p class="m-state-line" data-classification-evidence>No classification evidence</p>
-      <p class="m-state-line" data-commitment-state>No linked commitment</p>
+      <div class="m-inspector-fact">
+        <span class="m-inspector-fact-label">Matched bill</span>
+        <span class="m-inspector-fact-value" data-commitment-state>No linked commitment</span>
+      </div>
     </section>
 
     <section class="m-inspector-section" aria-label="Recurrence">
-      <h3>Recurrence</h3>
+      <h3 class="m-section-label">Recurrence</h3>
       <p class="m-state-line" data-recurrence-state>No recurrence detected</p>
     </section>
 
+    <section class="m-inspector-section" aria-label="Anomalies">
+      <h3 class="m-section-label">Anomalies</h3>
+      <p class="m-state-line" data-anomaly-state>No anomalies detected</p>
+    </section>
+
+    <section class="m-inspector-section" aria-label="Corrections">
+      <h3 class="m-section-label">Corrections</h3>
+      <p class="m-state-line" data-correction-state>No pending corrections</p>
+    </section>
+
     <section class="m-inspector-section" aria-label="Related transfers">
-      <h3>Related transfers</h3>
+      <h3 class="m-section-label">Related transfers</h3>
       <p class="m-state-line" data-transfers-state>No related transfers</p>
     </section>
 
     <section class="m-inspector-section" aria-label="Notes">
-      <h3>Notes</h3>
+      <h3 class="m-section-label">Notes</h3>
       <p class="m-state-line" data-notes-state>No notes yet</p>
     </section>
 
-    <section class="m-inspector-section" aria-label="Plan impact">
-      <h3>Plan impact</h3>
+    <section class="m-inspector-section" aria-label="Forecast impact">
+      <h3 class="m-section-label">Forecast impact</h3>
       <p class="m-state-line" data-impact-state>
         Impact appears once Meridian links this transaction to your commitments.
       </p>
     </section>
 
     <section class="m-inspector-section" aria-label="Document evidence" data-document-evidence>
-      <h3>Document evidence</h3>
-      <div data-evidence-list>
+      <h3 class="m-section-label">Document evidence</h3>
+      <div class="m-evidence-list" data-evidence-list>
         <p class="m-state-line">No linked documents</p>
       </div>
-      <p class="m-state-line" data-retention-state></p>
+      <p class="m-state-line m-retention-state" data-retention-state></p>
     </section>
   </div>
 </div>

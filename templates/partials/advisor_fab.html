@@ -1,17 +1,89 @@
-<!-- Floating AI Advisor: available on every page -->
-<button type="button" id="advisor-fab" title="AI Advisor" aria-label="Open AI Advisor">🤖</button>
+{# Meridian contextual advisor.
+   Desktop: right-rail briefing (right gutter). Mobile: full-height sheet.
+   Branded with the Meridian serif "M" wordmark; grounded in visible context
+   and evidence. The shell shows an in-context trigger, never a competing FAB. #}
 
-<div id="advisor-panel" style="display:none;" role="dialog" aria-label="AI Advisor">
-    <div id="advisor-panel-header">
-        <span>🤖 AI Advisor</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-            <span id="advisor-fab-status" style="font-size:11px;color:var(--text-muted);"></span>
-            <button type="button" id="advisor-close" title="Close" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;line-height:1;">×</button>
-        </div>
+{# In-context trigger: a discreet branded pill. The Meridian shell hides the
+   floating FAB on mobile (where the bottom dock owns the screen) and relies on
+   [data-open-advisor] buttons; on desktop it is the secondary entry point. #}
+<button
+  type="button"
+  id="advisor-fab"
+  class="m-advisor-trigger"
+  title="Ask Meridian"
+  aria-label="Open Meridian advisor"
+  aria-haspopup="dialog"
+>
+  <span class="m-advisor-trigger-mark" aria-hidden="true">M</span>
+  <span class="m-advisor-trigger-label">Ask Meridian</span>
+</button>
+
+{# Advisor panel: the rail/sheet that carries the conversation. #}
+<div
+  id="advisor-panel"
+  class="m-advisor"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Meridian advisor"
+  hidden
+>
+  <header class="m-advisor-header">
+    <div class="m-advisor-heading">
+      <p class="m-advisor-kicker">Advisor</p>
+      <h2 class="m-advisor-title">Morning brief</h2>
     </div>
-    <div id="advisor-fab-log"></div>
-    <div id="advisor-fab-inputrow">
-        <input type="text" id="advisor-fab-input" placeholder="Ask, or: move $20 from Checking to Rent" autocomplete="off">
-        <button type="button" id="advisor-fab-send">➤</button>
+    <div class="m-advisor-header-actions">
+      <span id="advisor-fab-status" class="m-advisor-status" role="status"></span>
+      <button
+        type="button"
+        id="advisor-close"
+        class="m-advisor-close"
+        aria-label="Close advisor"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+          fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6 6 18"></path>
+          <path d="M6 6l12 12"></path>
+        </svg>
+      </button>
     </div>
+  </header>
+
+  <div
+    id="advisor-fab-log"
+    class="m-advisor-log"
+    role="log"
+    aria-live="polite"
+    aria-relevant="additions"
+  ></div>
+
+  <div id="advisor-fab-inputrow" class="m-advisor-composer">
+    <label class="m-visually-hidden" for="advisor-fab-input">Ask Meridian</label>
+    <input
+      type="text"
+      id="advisor-fab-input"
+      data-sheet-initial-focus
+      class="m-advisor-input"
+      placeholder="Ask, or: move $20 from Checking to Rent"
+      autocomplete="off"
+      aria-describedby="advisor-fab-hint"
+    >
+    <span id="advisor-fab-hint" class="m-visually-hidden"
+      >Type a question and press enter. You can only propose actions — approvals happen in Pending Actions.</span
+    >
+    <button
+      type="button"
+      id="advisor-fab-send"
+      class="m-advisor-send"
+      aria-label="Send message"
+    >
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+        fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2 11 13"></path>
+        <path d="M22 2 15 22l-4-9-9-4 20-7z"></path>
+      </svg>
+    </button>
+  </div>
 </div>

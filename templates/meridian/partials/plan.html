@@ -1,41 +1,101 @@
 <div class="m-plan" data-plan-root>
-  <section class="m-plan-command" aria-label="Plan summary">
-    <p class="m-plan-headline" data-plan-headline>—</p>
-    <div class="m-coverage">
-      <div class="m-coverage-bar" role="img" data-coverage-bar aria-label="Funding coverage">
-        <span class="m-coverage-fill" data-coverage-fill></span>
-      </div>
-      <p class="m-coverage-caption">
-        <span data-coverage-text></span>
+  {# Command header: editorial statement + primary action. #}
+  <header class="m-plan-command m-command-header" aria-label="Plan summary">
+    <div class="m-plan-command-copy">
+      <p class="m-workspace-kicker">Plan</p>
+      <h2 class="m-editorial-headline">Every dollar has a next job.</h2>
+      <p class="m-editorial-subline">
+        Commitments combine bills, goals, reserves, buffers, and debt without
+        duplicating the same money.
       </p>
     </div>
-    <dl class="m-plan-stats">
-      <div><dt>Total planned</dt><dd data-plan-total>—</dd></div>
-      <div><dt>Funded</dt><dd data-plan-funded>—</dd></div>
-      <div><dt>Unfunded</dt><dd data-plan-unfunded>—</dd></div>
-      <div><dt>Next due</dt><dd data-plan-next-due>—</dd></div>
-    </dl>
-    <p class="m-plan-shortfall" data-plan-shortfall hidden></p>
+    <button
+      type="button"
+      class="m-primary-button m-plan-new"
+      data-plan-new-commitment
+      aria-haspopup="dialog"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      New commitment
+    </button>
+  </header>
+
+  {# Machine-readable plan summary (kept for assistive tech and tests); the
+     visible editorial statement lives in the header above. #}
+  <p class="m-visually-hidden" data-plan-headline>No commitments yet.</p>
+
+  {# Summary-first grid: coverage orbit + next paycheck. #}
+  <section class="m-plan-summary-grid" aria-label="Coverage and next funding">
+    <article class="m-surface m-plan-coverage-card" aria-labelledby="coverage-heading">
+      <p class="m-section-label" data-coverage-label>Coverage</p>
+      <div class="m-coverage" data-coverage>
+        <div class="m-coverage-orbit" role="img" data-coverage-orbit aria-label="Funding coverage unavailable">
+          <svg class="m-coverage-orbit-svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+            <circle class="m-coverage-orbit-track" cx="60" cy="60" r="52"></circle>
+            <circle class="m-coverage-orbit-fill" data-coverage-fill cx="60" cy="60" r="52"></circle>
+          </svg>
+          <span class="m-coverage-orbit-value" data-coverage-text>—</span>
+        </div>
+        <div class="m-coverage-copy">
+          <p class="m-coverage-detail" data-coverage-detail>Nothing funded yet.</p>
+          <p class="m-coverage-projection" data-coverage-projection>Projection pending.</p>
+          {# Machine-readable summary figures (accessible to assistive tech + tests). #}
+          <dl class="m-plan-stats m-visually-hidden">
+            <div><dt>Total planned</dt><dd data-plan-total>—</dd></div>
+            <div><dt>Funded</dt><dd data-plan-funded>—</dd></div>
+            <div><dt>Unfunded</dt><dd data-plan-unfunded>—</dd></div>
+            <div><dt>Next due</dt><dd data-plan-next-due>—</dd></div>
+          </dl>
+        </div>
+      </div>
+    </article>
+
+    <article class="m-surface m-plan-funding-card" aria-labelledby="funding-heading">
+      <p class="m-section-label">Funding schedule</p>
+      <h3 class="m-plan-next-title" id="funding-heading">Next paycheck</h3>
+      <div class="m-plan-funding-figure">
+        <span class="m-plan-funding-date" data-next-paycheck-date>—</span>
+        <strong class="m-plan-funding-amount" data-next-paycheck-amount>—</strong>
+      </div>
+      <p class="m-plan-funding-caption" data-funding-caption>No funding scheduled yet.</p>
+      <p class="m-plan-shortfall" data-plan-shortfall hidden role="status"></p>
+    </article>
   </section>
 
-  <section class="m-plan-allocation" aria-label="Where the money sits">
-    <h2 class="m-section-label">Allocation</h2>
-    <div class="m-allocation-bar" data-allocation-bar></div>
-    <ul class="m-allocation-legend" data-allocation-legend></ul>
-  </section>
-
-  <section class="m-plan-timeline" aria-label="Upcoming funding">
-    <h2 class="m-section-label">Next 30 days</h2>
-    <p class="m-empty-note" data-timeline-empty hidden>No funding events projected yet.</p>
-    <ul class="m-timeline" data-timeline></ul>
-  </section>
-
-  <section class="m-plan-commitments" aria-label="Commitments">
-    <h2 class="m-section-label">Commitments</h2>
+  {# Compact commitment table (summary-first; rows open the shared inspector). #}
+  <section class="m-plan-table-section" aria-label="Commitments">
+    <div class="m-section-heading-row">
+      <h2 class="m-section-label">Commitments</h2>
+    </div>
+    <div class="m-plan-table" role="table" aria-label="Commitments" data-commitment-list>
+      <div class="m-plan-table-head" role="row">
+        <span class="m-plan-table-cell m-plan-cell-commitment" role="columnheader">Commitment</span>
+        <span class="m-plan-table-cell" role="columnheader">Funded</span>
+        <span class="m-plan-table-cell" role="columnheader">Next</span>
+      </div>
+    </div>
     <p class="m-empty-note" data-commitments-empty hidden>No commitments yet.</p>
-    <ul class="m-commitment-list" data-commitment-list></ul>
+    <p class="m-plan-table-footer" data-plan-next-funding hidden></p>
   </section>
 
+  {# Secondary support: allocation map + next-30-days timeline. #}
+  <div class="m-plan-support">
+    <section class="m-surface m-plan-allocation-section" aria-labelledby="allocation-heading">
+      <h3 class="m-section-label" id="allocation-heading">Where the money sits</h3>
+      <div class="m-allocation-bar" data-allocation-bar></div>
+      <ul class="m-allocation-legend" data-allocation-legend></ul>
+    </section>
+
+    <section class="m-surface m-plan-timeline-section" aria-labelledby="timeline-heading">
+      <h3 class="m-section-label" id="timeline-heading">Next 30 days</h3>
+      <p class="m-empty-note" data-timeline-empty hidden>No funding events projected yet.</p>
+      <ul class="m-timeline" data-timeline></ul>
+    </section>
+  </div>
+
+  {# Document discrepancies (review-only list; hidden when the backend has none). #}
   <section class="m-plan-commitments" aria-label="Document discrepancies" data-document-discrepancies hidden>
     <h2 class="m-section-label">Document review</h2>
     <ul class="m-commitment-list" data-document-discrepancy-list></ul>
@@ -43,7 +103,11 @@
 
   <p class="m-inline-error" data-plan-error role="alert" hidden></p>
 
-  <div data-memory-plan aria-label="Plan memory items"></div>
+  {# Plan memory (document-driven insights) — wired by memory.js. #}
+  <section class="m-plan-memory" aria-label="Plan memory items">
+    <h2 class="m-section-label">From your documents</h2>
+    <div data-memory-plan></div>
+  </section>
 </div>
 
 <template data-funding-editor-template>
