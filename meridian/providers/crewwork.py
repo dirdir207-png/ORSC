@@ -155,6 +155,7 @@ class CrewWorkSnapshotAdapter:
         transactions_payload = _as_dict(self._snapshot.get("data", {}).get("transactions"))
         account_node = _as_dict(_as_dict(transactions_payload).get("data")).get("account")
         edges = _as_list(_as_dict(_as_dict(account_node).get("cashTransactions")).get("edges"))
+        observed_at = str(self._snapshot.get("captured_at") or "")
 
         result = []
         for edge in edges:
@@ -177,7 +178,7 @@ class CrewWorkSnapshotAdapter:
                     currency=str(node.get("currencyCode") or "USD"),
                     merchant=node.get("matchingName"),
                     raw_description=node.get("memo") or node.get("externalMemo"),
-                    source_updated_at=occurred_at,
+                    source_updated_at=observed_at or occurred_at,
                 )
             )
         return result

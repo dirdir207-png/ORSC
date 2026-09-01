@@ -106,6 +106,9 @@ def test_adapter_normalizes_snapshot_to_dollars():
     assert txn.description == "Coffee shop"
     assert txn.merchant == "Blue Bottle"
     assert txn.status in ("posted", "pending", "cleared")
+    # source_updated_at reflects when the snapshot observed the record (not the
+    # transaction's own happened-at date), so provider freshness stays current.
+    assert txn.source_updated_at == "2026-09-01T14:00:00Z"
 
 
 def test_adapter_keeps_parent_account_transactions():
