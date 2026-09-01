@@ -71,8 +71,13 @@ body:has([data-meridian-shell])
 }
 
 /* Mobile: the bottom dock owns the screen, so the trigger retreats and the
-   advisor is reached only from [data-open-advisor] in-context buttons. */
+   advisor is reached only from [data-open-advisor] in-context buttons.
+   Kept at equal-or-higher specificity than the desktop Activity reveal so it
+   always wins on small screens. */
 @media (max-width: 900px) {
+  body:has([data-meridian-shell])
+    .m-shell:has([data-workspace-section="activity"]:not([hidden]))
+    ~ #advisor-fab.m-advisor-trigger,
   body:has([data-meridian-shell]) #advisor-fab.m-advisor-trigger {
     display: none !important;
   }
