@@ -46,6 +46,10 @@ def _filter_crew_cookies(cookies) -> tuple[dict[str, object], ...]:
 
 
 class PlaywrightSessionCapturer:
+    """Open-frame capturer: uses the installed Chrome (channel="chrome") so the
+    Crew login window is presented as a normal browser — Crew's anti-fraud
+    sometimes OTP-loops fresh bundled-Chromium sessions."""
+
     def __init__(self, app_url: str = CREW_APP_URL, headless: bool = False):
         self._app_url = app_url
         self._headless = headless
@@ -55,7 +59,10 @@ class PlaywrightSessionCapturer:
     def __enter__(self):
         from playwright.sync_api import sync_playwright
         self._playwright = sync_playwright().start()
-        self._browser = self._playwright.chromium.launch(headless=self._headless)
+        try:
+            self._browser = self._playwright.chromium.launch(headless=self._headless, channel="chrome")
+        except Exception:
+            self._browser = self._playwright.chromium.launch(headless=self._headless)
         self._context = self._browser.new_context()
         page = self._context.new_page()
         self._context.on("response", self._on_response)
@@ -102,7 +109,10 @@ class PlaywrightAuthorizationCapturer:
         from playwright.sync_api import sync_playwright
 
         self._playwright = sync_playwright().start()
-        self._browser = self._playwright.chromium.launch(headless=self._headless)
+        try:
+            self._browser = self._playwright.chromium.launch(headless=self._headless, channel="chrome")
+        except Exception:
+            self._browser = self._playwright.chromium.launch(headless=self._headless)
         self._context = self._browser.new_context()
         page = self._context.new_page()
         page.on("request", self._on_request)
