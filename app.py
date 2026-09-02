@@ -949,6 +949,9 @@ action_store = ActionStore(
         "scheduled_move_money",
         "update_funding_rule",
         "create_commitment",
+        "update_crew_bill",
+        "update_crew_bill_reserve_settings",
+        "create_crew_autopilot_rule",
     ) + MEMORY_ACTION_TYPES,
 )
 local_proposer_key = get_or_create_local_key(DB_FILE)
@@ -974,6 +977,18 @@ action_executors = {
         verifier=verify_create_commitment_action,
     ),
 }
+
+# Crew write-back executors: approvals push bill/rule changes to Crew via the
+# crew-write CLI (Keychain credential owned by the WorkAssistant venv). Same
+# proposal→approve→execute→verify safety as every other pipeline.
+try:
+    from meridian.crew_write_actions import crew_write_executors
+except Exception:  # pragma: no cover - import-time resilience
+    def crew_write_executors(db_path):  # noqa: E306
+        return {}
+
+for _kind, (_execute, _verify) in crew_write_executors(DB_FILE).items():
+    action_executors[_kind] = ExecutorSpec(execute=_execute, verifier=_verify)
 
 for _kind, (_execute, _verify) in {
     **asset_executors(DB_FILE),

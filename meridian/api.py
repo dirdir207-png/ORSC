@@ -699,6 +699,45 @@ def delete_contract_proposal(contract_id: str):
     return _management_payload("delete_contract", payload)
 
 
+# ── Crew live-edit proposals ────────────────────────────────────────────────
+# Edits to a live Crew bill/rule create an approval-gated proposal; nothing
+# reaches Crew until the owner approves and the executor runs.
+
+@meridian_api.patch("/crew/bills/<bill_id>")
+@login_required
+@_safe_read
+def update_crew_bill_proposal(bill_id: str):
+    """Propose a live Crew bill edit (approval-gated write-back)."""
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("name") and payload.get("amount") is None:
+        return _error("invalid_request", "Provide a name or amount to update.",
+                      "Provide at least one change and try again.", 400)
+    payload["billId"] = payload.pop("bill_id", None) or bill_id
+    return _management_payload("update_crew_bill", payload)
+
+
+@meridian_api.patch("/crew/bills/<bill_id>/reserve-settings")
+@login_required
+@_safe_read
+def update_crew_bill_reserve_settings_proposal(bill_id: str):
+    """Propose a live Crew bill reserve/funding-settings edit."""
+    payload = request.get_json(silent=True) or {}
+    payload["billReserveId"] = payload.pop("billReserveId", None) or bill_id
+    return _management_payload("update_crew_bill_reserve_settings", payload)
+
+
+@meridian_api.post("/crew/rules")
+@login_required
+@_safe_read
+def create_crew_autopilot_rule_proposal():
+    """Propose a new live Crew autopilot rule (approval-gated write-back)."""
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("name"):
+        return _error("invalid_request", "name is required.",
+                      "Provide a rule name and try again.", 400)
+    return _management_payload("create_crew_autopilot_rule", payload)
+
+
 @meridian_api.post("/transactions/<transaction_id>/classification")
 @login_required
 @_safe_read
