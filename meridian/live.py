@@ -45,6 +45,7 @@ def capture_crew_snapshot(binary: str = CREW_READONLY, timeout_seconds: int = 12
 
 def sync_live_crew(db_path: str, *, snapshot: Optional[dict] = None, binary: str = CREW_READONLY) -> SyncReport:
     """Pull a live Crew snapshot (or accept one) and sync into ``db_path``."""
+    from .commitments import CommitmentRepository, CommitmentType
     from .providers.crewwork import CrewWorkSnapshotAdapter
     from .repository import FinancialRepository
     from .sync import sync_provider
@@ -52,7 +53,32 @@ def sync_live_crew(db_path: str, *, snapshot: Optional[dict] = None, binary: str
     dashboard = snapshot if snapshot is not None else capture_crew_snapshot(binary=binary)
     adapter = CrewWorkSnapshotAdapter(dashboard)
     repository = FinancialRepository(db_path)
-    return sync_provider(adapter, repository)
+    report = sync_provider(adapter, repository)
+    # sync_provider (singular) persists accounts/transactions but not the
+    # snapshot's commitment candidates; apply live bills so Plan shows real
+    # money obligations (idempotent upsert keyed by Crew bill id).
+    snap = adapter.fetch_snapshot()
+    commitment_repository = CommitmentRepository(repository.db_path)
+    for candidate in snap.commitment_candidates:
+        existing = commitment_repository.get_commitment_by_legacy(adapter.provider_name, candidate.external_id)
+        if existing is None:
+            commitment_repository.create(
+                type=CommitmentType.BILL,
+                name=candidate.name,
+                amount=candidate.amount,
+                currency=candidate.currency,
+                recurrence="monthly",
+                legacy_source=adapter.provider_name,
+                legacy_id=candidate.external_id,
+            )
+        else:
+            commitment_repository.update(
+                existing.id,
+                name=candidate.name,
+                amount=candidate.amount,
+                currency=candidate.currency,
+            )
+    return report
 
 
 def build_sync_once(db_path: str, *, binary: str = CREW_READONLY):

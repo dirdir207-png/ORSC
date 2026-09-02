@@ -13,7 +13,13 @@ dollar convention used by CrewReadAdapter (divide by 100).
 from datetime import date, datetime
 from typing import Any, Dict, Optional
 
-from .base import NormalizedAccount, NormalizedTransaction, ProviderSnapshot
+from .base import (
+    CommitmentCandidate,
+    ExpectedInflow,
+    NormalizedAccount,
+    NormalizedTransaction,
+    ProviderSnapshot,
+)
 
 # Map Crew's status / type strings to the Meridian transaction status
 # vocabulary used by the sync engine (see meridian/sync and CrewReadAdapter).
@@ -91,6 +97,7 @@ class CrewWorkSnapshotAdapter:
 
         accounts = self._collect_accounts(captured_at)
         transactions = self._collect_transactions(accounts)
+        commitment_candidates = self._collect_commitment_candidates()
         errors = tuple(self._snapshot_errors(snap_errors))
 
         return ProviderSnapshot(
@@ -98,9 +105,43 @@ class CrewWorkSnapshotAdapter:
             connection_name=self.connection_name,
             accounts=tuple(accounts),
             transactions=tuple(transactions),
+            commitment_candidates=tuple(commitment_candidates),
             is_complete=complete and not errors,
             errors=errors,
         )
+
+    def _collect_commitment_candidates(self) -> list[CommitmentCandidate]:
+        """Map Crew bill-reserve bills to BILL commitment candidates.
+
+        `bills` are the real recurring money obligations (Verizon, Rent, …).
+        Amounts are cents; funding surface (reservedAmount) maps to dollar
+        amount on the BILL record, and the Crew bill id is the stable key.
+        """
+        data = _as_dict(self._snapshot.get("data"))
+        expenses_payload = _as_dict(data.get("expenses"))
+        current_user = _as_dict(_as_dict(expenses_payload).get("data")).get("currentUser")
+        accounts = _as_list(_as_dict(current_user).get("accounts"))
+        result = []
+        for account in accounts:
+            bill_reserve = _as_dict(account.get("billReserve"))
+            for bill in _as_list(bill_reserve.get("bills")):
+                external_id = str(bill.get("id") or "")
+                name = str(bill.get("name") or "Crew bill")
+                amount = _cents_to_dollars(bill.get("amount"))
+                if not external_id:
+                    continue
+                # Keep the full bill amount as the commitment amount (the
+                # anticipated money obligation); the funding surface is what
+                # Coverage estimates, not the stored target.
+                result.append(
+                    CommitmentCandidate(
+                        external_id=external_id,
+                        name=name,
+                        amount=amount,
+                        currency="USD",
+                    )
+                )
+        return result
 
     def _snapshot_errors(self, snap_errors: Any) -> list[str]:
         if not isinstance(snap_errors, dict):

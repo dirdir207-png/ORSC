@@ -187,3 +187,49 @@ def test_adapter_rejects_unsafe_source():
     except ValueError:
         return
     raise AssertionError("mutation-capable snapshot must be rejected")
+
+
+def test_adapter_emits_live_bills_as_commitment_candidates():
+    """Crew `expenses.bills` become commitment candidates (real money
+    obligations), converted to dollars and keyed by the Crew bill id."""
+    snap = _snapshot()
+    snap["data"]["expenses"] = {
+        "data": {
+            "currentUser": {
+                "accounts": [
+                    {
+                        "billReserve": {
+                            "bills": [
+                                {
+                                    "id": "QmlsbDox",
+                                    "name": "Verizon",
+                                    "amount": 9541,
+                                    "dayOfMonth": 22,
+                                    "frequency": "MONTHLY",
+                                    "estimatedNextFundingAmount": 4389,
+                                    "reservedAmount": 5000,
+                                },
+                                {
+                                    "id": "QmlsbDoy",
+                                    "name": "Rent",
+                                    "amount": 144200,
+                                    "dayOfMonth": 5,
+                                    "frequency": "MONTHLY",
+                                    "estimatedNextFundingAmount": 66327,
+                                    "reservedAmount": 0,
+                                },
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+    candidates = CrewWorkSnapshotAdapter(snap).fetch_snapshot().commitment_candidates
+    assert len(candidates) == 2
+
+    verizon = next(c for c in candidates if c.external_id == "QmlsbDox")
+    assert verizon.name == "Verizon"
+    assert verizon.amount == 95.41  # cents -> dollars
+    rent = next(c for c in candidates if c.external_id == "QmlsbDoy")
+    assert rent.amount == 1442.00
