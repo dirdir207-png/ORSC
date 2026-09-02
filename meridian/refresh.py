@@ -11,7 +11,7 @@ from .sync import SyncReport
 class MeridianRefreshService:
     """Run the live-provider sync loop in a background daemon thread.
 
-    - ``interval_seconds``: how often to refresh (default 300s = 5 minutes).
+    - ``interval_seconds``: how often to refresh (default 15s).
     - ``sync_once``: zero-arg callable returning ``SyncReport`` or None.
     - Each tick is best-effort: failures are logged via ``logger`` and never
       crash the thread. A failed tick leaves the prior good graph intact.
@@ -21,11 +21,11 @@ class MeridianRefreshService:
         self,
         sync_once: Callable[[], Optional[SyncReport]],
         *,
-        interval_seconds: int = 300,
+        interval_seconds: int = 15,
         logger: Optional[Callable[[str], None]] = None,
     ):
-        if interval_seconds < 30:
-            raise ValueError("refresh interval must be at least 30 seconds")
+        if interval_seconds < 10:
+            raise ValueError("refresh interval must be at least 10 seconds")
         self._sync_once = sync_once
         self._interval_seconds = interval_seconds
         self._logger = logger or (lambda _: None)

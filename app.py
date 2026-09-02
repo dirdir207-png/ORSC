@@ -820,7 +820,7 @@ def sync_crew_snapshot():
 # Automatic live-data refresh: a background thread that periodically pulls the
 # CrewWorkAssistant snapshot (Keychain-backed mobile/API auth) and syncs it
 # into the Meridian graph so workspaces stay fresh without manual scripts.
-meridian_refresh_interval = int(os.environ.get("MERIDIAN_REFRESH_INTERVAL", "300"))
+meridian_refresh_interval = int(os.environ.get("MERIDIAN_REFRESH_INTERVAL", "15"))
 _meridian_refresh_service: "MeridianRefreshService | None" = None
 
 
@@ -837,7 +837,7 @@ def get_meridian_refresh_service() -> "MeridianRefreshService":
         _meridian_refresh_service = MeridianRefreshService(
             _meridian_refresh_sync_once,
             interval_seconds=meridian_refresh_interval,
-            logger=app.logger.info,
+            logger=lambda message: print(message, flush=True),
         )
         app.config["MERIDIAN_REFRESH_SERVICE"] = _meridian_refresh_service
     return _meridian_refresh_service

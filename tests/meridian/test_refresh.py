@@ -17,11 +17,17 @@ def _report_slow():
 
 
 def test_rejects_too_short_interval():
+    # Sub-10s intervals would hammer the provider; keep a real floor.
     try:
         MeridianRefreshService(lambda: None, interval_seconds=5)
     except ValueError:
         return
-    raise AssertionError("must reject intervals under 30 seconds")
+    raise AssertionError("must reject intervals under 10 seconds")
+
+
+def test_accepts_fifteen_second_interval():
+    service = MeridianRefreshService(lambda: None, interval_seconds=15)
+    assert service._interval_seconds == 15
 
 
 def test_refresh_once_returns_report():
