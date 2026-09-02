@@ -36,6 +36,23 @@ def _status(value: Optional[str]) -> str:
     return _STATUS_MAP.get(str(value).upper(), "posted")
 
 
+def _clean_merchant(raw: Optional[str]) -> Optional[str]:
+    """Best-effort cleanup of the raw processor string so it reads as a label:
+    drop the trailing ' - AUTHORIZATION/CLEARING/...' and star/noise prefixes.
+    Is conservative: returns None when nothing recognizable remains."""
+    if not raw:
+        return None
+    text = str(raw).strip()
+    # Cut everything from the first " - " (negative/dash separating suffix).
+    for marker in (" - ", " -A", ":", " REFUND", " RETURN", " REVERSAL"):
+        idx = text.find(marker)
+        if idx > 0:
+            text = text[:idx]
+            break
+    text = text.strip(" -*#.").strip()
+    return text or None
+
+
 def _cents_to_dollars(value: Any) -> float:
     try:
         return float(value or 0) / 100
@@ -167,17 +184,26 @@ class CrewWorkSnapshotAdapter:
             subaccount = _as_dict(node.get("subaccount"))
             pocket_id = str(subaccount.get("id") or "")
             account_external_id = pocket_id if pocket_id in owned else str(account_node.get("id") or pocket_id)
+            # Crew's `title` is the clean merchant name ("Cumberland Farms",
+            # "Walmart"); `matchingName` is the raw processor string
+            # ("... - AUTHORIZATION CLEARING"). Prefer the clean title; fall
+            # back to the cleaned matchingName; never show the raw processor
+            # string as the primary label.
+            clean_title = str(node.get("title") or "").strip() or None
+            raw_merchant = str(node.get("matchingName") or "").strip() or None
+            human_description = str(node.get("description") or "").strip() or None
+            merchant = clean_title or _clean_merchant(raw_merchant) or "Crew transaction"
             result.append(
                 NormalizedTransaction(
                     external_id=external_id,
                     account_external_id=account_external_id or (accounts[0].external_id if accounts else ""),
                     amount=_cents_to_dollars(node.get("amount")),
                     occurred_at=occurred_at,
-                    description=str(node.get("description") or node.get("title") or "Crew transaction"),
+                    description=human_description or clean_title or "Crew transaction",
                     status=_status(node.get("status") or node.get("type")),
                     currency=str(node.get("currencyCode") or "USD"),
-                    merchant=node.get("matchingName"),
-                    raw_description=node.get("memo") or node.get("externalMemo"),
+                    merchant=merchant,
+                    raw_description=node.get("memo") or node.get("externalMemo") or raw_merchant,
                     source_updated_at=observed_at or occurred_at,
                 )
             )

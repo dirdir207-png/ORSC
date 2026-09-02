@@ -104,11 +104,40 @@ def test_adapter_normalizes_snapshot_to_dollars():
     assert txn.amount == -4.59
     assert txn.occurred_at == "2026-09-01T09:00:00Z"
     assert txn.description == "Coffee shop"
-    assert txn.merchant == "Blue Bottle"
+    # Crew's clean `title` is the merchant label when present.
+    assert txn.merchant == "Coffee shop"
     assert txn.status in ("posted", "pending", "cleared")
     # source_updated_at reflects when the snapshot observed the record (not the
     # transaction's own happened-at date), so provider freshness stays current.
     assert txn.source_updated_at == "2026-09-01T14:00:00Z"
+
+
+def test_adapter_prefers_clean_title_over_raw_matching_name():
+    """Crew returns a clean `title` (merchant name) alongside a raw processor
+    `matchingName`; the adapter must surface the clean label."""
+    snap = _snapshot()
+    snap["data"]["transactions"]["data"]["account"]["cashTransactions"]["edges"] = [
+        {
+            "node": {
+                "id": "Q2FzaFRyYW5zYWN0aW9uOjM=",
+                "amount": -459,
+                "currencyCode": "USD",
+                "description": None,
+                "title": "Cumberland Farms",
+                "occurredAt": "2026-09-01T09:00:00Z",
+                "type": "DEBIT",
+                "status": "CLEARED",
+                "subaccount": {"id": "U3ViYWNjb3VudDox"},
+                "matchingName": "CUMBERLAND FARMS 5543 660000003542 - AUTHORIZATION CLEARING",
+                "memo": None,
+            }
+        }
+    ]
+    txn = CrewWorkSnapshotAdapter(snap).fetch_snapshot().transactions[0]
+    # The clean Crew `title` is the merchant label; the raw processor string
+    # never becomes the label (it stays available as raw_description).
+    assert txn.merchant == "Cumberland Farms"
+    assert txn.raw_description == "CUMBERLAND FARMS 5543 660000003542 - AUTHORIZATION CLEARING"
 
 
 def test_adapter_keeps_parent_account_transactions():
