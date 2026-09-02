@@ -146,6 +146,14 @@ def build_plan(
                 "rule_ids": [str(rule.id) for rule in rules],
                 "projected_30d": float(projected_total),
                 "explanation": _coverage_explanation(target, funded, projected_total),
+                # Live Crew bills expose the Crew bill id so the UI can offer a
+                # proposal-gated write-back (update_crew_bill). Absent for local
+                # planning records.
+                "crew_bill_id": (
+                    getattr(commitment, "legacy_id", None)
+                    if getattr(commitment, "legacy_source", None) == "crew"
+                    else None
+                ),
             }
         )
 
