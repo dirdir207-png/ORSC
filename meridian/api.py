@@ -703,16 +703,15 @@ def delete_contract_proposal(contract_id: str):
 # Edits to a live Crew bill/rule create an approval-gated proposal; nothing
 # reaches Crew until the owner approves and the executor runs.
 
-@meridian_api.patch("/crew/bills/<bill_id>")
+@meridian_api.post("/crew/bills")
 @login_required
 @_safe_read
-def update_crew_bill_proposal(bill_id: str):
+def update_crew_bill_proposal():
     """Propose a live Crew bill edit (approval-gated write-back)."""
     payload = request.get_json(silent=True) or {}
-    if not payload.get("name") and payload.get("amount") is None:
-        return _error("invalid_request", "Provide a name or amount to update.",
+    if not payload.get("billId") or (not payload.get("name") and payload.get("amount") is None):
+        return _error("invalid_request", "Provide a billId and a name or amount to update.",
                       "Provide at least one change and try again.", 400)
-    payload["billId"] = payload.pop("bill_id", None) or bill_id
     return _management_payload("update_crew_bill", payload)
 
 

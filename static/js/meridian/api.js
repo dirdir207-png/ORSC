@@ -44,7 +44,11 @@ export async function meridianFetch(path, options = {}) {
   return _parse(response);
 }
 
-const ALLOWED_PROPOSAL_PATHS = new Set(["/api/meridian/funding-rules/propose"]);
+const ALLOWED_PROPOSAL_PATHS = new Set([
+  "/api/meridian/funding-rules/propose",
+  "/api/meridian/crew/bills",
+  "/api/meridian/crew/rules",
+]);
 
 export async function meridianPropose(path, payload) {
   /* The only write channel in the browser: it creates a pending proposal

@@ -319,6 +319,19 @@ function renderCommitments(root, plan, template) {
     });
     actionCell.appendChild(button);
 
+    // Live Crew bills: offer an approval-gated write-back proposal.
+    if (commitment.crew_bill_id) {
+      const crew = document.createElement("button");
+      crew.type = "button";
+      crew.className = "m-button m-button--quiet m-button--small";
+      crew.textContent = "Save to Crew";
+      crew.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openCrewBillEditor(root, commitment, template);
+      });
+      actionCell.appendChild(crew);
+    }
+
     row.append(nameCell, fundedCell, nextCell, actionCell);
     list.appendChild(row);
   }
@@ -584,6 +597,66 @@ function openEditor(root, commitment, template) {
 
   syncFields();
   root.querySelector(`[data-commitment-card="${commitment.id}"]`).appendChild(editor);
+  return editor;
+}
+
+/* ---------- Live Crew bill write-back (approval-gated) ---------- */
+
+function openCrewBillEditor(root, commitment, template) {
+  root.querySelectorAll("[data-funding-editor]").forEach((node) => node.remove());
+  const editor = template.content.firstElementChild.cloneNode(true);
+  editor.dataset.commitmentId = String(commitment.id);
+  const preview = editor.querySelector("[data-editor-preview]");
+  const kindSelect = editor.querySelector('select[name="kind"]');
+  const amountInput = editor.querySelector('input[name="amount"]');
+  const percentInput = editor.querySelector('input[name="percent"]');
+  const note = editor.querySelector("[data-editor-note]");
+  const submit = editor.querySelector('button[type="submit"]');
+
+  // Re-purpose: Create a Crew bill write-back proposal.
+  kindSelect.hidden = true;
+  percentInput.closest('[data-editor-field="percent"]').hidden = true;
+  amountInput.value = "";
+  amountInput.setAttribute("placeholder", `New amount ($) for ${commitment.name}`);
+  preview.textContent = `Approve to push a ${commitment.name} amount change to Crew.`;
+  submit.textContent = "Propose to Crew";
+
+  editor.querySelector("[data-editor-cancel]").addEventListener("click", () => editor.remove());
+
+  editor.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    note.hidden = true;
+    const amount = Number(amountInput.value);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      note.hidden = false;
+      note.dataset.state = "error";
+      note.textContent = "Enter a valid amount.";
+      return;
+    }
+    try {
+      await meridianPropose("/api/meridian/crew/bills", {
+        billId: commitment.crew_bill_id,
+        name: commitment.name,
+        amount: Math.round(amount * 100), // dollars -> cents (Crew contract)
+        frequency: "MONTHLY",
+        frequencyInterval: 1,
+        anchorDate: new Date().toISOString().slice(0, 10),
+      });
+      note.hidden = false;
+      note.textContent = "Crew write-back proposed — approve it in Pending Actions.";
+      note.dataset.state = "ok";
+    } catch (error) {
+      note.hidden = false;
+      note.dataset.state = "error";
+      note.textContent =
+        error instanceof MeridianApiError
+          ? `${error.message} ${error.recoveryAction}`
+          : "The Crew write-back could not be proposed.";
+    }
+  });
+
+  root.querySelector(`[data-commitment-card="${commitment.id}"]`).appendChild(editor);
+  amountInput.focus();
   return editor;
 }
 
