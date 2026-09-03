@@ -660,6 +660,61 @@ function openCrewBillEditor(root, commitment, template) {
   return editor;
 }
 
+/* ---------- New autopilot rule (approval-gated) ---------- */
+
+function openAutopilotRuleEditor() {
+  const root = document.querySelector("[data-plan-root]");
+  if (!root || typeof window.MeridianShell === "undefined") return;
+
+  const sheet = document.createElement("section");
+  sheet.className = "m-sheet m-funding-editor m-autopilot-rule-editor";
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-label", "New autopilot rule");
+  sheet.hidden = true;
+  sheet.innerHTML = `
+    <form class="m-funding-editor" data-autopilot-rule-form>
+      <h3 class="m-editor-title">New autopilot rule</h3>
+      <label class="m-field">
+        <span class="m-field-label">Rule name</span>
+        <input class="m-input" name="rule-name" type="text" required maxlength="80" placeholder="e.g. Round up spare change">
+      </label>
+      <p class="m-editor-preview">Creates a Crew autopilot rule; approve to push it to Crew.</p>
+      <div class="m-editor-actions">
+        <button type="submit" class="m-button">Propose to Crew</button>
+        <button type="button" class="m-button m-button--quiet" data-autopilot-rule-cancel>Cancel</button>
+      </div>
+      <p class="m-editor-note" data-autopilot-rule-note hidden></p>
+    </form>
+  `;
+
+  const note = sheet.querySelector("[data-autopilot-rule-note]");
+  sheet.querySelector("[data-autopilot-rule-cancel]").addEventListener("click", () => {
+    if (window.MeridianShell.closeSheet) window.MeridianShell.closeSheet();
+  });
+  sheet.querySelector("form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = sheet.querySelector('input[name="rule-name"]').value.trim();
+    note.hidden = true;
+    if (!name) {
+      note.hidden = false; note.dataset.state = "error"; note.textContent = "Enter a rule name.";
+      return;
+    }
+    try {
+      await meridianPropose("/api/meridian/crew/rules", { name });
+      note.hidden = false; note.dataset.state = "ok";
+      note.textContent = "Autopilot rule proposed — approve it in Pending Actions.";
+    } catch (error) {
+      note.hidden = false; note.dataset.state = "error";
+      note.textContent = error instanceof MeridianApiError
+        ? `${error.message} ${error.recoveryAction}`
+        : "The rule could not be proposed.";
+    }
+  });
+
+  document.body.appendChild(sheet);
+  window.MeridianShell.openSheet(sheet, { modal: true });
+}
+
 /* ---------- Load + wiring ---------- */
 
 function indexRules(rules) {
@@ -751,6 +806,12 @@ document.addEventListener("click", (event) => {
   const newButton = event.target.closest("[data-plan-new-commitment]");
   if (newButton && typeof window.advisorSetOpen === "function") {
     window.advisorSetOpen(true);
+    return;
+  }
+  const ruleButton = event.target.closest("[data-plan-new-rule]");
+  if (ruleButton) {
+    event.preventDefault();
+    openAutopilotRuleEditor();
     return;
   }
   const root = document.querySelector("[data-plan-root]");
