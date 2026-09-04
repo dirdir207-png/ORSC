@@ -618,8 +618,29 @@ function openCrewBillEditor(root, commitment, template) {
   percentInput.closest('[data-editor-field="percent"]').hidden = true;
   amountInput.value = "";
   amountInput.setAttribute("placeholder", `New amount ($) for ${commitment.name}`);
-  preview.textContent = `Approve to push a ${commitment.name} amount change to Crew.`;
+  preview.textContent = `Approve to push a ${commitment.name} change to Crew.`;
   submit.textContent = "Propose to Crew";
+
+  // Frequency + anchor date fields (Crew contract: frequency/frequencyInterval/anchorDate).
+  const freq = document.createElement("label");
+  freq.className = "m-field";
+  freq.innerHTML = `
+    <span class="m-field-label">Repeat</span>
+    <select class="m-select" name="frequency">
+      <option value="MONTHLY">Monthly</option>
+      <option value="WEEKLY">Weekly</option>
+      <option value="YEARLY">Yearly</option>
+    </select>`;
+  const anchor = document.createElement("label");
+  anchor.className = "m-field";
+  anchor.innerHTML = `
+    <span class="m-field-label">Anchor date</span>
+    <input class="m-input" name="anchor-date" type="date" inputmode="numeric">`;
+  // Default anchor to the commitment's due date if known, else today; frequency default monthly.
+  const due = commitment.due_date || new Date().toISOString().slice(0, 10);
+  anchor.querySelector('input[name="anchor-date"]').value = due;
+  editor.insertBefore(freq, preview);
+  editor.insertBefore(anchor, preview);
 
   editor.querySelector("[data-editor-cancel]").addEventListener("click", () => editor.remove());
 
@@ -633,14 +654,17 @@ function openCrewBillEditor(root, commitment, template) {
       note.textContent = "Enter a valid amount.";
       return;
     }
+    const frequency = editor.querySelector('select[name="frequency"]').value;
+    const frequencyInterval = frequency === "WEEKLY" ? 1 : frequency === "MONTHLY" ? 1 : 1;
+    const anchorDate = editor.querySelector('input[name="anchor-date"]').value || new Date().toISOString().slice(0, 10);
     try {
       await meridianPropose("/api/meridian/crew/bills", {
         billId: commitment.crew_bill_id,
         name: commitment.name,
         amount: Math.round(amount * 100), // dollars -> cents (Crew contract)
-        frequency: "MONTHLY",
-        frequencyInterval: 1,
-        anchorDate: new Date().toISOString().slice(0, 10),
+        frequency,
+        frequencyInterval,
+        anchorDate,
       });
       note.hidden = false;
       note.textContent = "Crew write-back proposed — approve it in Pending Actions.";
