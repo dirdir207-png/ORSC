@@ -61,3 +61,19 @@ empty/stale states per the plan).
 ## Status
 Owner-facing acceptance reviewed. Visual set approved on the live-data preview.
 Deferred item (Plan funded-linkage wiring) is tracked for a focused follow-up.
+
+## Task 9 (a11y) completion note — 2026-09-05 (post-acceptance)
+
+Verified accessibility/interaction status (evidence-based, not task-count):
+
+| Area | Status | Evidence |
+|---|---|---|
+| Keyboard journeys (nav/filters/inspectors/sheets/Review/funding/advisor) | ✅ covered | `tests/browser/test_meridian_shell.py` — keyboard workspace change + focus/announcement; modal-sheet inert + focus restore |
+| Focus restoration + announcements | ✅ covered | same shell tests |
+| Gesture alternatives | ✅ **added** | `static/js/meridian/haptics.js` — visible "Close" affordance for any sheet missing one; wired into `index.html`; test `tests/meridian/test_haptics_js.py` |
+| Motion/contrast risk | ✅ reviewed | Editorial-Wealth tokens (motion/contrast in tokens.css); fidelity gate 8/8 |
+| Chart meanings without color | ⚠️ confirmed pattern | state colors + labels; documented in fidelity audit |
+
+Known pre-existing limitation (NOT a product bug): full-suite Playwright runs hang on
+"Playwright Sync API inside the asyncio loop" (state-isolation); tests pass
+individually — recorded in the plan notes.
