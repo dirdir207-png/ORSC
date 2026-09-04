@@ -1,0 +1,64 @@
+<section class="m-payday-settings" data-payday-root>
+  <header class="m-settings-command m-payday-command">
+    <div>
+      <p class="m-workspace-kicker">Settings · Payday &amp; Funding</p>
+      <h1>Your payday rhythm,<br>made useful.</h1>
+      <p>Review when income arrives and how Meridian will propose funding your commitments.</p>
+    </div>
+    <span class="m-chip" data-payday-freshness data-state="unavailable">Loading</span>
+  </header>
+
+  <p class="m-inline-error" data-payday-error role="alert" hidden></p>
+  <p class="m-payday-status" data-payday-status role="status" aria-live="polite"></p>
+
+  <section class="m-payday-summary" data-payday-summary aria-label="Payday summary">
+    <article>
+      <p class="m-section-label">Cadence</p>
+      <strong data-payday-pattern>—</strong>
+      <span data-pattern-confidence>Recognition unavailable</span>
+    </article>
+    <article>
+      <p class="m-section-label">Next payday</p>
+      <strong data-next-payday>—</strong>
+      <span data-typical-income>Income unavailable</span>
+    </article>
+    <article>
+      <p class="m-section-label">Next proposal</p>
+      <strong data-next-run-total>—</strong>
+      <span data-next-run-date>No run projected</span>
+    </article>
+  </section>
+
+  <div class="m-payday-layout">
+    <section class="m-payday-editor" aria-labelledby="payday-editor-title">
+      <p class="m-section-label">Schedule controls</p>
+      <h2 id="payday-editor-title">Fund the plan after payday</h2>
+      <p>Changes create a proposal for your approval. Meridian never moves money from this screen.</p>
+
+      <label class="m-payday-field">
+        <span>Commitment</span>
+        <select data-payday-commitment></select>
+      </label>
+      <label class="m-payday-field">
+        <span>Contribution method</span>
+        <select data-payday-kind>
+          <option value="fixed_per_paycheck">Fixed amount per paycheck</option>
+          <option value="percent_of_paycheck">Percentage of paycheck</option>
+        </select>
+      </label>
+      <label class="m-payday-field">
+        <span>Amount</span>
+        <input data-payday-amount type="number" min="0" step="0.01" inputmode="decimal">
+      </label>
+
+      <button class="m-primary-button" type="button" data-review-schedule>Review schedule change</button>
+    </section>
+
+    <aside class="m-payday-preview" aria-labelledby="payday-preview-title">
+      <p class="m-section-label">Live preview</p>
+      <h2 id="payday-preview-title">Next allocation</h2>
+      <div data-payday-contributions></div>
+      <p class="m-payday-safe-note">This remains a proposal until you explicitly approve it.</p>
+    </aside>
+  </div>
+</section>

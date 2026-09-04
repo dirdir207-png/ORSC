@@ -80,6 +80,9 @@ from meridian.providers.crew import CrewReadAdapter
 from meridian.repository import FinancialRepository
 from meridian.refresh import MeridianRefreshService
 from meridian.sync import sync_provider
+from meridian.crew_commands import build_command_payload
+from meridian.mutations import reconcile_crew_mutation
+from meridian.sync_gate import MeridianSyncGate
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
@@ -815,6 +818,17 @@ def sync_crew_snapshot():
         report.errors,
     )
     return report
+
+
+# Cadence-gated Crew sync (command-adapter reconciliation): runs at most every
+# `interval_seconds` when credentials are present; separate from the 15s live
+# snapshot refresh above.
+meridian_sync_gate = MeridianSyncGate(
+    sync=sync_crew_snapshot,
+    has_credentials=lambda: bool(get_crew_bearer_token()),
+    interval_seconds=300,
+    clock=time.monotonic,
+)
 
 
 # Automatic live-data refresh: a background thread that periodically pulls the
@@ -6903,6 +6917,7 @@ def background_transaction_checker():
         try:
             check_credit_card_transactions()
             check_splitwise_balances()
+            meridian_sync_gate.run_if_due()
         except Exception as e:
             print(f"Error in background transaction checker: {e}")
         time.sleep(30)  # Check every 30 seconds

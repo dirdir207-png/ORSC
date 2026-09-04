@@ -421,6 +421,26 @@ def settings_connection_revoke(public_id: str):
     return jsonify({"public_id": revoked.public_id, "state": revoked.state.value})
 
 
+@meridian_api.get("/settings/payday")
+@login_required
+@_safe_read
+def settings_payday():
+    from meridian.services.payday import build_payday_settings
+
+    graph, commitments, rules = _plan_repositories()
+    as_of_value = request.args.get("as_of")
+    try:
+        as_of = date.fromisoformat(as_of_value) if as_of_value else date.today()
+    except ValueError:
+        return _error(
+            "invalid_request",
+            "as_of must be an ISO date (YYYY-MM-DD).",
+            "Use today's date or omit as_of.",
+            400,
+        )
+    return jsonify(build_payday_settings(graph, commitments, rules, as_of=as_of))
+
+
 @meridian_api.get("/activity")
 @login_required
 @_safe_read
