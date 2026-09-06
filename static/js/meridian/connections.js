@@ -4,6 +4,22 @@ const root = document.querySelector("[data-connections-root]");
 const inspector = document.querySelector("[data-connection-inspector]");
 let lastOpener = null;
 
+// Providers the owner can add from the "Add connection" button. Each maps to a
+// kind the authorize endpoint accepts; iCloud is IMAP/env-gated and is not a
+// chooser option (it is configured out-of-band).
+const ADDABLE_PROVIDERS = [
+  {
+    kind: "gmail",
+    name: "Gmail",
+    detail: "Bills, statements, and receipts from your inbox.",
+  },
+  {
+    kind: "calendar",
+    name: "Google Calendar",
+    detail: "Payday, due-date, travel, and event timing.",
+  },
+];
+
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -108,6 +124,115 @@ document.querySelector("[data-close-connection]")?.addEventListener("click", clo
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !inspector.hidden) closeInspector();
 });
+
+/* ---------- Add connection (owner-initiated OAuth) ---------- */
+
+// Authorize is a POST (creates a pending OAuth handoff), so it must use plain
+// fetch, not meridianFetch (which only permits GET + proposal endpoints).
+async function startAuthorization(kind) {
+  const response = await fetch(
+    `/api/meridian/settings/connections/${kind}/authorize`,
+    { method: "POST", headers: { Accept: "application/json" } }
+  );
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+  if (!response.ok || !payload || !payload.authorization_url) {
+    const detail = payload && payload.error ? payload.error : {};
+    throw new MeridianApiError({
+      code: detail.code || "connection_unavailable",
+      message: detail.message || "The connection could not be started.",
+      recoveryAction: detail.recovery_action || "Try again in a moment.",
+      status: response.status,
+    });
+  }
+  return payload.authorization_url;
+}
+
+function openAddConnection() {
+  const rootNode = document.querySelector("[data-connections-root]");
+  if (!rootNode) return;
+
+  const sheet = document.createElement("section");
+  sheet.className = "m-sheet m-connection-chooser";
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
+  sheet.setAttribute("aria-label", "Add a connection");
+  const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  sheet.hidden = true;
+  sheet.innerHTML = `
+    <div class="m-connection-chooser-card">
+      <h3 class="m-editor-title">Add a connection</h3>
+      <p class="m-editor-preview">Choose a source to keep Meridian's picture current. Meridian only reads it.</p>
+      <div class="m-connection-chooser-list"></div>
+      <div class="m-editor-actions">
+        <button type="button" class="m-button m-button--quiet" data-add-connection-cancel>Cancel</button>
+      </div>
+      <p class="m-editor-note" data-add-connection-note hidden></p>
+    </div>
+  `;
+
+  const list = sheet.querySelector(".m-connection-chooser-list");
+  for (const provider of ADDABLE_PROVIDERS) {
+    const button = element("button", "m-connection-chooser-item");
+    button.type = "button";
+    button.dataset.providerKind = provider.kind;
+    button.dataset.providerName = provider.name;
+    button.append(
+      element("strong", "", provider.name),
+      element("small", "", provider.detail)
+    );
+    button.addEventListener("click", async () => {
+      const note = sheet.querySelector("[data-add-connection-note]");
+      note.hidden = true;
+      button.setAttribute("aria-busy", "true");
+      button.disabled = true;
+      try {
+        const authorizationUrl = await startAuthorization(provider.kind);
+        window.location.assign(authorizationUrl);
+      } catch (error) {
+        const detail = error instanceof MeridianApiError
+          ? `${error.message} ${error.recoveryAction}`
+          : "The connection could not be started. Try again shortly.";
+        note.hidden = false;
+        note.dataset.state = "error";
+        note.textContent = detail;
+      } finally {
+        button.removeAttribute("aria-busy");
+        button.disabled = false;
+      }
+    });
+    list.append(button);
+  }
+
+  function closeSheet() {
+    sheet.hidden = true;
+    sheet.removeAttribute("role");
+    sheet.removeAttribute("aria-modal");
+    sheet.removeEventListener("keydown", onKeyDown);
+    sheet.remove();
+    if (opener && typeof opener.focus === "function") opener.focus();
+  }
+
+  function onKeyDown(event) {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      closeSheet();
+    }
+  }
+
+  sheet.querySelector("[data-add-connection-cancel]").addEventListener("click", closeSheet);
+  sheet.addEventListener("keydown", onKeyDown);
+
+  document.body.append(sheet);
+  sheet.hidden = false;
+  sheet.querySelector(".m-connection-chooser-item")?.focus();
+}
+
+document.querySelector("[data-add-connection]")?.addEventListener("click", openAddConnection);
 
 window.MeridianConnections = { load };
 load();
