@@ -18,7 +18,8 @@ BASELINE_DIR = Path(__file__).parent / "visual_baselines" / "current"
 DIFF_THRESHOLD = float(os.environ.get("ATLAS_DIFF_THRESHOLD", "0.015"))  # 1.5% of pixels
 
 pytest.importorskip("PIL")
-from PIL import Image as _Image, ImageChops as _ImageChops  # noqa: E402
+from PIL import Image as _Image  # noqa: E402
+from PIL import ImageChops as _ImageChops
 
 
 def _compare(path, baseline):

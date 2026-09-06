@@ -77,11 +77,9 @@ from meridian.memory_actions import (
     contract_executors,
 )
 from meridian.providers.crew import CrewReadAdapter
-from meridian.repository import FinancialRepository
 from meridian.refresh import MeridianRefreshService
+from meridian.repository import FinancialRepository
 from meridian.sync import sync_provider
-from meridian.crew_commands import build_command_payload
-from meridian.mutations import reconcile_crew_mutation
 from meridian.sync_gate import MeridianSyncGate
 
 app = Flask(__name__)
@@ -120,8 +118,8 @@ app.register_blueprint(meridian_api, url_prefix="/api/meridian")
 # Google OAuth authorizers (R25): produce the Google authorization URL for
 # Gmail/Calendar using the owner's Google Cloud OAuth client (set via
 # GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET — owner-set, never guessed).
-from meridian.connectors.email import READ_ONLY_GMAIL_SCOPE
 from meridian.connectors.calendar import READ_ONLY_CALENDAR_SCOPE
+from meridian.connectors.email import READ_ONLY_GMAIL_SCOPE
 from meridian.connectors.google_auth import (
     GOOGLE_IDENTITY_SCOPES,
     GoogleOAuth2Client,

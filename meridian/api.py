@@ -414,6 +414,8 @@ def settings_connection_oauth_callback():
             "Set GOOGLE_OAUTH_CLIENT_ID/SECRET for this app.",
             503,
         )
+    from meridian.connectors.calendar import READ_ONLY_CALENDAR_SCOPE
+    from meridian.connectors.email import READ_ONLY_GMAIL_SCOPE
     from meridian.connectors.google_auth import (
         GoogleOAuth2Client,
         GoogleOAuthConfig,
@@ -421,8 +423,6 @@ def settings_connection_oauth_callback():
         OAuthTokenStore,
         email_from_id_token,
     )
-    from meridian.connectors.email import READ_ONLY_GMAIL_SCOPE
-    from meridian.connectors.calendar import READ_ONLY_CALENDAR_SCOPE
 
     scope = READ_ONLY_GMAIL_SCOPE if kind == "gmail" else READ_ONLY_CALENDAR_SCOPE
     try:
@@ -430,7 +430,7 @@ def settings_connection_oauth_callback():
         tokens = client.exchange(code)
     except GoogleOAuthConfigError as exc:
         return _error("connection_unavailable", str(exc), "Configure the OAuth client and retry.", 503)
-    except Exception as exc:  # noqa: BLE001 - exchange failure is endpoint-facing
+    except Exception:  # noqa: BLE001 - exchange failure is endpoint-facing
         return _error("oauth_exchange_failed", "Google did not accept the authorization.",
                       "Try the connection again.", 502)
     # The authorizing account is identified by the id_token email claim
@@ -467,7 +467,6 @@ def settings_connection_oauth_revoke(kind: str, account_email: str):
     if kind not in ("gmail", "calendar"):
         return _error("invalid_request", "Unsupported connection kind.", "Choose Gmail or Calendar.", 400)
     from meridian.connection_jobs import IngestionCursorStore
-    from meridian.connectors.google_auth import OAuthTokenStore
 
     db_path = _repository().db_path
     # Delete the token row for this identity.

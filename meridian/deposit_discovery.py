@@ -9,9 +9,8 @@ for owner confirmation (proposal-only boundary).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -95,7 +94,7 @@ def discover_deposits(
 
 
 def _parse_date(value) -> date:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     if isinstance(value, date):
         return value

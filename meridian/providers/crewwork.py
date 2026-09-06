@@ -10,12 +10,10 @@ Balances and amounts in the snapshot are cents; the adapter converts to the
 dollar convention used by CrewReadAdapter (divide by 100).
 """
 
-from datetime import date, datetime
 from typing import Any, Dict, Optional
 
 from .base import (
     CommitmentCandidate,
-    ExpectedInflow,
     NormalizedAccount,
     NormalizedTransaction,
     ProviderSnapshot,

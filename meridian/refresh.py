@@ -2,7 +2,6 @@
 and sync it into the Meridian graph, with on-demand single-flight support."""
 
 import threading
-import time
 from typing import Callable, Optional
 
 from .sync import SyncReport

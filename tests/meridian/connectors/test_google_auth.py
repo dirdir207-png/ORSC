@@ -121,10 +121,10 @@ def test_google_identity_scopes_are_read_only_and_include_email():
 
 
 def test_email_from_id_token_extracts_claim():
-    from meridian.connectors.google_auth import email_from_id_token
-
     import base64
     import json
+
+    from meridian.connectors.google_auth import email_from_id_token
 
     payload = base64.urlsafe_b64encode(
         json.dumps({"email": "baronhod207@gmail.com", "sub": "123"}).encode("utf-8")

@@ -318,8 +318,8 @@ def test_today_and_activity_stay_stale_after_partial_sync_until_a_complete_sync(
 
 
 def test_breakdown_reports_bills_and_goals(tmp_path):
-    from meridian.db import run_migrations
     from meridian.commitments import CommitmentRepository, CommitmentType
+    from meridian.db import run_migrations
     from meridian.repository import FinancialRepository
     from meridian.services.today import build_today
 

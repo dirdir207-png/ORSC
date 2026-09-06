@@ -43,7 +43,6 @@ def test_extraction_produces_provenance_facts(tmp_path):
 
 def test_removing_evidence_does_not_touch_source_history(tmp_path):
     from meridian.db import run_migrations
-    from meridian.repository import FinancialRepository
 
     db = str(tmp_path / "full.db")
     run_migrations(db)

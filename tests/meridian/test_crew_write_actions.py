@@ -2,7 +2,6 @@
 
 from crew.actions import ActionStore
 from crew.executors import ExecutorSpec
-from meridian.crew_write import execute_crew_write
 from meridian.crew_write_actions import crew_write_executors
 
 
@@ -27,8 +26,7 @@ def test_propose_approve_execute_roundtrip(tmp_path, monkeypatch):
     }
 
     # Registry the real execute_crew_write is mocked so the subprocess is safe.
-    from meridian import crew_write
-    from meridian import crew_write_actions
+    from meridian import crew_write, crew_write_actions
 
     def fake(operation, input_payload, **kwargs):
         return {"ok": True, "result": {"id": "bill-1"}, "retry_allowed": False}

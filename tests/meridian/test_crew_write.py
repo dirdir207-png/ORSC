@@ -4,8 +4,6 @@ import json
 import subprocess
 
 from meridian.crew_write import (
-    CrewWriteBlocked,
-    CrewWriteUncertain,
     execute_crew_write,
 )
 

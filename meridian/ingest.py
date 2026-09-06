@@ -12,11 +12,10 @@ Contract:
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
-from .documents.extract import Provenance, extract_document
+from .documents.extract import extract_document
 
 
 def _now() -> str:

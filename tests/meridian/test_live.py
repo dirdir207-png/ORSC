@@ -1,7 +1,6 @@
 """Tests for meridian.live sync_live_crew."""
 
 from meridian.live import build_sync_once, sync_live_crew
-from meridian.providers.crewwork import CrewWorkSnapshotAdapter
 
 SNAPSHOT = {
     "mode": "read-only",

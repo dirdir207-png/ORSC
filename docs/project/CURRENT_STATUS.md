@@ -96,19 +96,44 @@ Tasks 9–12 fully implemented, tested, and pushed to `feat/meridian-implementat
 
 ## Current test suite
 
-- Fresh gate run on `feat/meridian-implementation` (2026-08-31):
-  - Ruff clean (`ruff check app.py crew meridian tests` — 6 import-sort fixes applied).
-  - Full unit suite: **445 passed, 44 skipped**.
-  - Browser suite (preview app, Playwright): **41 passed** including the two Task 26
-    browser tests; **9 pre-existing failures** in `test_accounts.py`,
-    `test_contextual_advisor.py`, `test_responsive_parity.py`, `test_transaction_review.py`
-    — verified to reproduce identically against the pre-Task-26 base commit
-    (`acdaeec`), i.e. unrelated to Task 26.
-  - `pip-audit -r requirements.txt` and `docker build -t meridian:task26 .` — see gate log.
-- Historical Slice 2 evidence (259 tests + 28 browser skips) remains superseded by the fresh counts above.
+- Fresh gate run on `feat/meridian-implementation` (2026-09-06):
+  - Ruff clean (`ruff check app.py crew meridian tests` — import-sort/warnings fixed,
+    including removal of the dead `build_command_payload` / `reconcile_crew_mutation`
+    imports in `app.py`).
+  - Full unit suite: **535 passed, 60 skipped** (skips are the Playwright browser
+    tests that require a running `APP_URL`).
+  - `pip-audit -r requirements.txt`: **no known vulnerabilities**.
+  - Browser suite (against the live preview): `test_capability_parity.py` (3),
+    `test_plan.py` + `test_meridian_shell.py` (18), plus the R30 parity contract —
+    see docs/project/PRIVATE_RELEASE_ACCEPTANCE.md §1/§5.
+- Historical Slice-2 / 445-test counts are superseded by the 2026-09-06 gate above.
+
+### R32 (private daily-use release) — 2026-09-06
+
+See `docs/project/PRIVATE_RELEASE_ACCEPTANCE.md` for the full record. Summary:
+- Tested image digest `sha256:6ac1fac8f1c1…`; `docker-compose.yml` pinned to
+  `meridian:r32-test` (no more `build: .`).
+- 2 fresh read-only Crew captures (6 accounts / 100 txns each); app + collector
+  restart, last-good offline recovery, and unchanged-tab refresh verified.
+- **Two recorded non-green items (not release-blocking, but explicit):**
+  1. The active daily-use instance is the local preview (port 8081) running from
+     source, not the tested Docker digest — compose target matches digest, the
+     daily instance does not.
+  2. Autopilot query schema drift (`Cannot query field "entities" on type "Rule"`)
+     leaves every sync `status=partial` (errors=1, autopilot null). The query spec
+     lives in WorkAssistant (`operations/*.graphql`, owner-gated), **not** ORSC;
+     benign to accounts/transactions/commitments.
 
 ## Current blockers
 
+- **Autopilot schema drift (owner-gated, WorkAssistant):** `crew-readonly` autopilot
+  query fails on `Rule.entities`; autopilot section is null. Fix lives in
+  `CrewWorkAssistantOTP/operations/*.graphql`, not this repo. Keeps sync
+  `status=partial` (errors=1) until reconciled.
+- **Daily instance from source, not the tested digest:** the running preview on
+  port 8081 is `run_preview_local.sh`; the Docker port-8080 slot is occupied by a
+  pre-existing deployment from another project directory. "Deployed==tested" is
+  met for the compose target only.
 - TokenX routing unavailable: sub-agent spawning is blocked in this session, so parallel execution must occur in a verified Codex CLI environment or run sequentially in the parent.
 - AI providers: owner's OpenAI key has no credits (429); OpenRouter free-tier quota tight
 - Verification workflow: Playwright screenshot harness against isolated instance gates all UI changes
@@ -128,9 +153,13 @@ A corrected handoff document has been created at `docs/project/CODEX_CLI_HANDOFF
 
 ## Next action
 
-- Task 26 is complete in `feat/meridian-implementation`; the branch is pushed to
+- Task 26 and R30/R31 are complete in `feat/meridian-implementation`; the branch is pushed to
   `dirdir207-png/ORSC`. No merge to `main` (separate build by design).
-- Pending tracks (unchanged): Meridian visual recovery (its own plan, 0/47 boxes),
-  Payday & Funding plan (2026-08-31), Connected Billers (future program).
+- R32 acceptance recorded (see PRIVATE_RELEASE_ACCEPTANCE.md). Not yet a fully
+  green formal release while the two gaps above stand; local daily use is safe.
+- Remaining owner-gated tracks: R32 autopilot schema fix (WorkAssistant), R33/R34
+  connected billers (depend on R32, partner-gated), and the R25 credential source.
 
-Remaining gate (desktop / owner): start the Mac broker and an isolated Docker deployment, complete one interactive Crew login, confirm `healthy`, and run read-only sync while verifying no secret leakage.
+Remaining gate (desktop / owner): reconcile the autopilot query in WorkAssistant and
+optionally move the daily-use instance onto the tested Docker digest, then re-run
+the §5 live acceptance to clear the two non-green items.

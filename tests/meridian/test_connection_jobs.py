@@ -70,8 +70,6 @@ def test_deleted_event_is_not_blocked_by_seen(tmp_path):
 
 
 def test_build_connections_includes_oauth_accounts(tmp_path):
-    import json
-    from meridian.connection_jobs import IngestionCursorStore
     from meridian.connectors.google_auth import OAuthTokenStore
     from meridian.services.connections import build_connections
 

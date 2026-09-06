@@ -72,7 +72,7 @@ def execute_crew_write(
             text=True,
             timeout=timeout_seconds,
         )
-    except subprocess.TimeoutExpired as exc:
+    except subprocess.TimeoutExpired:
         return {
             "ok": False,
             "error": "uncertain",

@@ -24,7 +24,6 @@ def capture_crew_snapshot(binary: str = CREW_READONLY, timeout_seconds: int = 12
     """Run the crew-readonly snapshot CLI and parse its dashboard payload."""
     if not binary:
         # Importing here so the helper can be constructed without the binary.
-        from .providers.crewwork import CrewWorkSnapshotAdapter
 
         raise RuntimeError("crew-readonly binary path is not configured")
     try:
