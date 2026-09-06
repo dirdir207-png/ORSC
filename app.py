@@ -83,6 +83,13 @@ from meridian.sync import sync_provider
 from meridian.sync_gate import MeridianSyncGate
 
 app = Flask(__name__)
+# Behind Tailscale Serve, TLS terminates at the proxy and the app sees plain
+# HTTP; honor X-Forwarded-* so request.host_url reports the https://… host the
+# browser used. This is what lets the OAuth redirect URI be the https ts.net
+# address Google requires (a bare IP or http:// is rejected by Google).
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
