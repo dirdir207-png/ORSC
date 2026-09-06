@@ -72,6 +72,12 @@ class ConnectionRepository:
             raise ValueError("kind and display_name are required")
         if retention_days is not None and retention_days < 0:
             raise ValueError("retention_days must be non-negative")
+        # One row per kind: re-use the most recent non-revoked record so
+        # repeated authorize attempts never pile up duplicate rows.
+        if public_id is None:
+            existing = self.find_latest(kind=kind)
+            if existing is not None:
+                public_id = existing.public_id
         connection_id = public_id or public_connection_id(kind)
         timestamp = _now()
         scopes = json.dumps(sorted(set(granted_scopes)), separators=(",", ":"))
@@ -113,6 +119,16 @@ class ConnectionRepository:
             row = connection.execute(
                 "SELECT * FROM connection_authorizations WHERE public_id = ?",
                 (public_id,),
+            ).fetchone()
+        return self._from_row(row) if row is not None else None
+
+    def find_latest(self, *, kind: str) -> ConnectionRecord | None:
+        """Most recent non-revoked record for a kind (the single per-kind row)."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM connection_authorizations "
+                "WHERE kind = ? AND state != ? ORDER BY id DESC LIMIT 1",
+                (kind, ConnectionState.REVOKED.value),
             ).fetchone()
         return self._from_row(row) if row is not None else None
 

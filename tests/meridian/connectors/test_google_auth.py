@@ -69,3 +69,72 @@ def test_authorization_url_state_distinguishes_kinds():
     url = g.authorization_url(state="calendar-connect")
     assert "calendar.events.readonly" in url
     assert "state=calendar-connect" in url
+
+
+class _FakeAuthResponse:
+    status_code = 200
+
+    def __init__(self, payload):
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+def test_exchange_returns_token_dict_synchronously(monkeypatch):
+    """exchange() must resolve to a dict when called from a sync Flask view."""
+    cfg = GoogleOAuthConfig(client_id="c", client_secret="s")
+    client = GoogleOAuth2Client(cfg, scopes=("https://www.googleapis.com/auth/gmail.readonly",))
+    monkeypatch.setattr(
+        "requests.post",
+        lambda *args, **kwargs: _FakeAuthResponse(
+            {"access_token": "at-1", "refresh_token": "rt-1", "expires_in": 3600}
+        ),
+    )
+
+    tokens = client.exchange("code-1")
+
+    assert isinstance(tokens, dict)
+    assert tokens["access_token"] == "at-1"
+    assert tokens["refresh_token"] == "rt-1"
+
+
+def test_refresh_returns_token_dict_synchronously(monkeypatch):
+    cfg = GoogleOAuthConfig(client_id="c", client_secret="s")
+    client = GoogleOAuth2Client(cfg, scopes=("https://www.googleapis.com/auth/gmail.readonly",))
+    monkeypatch.setattr(
+        "requests.post",
+        lambda *args, **kwargs: _FakeAuthResponse({"access_token": "at-2"}),
+    )
+
+    tokens = client.refresh("rt-1")
+
+    assert isinstance(tokens, dict)
+    assert tokens["access_token"] == "at-2"
+
+
+def test_google_identity_scopes_are_read_only_and_include_email():
+    from meridian.connectors.google_auth import GOOGLE_IDENTITY_SCOPES
+
+    assert "openid" in GOOGLE_IDENTITY_SCOPES
+    assert "email" in GOOGLE_IDENTITY_SCOPES
+
+
+def test_email_from_id_token_extracts_claim():
+    from meridian.connectors.google_auth import email_from_id_token
+
+    import base64
+    import json
+
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"email": "baronhod207@gmail.com", "sub": "123"}).encode("utf-8")
+    ).decode("ascii").rstrip("=")
+    assert email_from_id_token(f"head.{payload}.sig") == "baronhod207@gmail.com"
+
+
+def test_email_from_id_token_rejects_malformed_input():
+    from meridian.connectors.google_auth import email_from_id_token
+
+    assert email_from_id_token("not-a-jwt") is None
+    assert email_from_id_token("") is None
+    assert email_from_id_token("a.b.c") is None

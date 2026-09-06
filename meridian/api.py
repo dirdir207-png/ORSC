@@ -387,7 +387,7 @@ def settings_connection_authorize(kind: str):
     return jsonify({"state": "pending", "authorization_url": authorization_url})
 
 
-@meridian_api.post("/connections/oauth/callback")
+@meridian_api.route("/connections/oauth/callback", methods=["GET", "POST"])
 @login_required
 def settings_connection_oauth_callback():
     """Google OAuth redirect target: exchange code, persist token, mark connected.
@@ -414,7 +414,13 @@ def settings_connection_oauth_callback():
             "Set GOOGLE_OAUTH_CLIENT_ID/SECRET for this app.",
             503,
         )
-    from meridian.connectors.google_auth import GoogleOAuth2Client, GoogleOAuthConfig, OAuthTokenStore
+    from meridian.connectors.google_auth import (
+        GoogleOAuth2Client,
+        GoogleOAuthConfig,
+        GoogleOAuthConfigError,
+        OAuthTokenStore,
+        email_from_id_token,
+    )
     from meridian.connectors.email import READ_ONLY_GMAIL_SCOPE
     from meridian.connectors.calendar import READ_ONLY_CALENDAR_SCOPE
 
@@ -427,10 +433,14 @@ def settings_connection_oauth_callback():
     except Exception as exc:  # noqa: BLE001 - exchange failure is endpoint-facing
         return _error("oauth_exchange_failed", "Google did not accept the authorization.",
                       "Try the connection again.", 502)
-    # The account_email comes from the Google token endpoint (id_token/email in
-    # the broader profile) — here we record the token material; account
-    # identity is attached by the connector's next successful read.
-    account_email = tokens.get("email") or f"{kind}-account"
+    # The authorizing account is identified by the id_token email claim
+    # (granted via openid+email identity scopes); the connector's first
+    # successful read may later enrich the record, never orphan it.
+    account_email = (
+        email_from_id_token(tokens.get("id_token", ""))
+        or tokens.get("email")
+        or f"{kind}-account"
+    )
     OAuthTokenStore(_repository().db_path).save(
         kind=kind,
         account_email=account_email,

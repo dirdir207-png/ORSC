@@ -123,6 +123,7 @@ app.register_blueprint(meridian_api, url_prefix="/api/meridian")
 from meridian.connectors.email import READ_ONLY_GMAIL_SCOPE
 from meridian.connectors.calendar import READ_ONLY_CALENDAR_SCOPE
 from meridian.connectors.google_auth import (
+    GOOGLE_IDENTITY_SCOPES,
     GoogleOAuth2Client,
     GoogleOAuthConfig,
     GoogleOAuthConfigError,
@@ -133,12 +134,12 @@ try:
     app.config["MERIDIAN_CONNECTION_AUTHORIZERS"] = {
         "gmail": lambda: {
             "authorization_url": GoogleOAuth2Client(
-                _google_cfg, scopes=(READ_ONLY_GMAIL_SCOPE,)
+                _google_cfg, scopes=(READ_ONLY_GMAIL_SCOPE,) + GOOGLE_IDENTITY_SCOPES
             ).authorization_url(state="gmail-connect")
         },
         "calendar": lambda: {
             "authorization_url": GoogleOAuth2Client(
-                _google_cfg, scopes=(READ_ONLY_CALENDAR_SCOPE,)
+                _google_cfg, scopes=(READ_ONLY_CALENDAR_SCOPE,) + GOOGLE_IDENTITY_SCOPES
             ).authorization_url(state="calendar-connect")
         },
     }

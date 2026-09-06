@@ -189,6 +189,31 @@ def test_connection_authorize_returns_only_provider_handoff_state(
     assert saved.granted_scopes == ()
 
 
+def test_connection_authorize_reuses_one_row_per_kind(api_client, monkeypatch):
+    """Repeated authorize attempts must not pile up duplicate rows."""
+    client, graph = api_client
+    authorizations = ConnectionRepository(graph.db_path)
+    monkeypatch.setitem(
+        simplecrew.app.config,
+        "MERIDIAN_CONNECTIONS_FACTORY",
+        lambda: authorizations,
+    )
+    monkeypatch.setitem(
+        simplecrew.app.config,
+        "MERIDIAN_CONNECTION_AUTHORIZERS",
+        {"gmail": lambda: {"authorization_url": "https://accounts.google.test/oauth"}},
+    )
+
+    for _ in range(3):
+        response = client.post("/api/meridian/settings/connections/gmail/authorize")
+        assert response.status_code == 200
+
+    rows = authorizations.list_all()
+    assert len(rows) == 1
+    assert rows[0].kind == "gmail"
+    assert rows[0].state is ConnectionState.PENDING
+
+
 def test_connection_revoke_marks_only_selected_source(api_client, monkeypatch):
     client, graph = api_client
     authorizations = ConnectionRepository(graph.db_path)
@@ -701,3 +726,99 @@ def test_meridian_api_hides_repository_failures_behind_a_stable_error(
         "recovery_action": "Try again after your provider reconnects.",
     }
     assert "should-never-appear" not in response.get_data(as_text=True)
+
+
+def test_oauth_callback_exchanges_code_stores_token_and_marks_connected(
+    api_client, monkeypatch
+):
+    from meridian.connectors.google_auth import OAuthTokenStore
+
+    client, graph = api_client
+    authorizations = ConnectionRepository(graph.db_path)
+    monkeypatch.setitem(
+        simplecrew.app.config,
+        "MERIDIAN_CONNECTIONS_FACTORY",
+        lambda: authorizations,
+    )
+    monkeypatch.setitem(
+        simplecrew.app.config,
+        "MERIDIAN_CONNECTION_AUTHORIZERS",
+        {"gmail": lambda: {"authorization_url": "https://accounts.google.test/oauth"}},
+    )
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "app-123.apps.googleusercontent.com")
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "GOCSPX-not-a-real-secret")
+    captured = {}
+    import base64
+    import json
+
+    id_token_payload = base64.urlsafe_b64encode(
+        json.dumps({"email": "owner@example.com"}).encode("utf-8")
+    ).decode("ascii").rstrip("=")
+
+    class _FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "access_token": "at-1",
+                "refresh_token": "rt-1",
+                "expires_in": 3600,
+                "id_token": f"head.{id_token_payload}.sig",
+            }
+
+    def fake_post(url, **kwargs):
+        captured["url"] = url
+        captured["data"] = kwargs.get("data")
+        return _FakeResponse()
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    # First mark pending via authorize (creates the row shared with the callback).
+    pending = client.post("/api/meridian/settings/connections/gmail/authorize")
+    assert pending.status_code == 200
+    pending_row = authorizations.list_all()[0]
+
+    response = client.get(
+        "/api/meridian/connections/oauth/callback",
+        query_string={"state": "gmail-connect", "code": "code-1"},
+    )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["state"] == "connected"
+    assert body["kind"] == "gmail"
+    assert body["account"] == "owner@example.com"  # id_token email claim
+
+    stored = OAuthTokenStore(graph.db_path).get(kind="gmail", account_email="owner@example.com")
+    assert stored["access_token"] == "at-1"
+    assert stored["refresh_token"] == "rt-1"
+
+    saved = authorizations.list_all()[0]
+    assert saved.kind == "gmail"
+    assert saved.state is ConnectionState.CONNECTED
+    assert saved.granted_scopes == (READ_ONLY_GMAIL_SCOPE,)
+
+    # The callback must update the pending row in place: one gmail row total,
+    # same public_id, now connected.
+    assert len(authorizations.list_all()) == 1
+    assert saved.public_id == pending_row.public_id
+
+    # exchange must forward the code, secret material never appears in the body
+    assert captured["data"]["code"] == "code-1"
+    assert "GOCSPX" not in response.get_data(as_text=True)
+
+
+def test_oauth_callback_rejects_missing_code_or_unknown_kind(api_client):
+    client, _ = api_client
+    missing = client.get("/api/meridian/connections/oauth/callback", query_string={"state": "gmail-connect"})
+
+    assert missing.status_code == 400
+    assert missing.get_json()["error"]["code"] == "invalid_oauth_callback"
+
+    unknown = client.get(
+        "/api/meridian/connections/oauth/callback",
+        query_string={"state": "slack-connect", "code": "x"},
+    )
+
+    assert unknown.status_code == 400
+    assert unknown.get_json()["error"]["code"] == "invalid_oauth_callback"

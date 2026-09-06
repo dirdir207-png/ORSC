@@ -70,7 +70,7 @@ class GoogleOAuth2Client:
             f"&state={state}&access_type={access_type}&prompt={prompt}"
         )
 
-    async def exchange(self, code: str, transport=None) -> dict:
+    def exchange(self, code: str, transport=None) -> dict:
         """Exchange an authorization code for tokens. transport=httpx or requests."""
         import requests
 
@@ -92,7 +92,7 @@ class GoogleOAuth2Client:
             raise CredentialError("Google token response missing access/refresh token")
         return payload
 
-    async def refresh(self, refresh_token: str) -> dict:
+    def refresh(self, refresh_token: str) -> dict:
         import requests
 
         response = requests.post(
@@ -169,3 +169,28 @@ def _quote(value: str) -> str:
     from urllib.parse import quote
 
     return quote(value, safe="")
+
+
+# Identity scopes are required for Google to return an id_token whose email
+# claim identifies the authorizing account. They are read-only and standard
+# for apps that must name accounts (R25 multi-account contract).
+GOOGLE_IDENTITY_SCOPES: tuple[str, ...] = ("openid", "email")
+
+
+def email_from_id_token(id_token: str) -> str | None:
+    """Decode the email claim from a Google id_token JWT payload (no verify).
+
+    The id_token arrives over HTTPS from Google's token endpoint; the email
+    claim is present only when the openid+email scopes were granted.
+    """
+    import base64
+    import json
+
+    try:
+        payload_b64 = id_token.split(".")[1]
+        padding = "=" * (-len(payload_b64) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64 + padding))
+        email = payload.get("email")
+    except Exception:  # noqa: BLE001 - decoding is best-effort
+        return None
+    return str(email) if email else None
