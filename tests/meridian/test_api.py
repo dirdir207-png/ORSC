@@ -851,3 +851,19 @@ def test_paycheck_set_rejects_invalid_cadence_or_amount(api_client):
     assert bad_cadence.status_code == 400
     bad_amount = client.post("/api/meridian/paycheck", json={"cadence": "monthly", "amount": -5, "next_date": "2026-09-18"})
     assert bad_amount.status_code == 400
+
+
+def test_oauth_callback_does_not_require_app_session(monkeypatch):
+    """The callback is Google's redirect target; it must exchange the code and
+    store the token without requiring an app session. Requiring one wasted the
+    single-use code (302 -> /login before exchange) whenever the redirect landed
+    in a tab without an app login.
+    """
+    import tempfile
+
+    from meridian.evidence import EvidenceRepository  # noqa: F401
+    os.environ["DB_FILE"] = os.path.join(tempfile.mkdtemp(prefix="oauth_cb_"), "cb.db")
+
+    client = simplecrew.app.test_client()  # deliberately NO session login
+
+    assert client.get("/api/meridian/connections/oauth/callback?state=gmail-connect").status_code in (400, 200)

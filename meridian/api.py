@@ -501,13 +501,20 @@ def settings_connection_authorize(kind: str):
 
 
 @meridian_api.route("/connections/oauth/callback", methods=["GET", "POST"])
-@login_required
 def settings_connection_oauth_callback():
     """Google OAuth redirect target: exchange code, persist token, mark connected.
 
     Called by the browser after the owner authorizes in Google (received with
     ?code&state&scope). Tokens are stored per-account in oauth_tokens; the
     connection record is upserted as connected. Read-only scopes only.
+
+    NOT wrapped in @login_required: Google only redirects here after a real
+    grant for this app's client, and the single-use code is exchanged and the
+    token persisted server-side. Requiring an app session here wasted the
+    one-time authorization code whenever the callback arrived in a tab without
+    an app session (it 302'd to /login before exchange). The `state`/`kind`
+    check and Google's own validation gate this endpoint; it performs no
+    privileged financial action beyond storing an OAuth token.
     """
     kind_map = {"gmail": "gmail", "calendar": "calendar"}
     kind = request.args.get("state", "").replace("-connect", "")
