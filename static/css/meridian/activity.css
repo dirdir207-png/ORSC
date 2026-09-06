@@ -237,7 +237,7 @@
 }
 
 .m-row-amount.is-spend {
-  color: var(--m-ink);
+  color: var(--m-risk);
 }
 
 .m-row-review-actions {

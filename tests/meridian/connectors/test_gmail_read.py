@@ -106,3 +106,16 @@ def test_gmail_transport_list_message_ids():
     assert [i["id"] for i in ids] == ["m1", "m2"]
     assert req.calls[0][0].endswith("/messages")
     assert req.calls[0][1] == {"maxResults": 5}
+
+
+def test_gmail_transport_list_message_ids_adds_after_filter():
+    """A `since` cutoff becomes a Gmail `after:YYYY/MM/DD` query (30-day backfill)."""
+    req = FakeRequests([FakeResponse(200, {"messages": [{"id": "m1"}]})])
+    t = GmailTransport(access_token="abc", timeout_seconds=2)
+    t._requests = req
+
+    ids = t.list_message_ids(max_results=10, since="2026-08-07")
+
+    assert [i["id"] for i in ids] == ["m1"]
+    assert req.calls[0][1]["q"] == "after:2026/08/07"
+    assert req.calls[0][1]["maxResults"] == 10

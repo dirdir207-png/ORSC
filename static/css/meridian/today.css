@@ -134,7 +134,7 @@
   font-size: var(--m-figure-xl);
   letter-spacing: -0.02em;
   line-height: 1.05;
-  color: var(--m-ink);
+  color: var(--m-healthy);
 }
 
 .m-sts-note {
@@ -226,6 +226,16 @@
   font-size: var(--m-text-xl);
   font-weight: 500;
   letter-spacing: -0.02em;
+}
+
+/* Money figures pop in the healthy green so they read as a real number, not a
+   grey placeholder. Runway is a time measure, so it gets the information blue. */
+.m-metric strong {
+  color: var(--m-healthy);
+}
+
+.m-metric [data-runway] {
+  color: var(--m-information);
 }
 
 .m-metric span {
@@ -482,6 +492,9 @@
   gap: var(--m-space-3);
 }
 .m-today-breakdown-row strong { display: block; font: var(--m-serif-md, inherit); }
+.m-today-breakdown-row [data-breakdown-bills] { color: var(--m-healthy); }
+.m-today-breakdown-row [data-breakdown-goals] { color: var(--m-information); }
+.m-today-breakdown-row [data-breakdown-nextrun] { color: var(--m-ink-muted); }
 @media (max-width: 640px) {
   .m-today-breakdown-row { grid-template-columns: 1fr; }
 }

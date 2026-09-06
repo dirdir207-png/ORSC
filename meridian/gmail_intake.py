@@ -12,9 +12,16 @@ download, bounded count, quarantine on oversized/empty).
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from .connectors.gmail_read import GmailEvidence, GmailTransport
 from .evidence import EvidenceRepository
 from .ingest import IntakeRecord, QuarantineError, ingest_record
+
+
+def _date_days_ago(days: int) -> str:
+    """ISO date ``days`` before today (UTC), used as the email backfill cutoff."""
+    return (date.today() - timedelta(days=days)).isoformat()
 
 
 def ingest_gmail_recent(
@@ -22,14 +29,17 @@ def ingest_gmail_recent(
     transport: GmailTransport,
     evidence_repo: EvidenceRepository,
     max_messages: int = 20,
+    since_days: int = 30,
     transactions=None,
 ) -> dict[str, object]:
     """Fetch recent Gmail messages and store each as evidence.
 
-    When ``transactions`` is supplied, stored mail evidence is linked to a
-    matching transaction by amount (documented charge receipts). Returns a
-    sanitized summary: counts stored/duplicate/quarantined/error/linked, plus
-    the subject + source_id of each stored item (never the body).
+    ``since_days`` bounds the backfill to roughly that many days by filtering the
+    inbox query to messages after the cutoff (default 30). When ``transactions``
+    is supplied, stored mail evidence is linked to a matching transaction by
+    amount (documented charge receipts). Returns a sanitized summary: counts
+    stored/duplicate/quarantined/error/linked, plus the subject + source_id of
+    each stored item (never the body).
     """
     stored: list[dict[str, str]] = []
     duplicate = 0
@@ -37,7 +47,10 @@ def ingest_gmail_recent(
     errors = 0
     linked = 0
 
-    messages: list[GmailEvidence] = transport.fetch_recent(max_results=max_messages)
+    since = _date_days_ago(since_days)
+    messages: list[GmailEvidence] = transport.fetch_recent(
+        max_results=max_messages, since=since
+    )
     for msg in messages:
         if not msg.body_text.strip():
             quarantined += 1
@@ -95,6 +108,7 @@ def ingest_all_gmail_accounts(
     evidence_repo: EvidenceRepository,
     token_client,
     max_messages_per_account: int = 10,
+    since_days: int = 30,
 ) -> dict[str, object]:
     """Ingest recent Gmail from every connected Gmail account.
 
@@ -123,6 +137,7 @@ def ingest_all_gmail_accounts(
             transport=transport,
             evidence_repo=evidence_repo,
             max_messages=max_messages_per_account,
+            since_days=since_days,
         )
         per_account.append({"account_email": email, **summary})
         total_fetched += int(summary["fetched"])
@@ -188,13 +203,16 @@ def ingest_icloud_recent(
     transport,
     evidence_repo,
     max_messages: int = 20,
+    since_days: int = 30,
     transactions=None,
 ) -> dict[str, object]:
     """Ingest recent iCloud Mail messages as evidence (reuses the intake).
 
-    Read-only: never mutates iCloud. Stored items are source_kind='mail'
-    (the same evidence surface as Gmail). When ``transactions`` is supplied,
-    stored evidence is linked to matching transactions by amount.
+    ``since_days`` bounds the backfill to roughly that many days via an IMAP
+    SINCE search (default 30). Read-only: never mutates iCloud. Stored items
+    are source_kind='mail' (the same evidence surface as Gmail). When
+    ``transactions`` is supplied, stored evidence is linked to matching
+    transactions by amount.
     """
     stored: list[dict[str, str]] = []
     duplicate = 0
@@ -202,7 +220,9 @@ def ingest_icloud_recent(
     errors = 0
     linked = 0
 
-    messages = transport.fetch_recent(max_results=max_messages)
+    messages = transport.fetch_recent(
+        max_results=max_messages, since=_date_days_ago(since_days)
+    )
     for msg in messages:
         if not msg.body_text.strip():
             quarantined += 1

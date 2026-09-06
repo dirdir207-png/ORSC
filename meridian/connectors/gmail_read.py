@@ -20,7 +20,6 @@ from typing import Optional
 
 _MSG_LIST_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
 _MSG_GET_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/{id}"
-_MSG_LIST_PARAMS = {"maxResults": 50, "q": ""}  # recent inbox; no query filter
 
 
 class GmailReadError(RuntimeError):
@@ -109,8 +108,12 @@ class GmailTransport:
             return response.json()
         raise GmailReadError("Gmail API kept rejecting the token after refresh")
 
-    def list_message_ids(self, *, max_results: int = 20) -> list[dict]:
-        payload = self._get(_MSG_LIST_URL, maxResults=max_results)
+    def list_message_ids(self, *, max_results: int = 20, since: Optional[str] = None) -> list[dict]:
+        # Gmail search `after:` is a YYYY/MM/DD (or epoch) filter; uses the API's
+        # `q` param. A 30-day backfill requests only messages newer than the
+        # cutoff so we do not over-fetch, while still capping at max_results.
+        query = f"after:{since.replace('-', '/')}" if since else ""
+        payload = self._get(_MSG_LIST_URL, maxResults=max_results, q=query)
         return payload.get("messages") or []
 
     def fetch_message(self, message_id: str) -> GmailEvidence:
@@ -127,10 +130,10 @@ class GmailTransport:
             thread_id=payload.get("threadId"),
         )
 
-    def fetch_recent(self, *, max_results: int = 20) -> list[GmailEvidence]:
-        """Fetch a bounded number of recent messages (evidence pilot)."""
+    def fetch_recent(self, *, max_results: int = 20, since: Optional[str] = None) -> list[GmailEvidence]:
+        """Fetch a bounded number of recent messages, optionally since a date."""
         results = []
-        for meta in self.list_message_ids(max_results=max_results):
+        for meta in self.list_message_ids(max_results=max_results, since=since):
             message_id = str(meta.get("id") or "")
             if not message_id:
                 continue

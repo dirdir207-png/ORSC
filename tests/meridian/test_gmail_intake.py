@@ -22,7 +22,7 @@ class FakeTransport:
     def __init__(self, messages):
         self._messages = messages
 
-    def fetch_recent(self, *, max_results=20):
+    def fetch_recent(self, *, max_results=20, since=None):
         return self._messages[:max_results]
 
 
@@ -104,7 +104,7 @@ def test_ingest_all_gmail_accounts_iterates_each_token(tmp_path, monkeypatch):
     from meridian import gmail_intake as gi
     from meridian.connectors.gmail_read import GmailEvidence
     calls = []
-    def fake_fetch(self, *, max_results=20):
+    def fake_fetch(self, *, max_results=20, since=None):
         calls.append(self._access_token)
         return [GmailEvidence(message_id=f"m-{self._access_token}", subject=f"Subject {self._access_token}", sender="x@y.z", received_at="2026-09-05T00:00:00Z", body_text=f"Bill amount due $50 for {self._access_token}")]
     monkeypatch.setattr(gi.GmailTransport, "fetch_recent", fake_fetch)
@@ -176,7 +176,7 @@ def test_ingest_icloud_recent_stores_mail_evidence(tmp_path):
     from meridian.gmail_intake import ingest_icloud_recent
 
     class FakeTransport:
-        def fetch_recent(self, *, max_results=20):
+        def fetch_recent(self, *, max_results=20, since=None):
             return [
                 IcloudMailMessage(
                     message_id="<ic1@icloud.com>", subject="Your iCloud bill",
@@ -200,7 +200,7 @@ def test_ingest_icloud_links_use_icloud_provenance(tmp_path):
     from meridian.gmail_intake import ingest_icloud_recent
 
     class FakeTransport:
-        def fetch_recent(self, *, max_results=20):
+        def fetch_recent(self, *, max_results=20, since=None):
             return [
                 IcloudMailMessage(
                     message_id="<ic2@icloud.com>", subject="Your charge",

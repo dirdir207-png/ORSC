@@ -314,7 +314,8 @@ def icloud_intake():
             transport=transport,
             evidence_repo=EvidenceRepository(graph.db_path),
             transactions=transactions,
-            max_messages=20,
+            max_messages=100,
+            since_days=30,
         )
     except IcloudMailReadError as exc:
         return _error("connection_unavailable", str(exc), "Check the iCloud Mail credentials and try again.", 503)

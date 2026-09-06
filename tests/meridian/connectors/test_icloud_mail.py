@@ -6,7 +6,11 @@ close/logout are proven without touching a real mailbox.
 
 import pytest
 
-from meridian.connectors.icloud_mail import IcloudMailReadError, IcloudMailTransport
+from meridian.connectors.icloud_mail import (
+    IcloudMailReadError,
+    IcloudMailTransport,
+    _imap_date,
+)
 
 
 class _FakeIMAP:
@@ -14,6 +18,7 @@ class _FakeIMAP:
         self.selected = None
         self.closed = False
         self.logged_out = False
+        self.search_criterias = []
         self._fetch_payloads = fetch_payloads or []
 
     def select(self, mailbox, readonly=False):
@@ -21,6 +26,7 @@ class _FakeIMAP:
         return ("OK", None)
 
     def search(self, charset, criteria):
+        self.search_criterias.append(criteria)
         # Simulate exactly 1 message so the test is deterministic.
         return ("OK", [b"1"])
 
@@ -90,3 +96,15 @@ def test_icloud_fetch_error_raises_read_error():
     t = _Connector([])  # no payloads -> fetch raises
     with pytest.raises(IcloudMailReadError):
         t.fetch_recent(max_results=5)
+
+
+def test_imap_date_converts_iso_to_imap_since_form():
+    assert _imap_date("2026-08-07") == "07-Aug-2026"
+    assert _imap_date("2026-12-25") == "25-Dec-2026"
+    assert _imap_date("") == ""
+
+
+def test_icloud_fetch_since_uses_imap_since_criteria():
+    t = _Connector([_message_bytes("s", "a@b.c", "Fri, 05 Sep 2026 12:00:00 +0000", "hi")])
+    t.fetch_recent(max_results=5, since="2026-08-07")
+    assert t.conn.search_criterias == ["ALL SINCE 07-Aug-2026"]

@@ -38,13 +38,24 @@
     color var(--m-motion-fast, 120ms) var(--m-ease-out, ease);
 }
 
-/* The brand mark: the Meridian serif "M". */
+/* The brand mark: the Meridian serif "V". */
 .m-advisor-trigger-mark {
+  display: inline-flex;
+  align-items: center;
   font-family: var(--m-font-serif, Georgia, serif);
   font-size: 1rem;
   font-weight: 500;
   line-height: 1;
   color: var(--m-forest, #22453c);
+}
+
+/* Keep the label on the same optical baseline as the mark so the pill reads as
+   a single, evenly centred control (the serif "V" otherwise sits lower). */
+.m-advisor-trigger-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  padding-bottom: 0.06em;
 }
 
 .m-advisor-trigger:hover {

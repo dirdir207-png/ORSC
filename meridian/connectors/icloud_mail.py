@@ -62,6 +62,21 @@ def _decode_body(payload: bytes, content_type: str = "text/plain") -> str:
         return payload.decode("utf-8", errors="replace")
 
 
+def _imap_date(value: str) -> str:
+    """Convert an ISO ``YYYY-MM-DD`` date to IMAP ``SINCE`` form ``DD-Mon-YYYY``.
+
+    IMAP SINCE (RFC 3501) expects a day-month-year date like ``07-Aug-2026``;
+    passing an ISO date string is rejected by iCloud with an Invalid date format
+    error. Falls back to the raw value if it cannot be parsed.
+    """
+    try:
+        from datetime import date
+
+        return date.fromisoformat(value).strftime("%d-%b-%Y")
+    except (TypeError, ValueError):
+        return value
+
+
 class IcloudMailTransport:
     """Minimal read-only iCloud Mail transport (IMAP, app-specific password)."""
 
@@ -95,11 +110,14 @@ class IcloudMailTransport:
         except Exception as exc:  # noqa: BLE001 - login failures are read-blocking
             raise IcloudMailReadError(f"iCloud Mail login failed: {type(exc).__name__}") from exc
 
-    def fetch_recent(self, *, max_results: int = 20) -> list[IcloudMailMessage]:
+    def fetch_recent(self, *, max_results: int = 20, since: str | None = None) -> list[IcloudMailMessage]:
         """Fetch a bounded number of recent inbox messages (read-only).
 
-        Uses the app-specific password; always selects the INBOX read-only and
-        closes without any mutation.
+        When ``since`` (an ISO ``YYYY-MM-DD`` date) is given, restrict the IMAP
+        search to messages received on/after that date (``SINCE``), so a backfill
+        can pull ~30 days without scanning the whole mailbox. Uses the
+        app-specific password; always selects the INBOX read-only and closes
+        without any mutation.
         """
         connection = self._connect()
         results: list[IcloudMailMessage] = []
@@ -109,11 +127,12 @@ class IcloudMailTransport:
             if status != "OK":
                 raise IcloudMailReadError("iCloud Mail could not open the inbox")
 
-            status, data = connection.search(None, "ALL")
+            search_criteria = f"ALL SINCE {_imap_date(since)}" if since else "ALL"
+            status, data = connection.search(None, search_criteria)
             if status != "OK":
                 raise IcloudMailReadError("iCloud Mail could not search the inbox")
             message_nums = data[0].split() if data and data[0] else []
-            # Keep only the most recent max_results.
+            # Keep only the most recent max_results (the oldest are dropped).
             recent_nums = message_nums[-max_results:]
 
             for num in reversed(recent_nums):

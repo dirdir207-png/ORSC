@@ -107,6 +107,7 @@
   font-size: var(--m-text-xl);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+  color: var(--m-healthy);
 }
 
 .m-coverage-copy {
@@ -147,6 +148,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Color the coverage figures so the funding picture reads at a glance:
+   funded = healthy green, unfunded = caution amber, next due = information blue. */
+.m-plan-stats [data-plan-funded] { color: var(--m-healthy); }
+.m-plan-stats [data-plan-unfunded] { color: var(--m-caution); }
+.m-plan-stats [data-plan-next-due] { color: var(--m-information); }
+
 /* ---------- Funding schedule card ---------- */
 
 .m-plan-next-title {
@@ -176,6 +183,7 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+  color: var(--m-healthy);
 }
 
 .m-plan-funding-caption {
