@@ -191,3 +191,36 @@ def test_ingest_icloud_recent_stores_mail_evidence(tmp_path):
     assert summary["stored"] == 1
     assert summary["items"][0]["subject"] == "Your iCloud bill"
     assert repo.get_by_content_hash(__import__("hashlib").sha256(b"Amount due $75.00").hexdigest()) is not None
+
+
+def test_ingest_icloud_links_use_icloud_provenance(tmp_path):
+    """iCloud amount-links must be labeled icloud:amount-match (not gmail)."""
+    from meridian.connectors.icloud_mail import IcloudMailMessage
+    from meridian.evidence import EvidenceRepository
+    from meridian.gmail_intake import ingest_icloud_recent
+
+    class FakeTransport:
+        def fetch_recent(self, *, max_results=20):
+            return [
+                IcloudMailMessage(
+                    message_id="<ic2@icloud.com>", subject="Your charge",
+                    sender="billing@x.com", received_at="Fri, 05 Sep 2026 12:00:00 +0000",
+                    body_text="Amount $92.75", thread_id="<ic2@icloud.com>",
+                )
+            ]
+
+    class Tx:
+        def __init__(self, txid, amount):
+            self.id = txid
+            self.amount = amount
+
+    repo = EvidenceRepository(str(tmp_path / "evidence.db"))
+    summary = ingest_icloud_recent(
+        transport=FakeTransport(), evidence_repo=repo, max_messages=5,
+        transactions=[Tx(40, -92.75)],
+    )
+
+    assert summary["linked"] == 1
+    links = repo.list_links(int(summary["items"][0]["id"]))
+    assert links, "expected at least one linked evidence link"
+    assert all(link.provenance == "icloud:amount-match" for link in links)

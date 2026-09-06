@@ -232,6 +232,7 @@ def ingest_icloud_recent(
                 evidence_id=result.item_id,
                 subject=msg.subject or "",
                 body=msg.body_text,
+                provenance="icloud:amount-match",
             )
             linked += created
         stored.append(
