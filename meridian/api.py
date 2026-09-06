@@ -54,6 +54,7 @@ def _evidence_payload(repository, link):
     return {
         "id": item.id,
         "title": item.title,
+        "sender": item.sender,
         "source_kind": item.source_kind,
         "mime_type": item.mime_type,
         "size_bytes": item.size_bytes,
@@ -319,6 +320,39 @@ def icloud_intake():
         )
     except IcloudMailReadError as exc:
         return _error("connection_unavailable", str(exc), "Check the iCloud Mail credentials and try again.", 503)
+    return jsonify({"state": "ingested", "summary": summary})
+
+
+@meridian_api.post("/gmail/intake")
+@login_required
+@_safe_read
+def gmail_intake():
+    """Backfill ~30 days of Gmail from every connected Gmail account into evidence.
+
+    Read-only Gmail; builds a refresh-capable OAuth client from the owner's
+    env-configured Google client so each stored account token can be refreshed
+    on 401. Returns a per-account + total summary of stored mail evidence.
+    """
+    from meridian.evidence import EvidenceRepository
+    from meridian.gmail_intake import ingest_all_gmail_accounts
+
+    graph = _repository()
+
+    def _token_client():
+        from meridian.connectors.google_auth import (
+            GoogleOAuth2Client,
+            GoogleOAuthConfig,
+        )
+
+        return GoogleOAuth2Client(GoogleOAuthConfig.from_env(), scopes=("email",))
+
+    summary = ingest_all_gmail_accounts(
+        db_path=graph.db_path,
+        evidence_repo=EvidenceRepository(graph.db_path),
+        token_client=_token_client(),
+        max_messages_per_account=50,
+        since_days=30,
+    )
     return jsonify({"state": "ingested", "summary": summary})
 
 

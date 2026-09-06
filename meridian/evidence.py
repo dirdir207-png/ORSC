@@ -26,6 +26,7 @@ class EvidenceItem:
     content_deleted_at: str | None
     created_at: str
     updated_at: str
+    sender: str | None = None
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ class EvidenceRepository:
         size_bytes: int,
         expires_at: str | None = None,
         title: str | None = None,
+        sender: str | None = None,
     ) -> EvidenceItem:
         if not source_kind or not source_id or not mime_type:
             raise ValueError("source_kind, source_id, and mime_type are required")
@@ -70,10 +72,10 @@ class EvidenceRepository:
             connection.execute(
                 """INSERT INTO evidence_items(
                        source_kind, source_id, content_hash, mime_type, size_bytes,
-                       title, expires_at, created_at, updated_at
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       title, sender, expires_at, created_at, updated_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(source_kind, source_id, content_hash) DO UPDATE SET
-                       title=excluded.title, expires_at=excluded.expires_at,
+                       title=excluded.title, sender=excluded.sender, expires_at=excluded.expires_at,
                        updated_at=excluded.updated_at""",
                 (
                     source_kind,
@@ -82,6 +84,7 @@ class EvidenceRepository:
                     mime_type,
                     size_bytes,
                     title,
+                    sender,
                     expires_at,
                     timestamp,
                     timestamp,

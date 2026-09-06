@@ -47,13 +47,28 @@ def _biller_status(commitment, *, last_paid=None) -> str:
     return bill_status_for(commitment, last_paid_amount=last_paid)
 
 
+def _sender_host(sender: str | None) -> str:
+    """Extract the sender's domain host (e.g. 'customer.verizon.com').
+
+    Handles 'Name <addr@host>' display-name form and a bare 'addr@host'.
+    """
+    if not sender:
+        return ""
+    raw = (sender or "").strip()
+    if "<" in raw and ">" in raw:
+        raw = raw[raw.find("<") + 1 : raw.find(">")]
+    raw = raw.split("@")[-1] if "@" in raw else raw
+    return raw.lower().strip()
+
+
 def _bill_invoice_evidence(evidence_repository, bill_name: str, limit: int = 4) -> list[dict]:
     """Find mail evidence that looks like an invoice for a bill (e.g. "Verizon").
 
-    Matches biller-name tokens against the email subject, so a Verizon invoice
-    subject ("Your Verizon bill is ready") surfaces as clickable invoice evidence
-    on the Verizon bill card. Not a guaranteed match — it is a subject heuristic,
-    and the UI shows it only when a real email is found.
+    Matches by sender domain (extracted email host) first, then by biller-name
+    tokens in the subject. Sender-domain matches that also read as a bill/statement
+    ("bill", "statement", "invoice", "payment") rank first; plain marketing from
+    the same domain still surfaces but lower. Returns invoice evidence with a
+    ``sender``; the UI shows it only when a real email is found.
     """
     if evidence_repository is None or not bill_name:
         return []
@@ -72,25 +87,51 @@ def _bill_invoice_evidence(evidence_repository, bill_name: str, limit: int = 4) 
     }
     if not bill_tokens:
         return []
+    bill_keywords = {"bill", "statement", "invoice", "payment", "autopay", "receipt"}
     matches = []
+    seen_ids = set()
     for item in items:
+        sender_host = _sender_host(item.sender)
         title = (item.title or "").lower()
-        if not title:
-            continue
+        host_tokens = (
+            {t for t in "".join(c if c.isalnum() else " " for c in sender_host).split() if t}
+            if sender_host
+            else set()
+        )
+        # Domain match: a biller token equals a host label (e.g. verizon, xfinity).
+        sender_match = bool(host_tokens & bill_tokens)
         title_tokens = {
             t
             for t in "".join(c if c.isalnum() else " " for c in title).split()
             if t and t not in _BILLER_STOPWORDS
         }
-        if bill_tokens & title_tokens:
-            matches.append(
-                {
-                    "id": item.id,
-                    "title": item.title or "Invoice",
-                    "mime_type": item.mime_type,
-                    "content_url": f"/api/meridian/evidence/{item.id}/content",
-                }
-            )
+        title_match = bool(bill_tokens & title_tokens)
+        if not (sender_match or title_match):
+            continue
+        if item.id in seen_ids:
+            continue
+        seen_ids.add(item.id)
+        # Bill-keyword detection uses the raw subject (uncensored by stopwords),
+        # so "Your Verizon bill is ready" counts as a bill even though "bill" is
+        # a stopword for token matching.
+        raw_title_tokens = {
+            t
+            for t in "".join(c if c.isalnum() else " " for c in title).split()
+            if t
+        }
+        is_bill_word = bool(bill_keywords & raw_title_tokens)
+        matches.append(
+            {
+                "id": item.id,
+                "title": item.title or "Invoice",
+                "sender": item.sender,
+                "mime_type": item.mime_type,
+                "content_url": f"/api/meridian/evidence/{item.id}/content",
+                "is_bill": is_bill_word,
+            }
+        )
+    # Bill/statement emails first, then the rest; stable by id within a group.
+    matches.sort(key=lambda m: (not m["is_bill"], m["id"]))
     return matches[:limit]
 
 

@@ -43,6 +43,7 @@ class IntakeRecord:
     blob: bytes
     mime_type: str
     title: str | None = None
+    sender: str | None = None  # mail sender address (for biller matching)
     max_bytes: int = 8 * 1024 * 1024
 
     @property
@@ -88,6 +89,7 @@ def ingest_record(
         size_bytes=len(record.blob),
         expires_at=None,
         title=record.title or doc.document_type,
+        sender=record.sender,
     )
     facts = [
         {

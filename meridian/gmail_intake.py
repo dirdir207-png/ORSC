@@ -61,6 +61,7 @@ def ingest_gmail_recent(
             blob=msg.body_text.encode("utf-8"),
             mime_type="text/plain",
             title=f"{msg.subject or 'Gmail message'}",
+            sender=msg.sender or None,
         )
         try:
             result = ingest_record(record, evidence_repo=evidence_repo)
@@ -233,6 +234,7 @@ def ingest_icloud_recent(
             blob=msg.body_text.encode("utf-8"),
             mime_type="text/plain",
             title=f"{msg.subject or 'iCloud Mail message'}",
+            sender=msg.sender or None,
         )
         try:
             result = ingest_record(record, evidence_repo=evidence_repo)

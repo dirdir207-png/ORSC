@@ -22,6 +22,7 @@ _LATER_MIGRATIONS = [
     "012_context_signals.sql",
     "013_assets_contracts.sql",
     "014_connection_authorizations.sql",
+    "015_evidence_sender.sql",
 ]
 
 
@@ -127,6 +128,7 @@ def test_migrations_are_idempotent_and_preserve_legacy_rows(tmp_path):
         ("012", "012_context_signals.sql"),
         ("013", "013_assets_contracts.sql"),
         ("014", "014_connection_authorizations.sql"),
+        ("015", "015_evidence_sender.sql"),
     ]
     assert legacy_row == ("2026-08-26", 1234.56)
     assert {

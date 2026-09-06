@@ -92,7 +92,7 @@ def test_next_occurrence_rolls_past_recurring_anchor_forward():
 
 
 def test_bill_invoice_evidence_matches_by_biller_name(tmp_path):
-    """Mail evidence whose subject names the biller surfaces as invoice evidence."""
+    """Mail evidence from the biller's domain (or naming the biller) surfaces."""
     import hashlib
 
     from meridian.evidence import EvidenceRepository
@@ -101,21 +101,31 @@ def test_bill_invoice_evidence_matches_by_biller_name(tmp_path):
     blake = hashlib.sha256
     evidence.add_item(
         source_kind="mail", source_id="<vz1>",
-        content_hash=blake(b"Your Verizon bill is ready").hexdigest(),
-        mime_type="text/plain", size_bytes=24, title="Your Verizon bill is ready",
+        content_hash=blake(b"Verizon bill").hexdigest(),
+        mime_type="text/plain", size_bytes=12,
+        title="Your Verizon bill is ready", sender="Verizon <no-reply@customer.verizon.com>",
     )
     evidence.add_item(
         source_kind="mail", source_id="<vz2>",
-        content_hash=blake(b"Your payment was received").hexdigest(),
-        mime_type="text/plain", size_bytes=31, title="Your payment was received",
+        content_hash=blake(b"Verizon promo").hexdigest(),
+        mime_type="text/plain", size_bytes=11,
+        title="Stephen, make myPlan all about you", sender="Verizon <no-reply@customer.verizon.com>",
+    )
+    evidence.add_item(
+        source_kind="mail", source_id="<rent>",
+        content_hash=blake(b"Rent-A-Center promo").hexdigest(),
+        mime_type="text/plain", size_bytes=15,
+        title="Your Ultimate Tech Setup Is Here!", sender="Rent-A-Center <messages@e.rentacenter.com>",
     )
 
     rows = _bill_invoice_evidence(evidence, "Verizon", limit=4)
-    assert len(rows) == 1
+    assert len(rows) == 2
+    # The bill/statement email ranks first; the marketing email follows.
     assert rows[0]["title"] == "Your Verizon bill is ready"
-    assert rows[0]["content_url"].endswith(f"/evidence/{rows[0]['id']}/content")
-    # A generic 'payment' subject (no biller token) must NOT match any bill.
-    assert _bill_invoice_evidence(evidence, "Comcast", limit=4) == []
+    assert rows[0]["is_bill"] is True
+    assert rows[1]["is_bill"] is False
+    # Rent-A-Center's host (e.rentacenter.com) must not match the "Rent" bill.
+    assert _bill_invoice_evidence(evidence, "Rent", limit=4) == []
     assert _bill_invoice_evidence(evidence, "Xfinity", limit=4) == []
 
 
