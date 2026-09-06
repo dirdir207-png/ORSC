@@ -65,28 +65,74 @@ function buildRow(transaction) {
 
   row.append(left, category, amount);
   if (state.mode === "review") {
-    const confidence = document.createElement("span");
-    confidence.className = "m-chip";
-    confidence.dataset.confidenceLabel = "";
-    confidence.textContent = `${Math.round((transaction.classification?.confidence || 0) * 100)}% confidence`;
-    const select = document.createElement("input");
-    select.type = "checkbox";
-    select.dataset.reviewSelect = "";
-    select.setAttribute("aria-label", `Select ${title.textContent} for batch review`);
+    // Card layout: name + amount on top, merchant·date·account line, an orange
+    // attention dot + category/confidence line, then two pill actions.
+    row.classList.add("m-review-card");
+    row.removeAttribute("role");
+    row.removeAttribute("tabindex");
+
+    // Merchant · date · account sub-line.
+    const date = dayLabel(transaction.occurred_at);
+    const account = transaction.accountName || "";
+    const meta = document.createElement("div");
+    meta.className = "m-review-meta";
+    meta.textContent = [
+      transaction.merchant || transaction.description || "Transaction",
+      date,
+      account,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    // Category / confidence with an orange attention dot.
+    const cat = document.createElement("div");
+    cat.className = "m-review-category";
+    const dot = document.createElement("span");
+    dot.className = "m-review-dot";
+    const confidence = transaction.classification?.confidence || 0;
+    const hasCategory = !!transaction.classification?.category;
+    const catLabel = hasCategory
+      ? transaction.classification.category
+      : "No category suggested yet";
+    const catText = document.createElement("span");
+    catText.dataset.confidenceLabel = "";
+    catText.textContent = `${catLabel} · ${Math.round(confidence * 100)}% confidence`;
+    cat.append(dot, catText);
+
+    const actions = document.createElement("div");
+    actions.className = "m-review-actions";
     const approve = document.createElement("button");
     approve.type = "button";
-    approve.className = "m-button";
+    approve.className = "m-button m-review-approve";
     approve.dataset.reviewApprove = "";
-    approve.textContent = "Approve";
+    approve.textContent = hasCategory ? "Approve category" : "Needs category";
     const correct = document.createElement("button");
     correct.type = "button";
-    correct.className = "m-button";
+    correct.className = "m-button m-button--quiet m-review-correct";
     correct.dataset.reviewCorrect = "";
-    correct.textContent = "Correct";
-    const actions = document.createElement("span");
-    actions.className = "m-row-review-actions";
-    actions.append(confidence, select, approve, correct);
-    row.append(actions);
+    correct.textContent = hasCategory ? "Correct" : "Choose category";
+    actions.append(approve, correct);
+
+    // Wrap the header (name + amount) for the card's top line.
+    const header = document.createElement("div");
+    header.className = "m-review-header";
+    const select = document.createElement("label");
+    select.className = "m-review-select";
+    select.setAttribute("aria-label", `Review ${transaction.merchant || "transaction"}`);
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.dataset.reviewSelect = "";
+    select.appendChild(check);
+    const name = document.createElement("span");
+    name.className = "m-review-name";
+    name.textContent = transaction.merchant || transaction.description || `Transaction ${transaction.id}`;
+    const amountEl = document.createElement("span");
+    amountEl.className = `m-review-amount ${transaction.amount < 0 ? "is-spend" : "is-income"}`;
+    amountEl.textContent = signedAmount(transaction.amount, transaction.currency);
+    header.append(name, select, amountEl);
+    name.classList.add("m-review-grow");
+
+    row.replaceChildren(header, meta, cat, actions);
   }
   return row;
 }

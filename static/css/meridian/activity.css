@@ -290,6 +290,120 @@
   gap: var(--m-space-2);
 }
 
+/* ---------- Review cards (decision-first) ---------- */
+
+.m-review-card {
+  display: grid;
+  gap: var(--m-space-3);
+  width: 100%;
+  padding: var(--m-space-5);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  cursor: default;
+}
+
+.m-review-card:hover {
+  background: var(--m-surface);
+}
+
+.m-review-card + .m-review-card {
+  margin-top: var(--m-space-4);
+}
+
+.m-review-header {
+  display: flex;
+  align-items: center;
+  gap: var(--m-space-3);
+}
+
+.m-review-name {
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-lg);
+  font-weight: 600;
+  color: var(--m-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-review-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.m-review-select {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--m-ink-muted);
+  font-size: var(--m-text-xs);
+}
+
+.m-review-amount {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.m-review-amount.is-income {
+  color: var(--m-healthy);
+}
+
+.m-review-amount.is-spend {
+  color: var(--m-risk);
+}
+
+.m-review-meta {
+  font-size: var(--m-text-sm);
+  color: var(--m-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-review-category {
+  display: flex;
+  align-items: center;
+  gap: var(--m-space-2);
+  font-size: var(--m-text-md);
+  color: var(--m-ink);
+}
+
+.m-review-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--m-caution);
+}
+
+.m-review-actions {
+  display: flex;
+  gap: var(--m-space-3);
+  flex-wrap: wrap;
+  margin-top: var(--m-space-1);
+}
+
+.m-review-approve {
+  background: var(--m-healthy);
+  border-color: var(--m-healthy);
+  color: var(--m-surface);
+}
+
+.m-review-approve:hover {
+  background: color-mix(in srgb, var(--m-healthy) 88%, var(--m-ink));
+  border-color: transparent;
+}
+
+.m-review-correct {
+  border-color: var(--m-border-strong);
+  color: var(--m-ink);
+}
+
 .m-load-more {
   width: 100%;
   margin-top: var(--m-space-4);
