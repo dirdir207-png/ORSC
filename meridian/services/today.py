@@ -114,6 +114,40 @@ def _currency_total(values: Sequence[tuple[str, float]]) -> dict[str, object]:
     return {"amount": None, "currency": None, "by_currency": ordered}
 
 
+def _spend_source_account(accounts):
+    """The discretionary spend source: Crew's 'Free to Spend' pocket.
+
+    Crew separates the primary holding 'Checking' pocket from the discretionary
+    'Free to Spend' pocket. Safe-to-spend should reflect the money actually
+    available to spend, which is that Free to Spend pocket's available
+    (cleared) balance. Falls back to the first active account named like a
+    spend/free pocket when the exact name is absent.
+    """
+    def _is_spend(account) -> bool:
+        name = (getattr(account, "name", "") or "").strip().casefold()
+        return "free to spend" in name or name == "free to spend"
+
+    for account in accounts:
+        if _is_spend(account):
+            return account
+    return None
+
+
+def _unfunded_bill_total(commitment_repository):
+    """Sum of unfunded amounts on active bills (known obligations to track)."""
+    if commitment_repository is None:
+        return None
+    total = 0.0
+    for commitment in commitment_repository.list_active():
+        if commitment.type != CommitmentType.BILL:
+            continue
+        amount = commitment.amount if commitment.amount is not None else commitment.target_amount
+        if amount is None:
+            continue
+        total += max(0.0, amount - (commitment.funded_amount or 0.0))
+    return round(total, 2)
+
+
 def build_today(
     repository: FinancialRepository,
     commitment_repository=None,
@@ -166,15 +200,35 @@ def build_today(
     breakdown = _commitment_breakdown(commitment_repository) if commitment_repository else None
     setup = _setup_summary(breakdown, rules_configured=rule_repository is not None)
     next_run = _next_run_hint(rule_repository, as_of=None)
+
+    # Safe-to-spend is the discretionary money available to spend now. Crew
+    # tracks this as the "Free to Spend" pocket; use its available (cleared)
+    # balance directly so safe-to-spend matches Free to Spend. (Crew has
+    # already separated bill/obligation money into other pockets, so no further
+    # subtraction.) Otherwise fall back to cash-type available balances.
+    spend_source = _spend_source_account(accounts)
+    if spend_source is not None and spend_source.available_balance is not None:
+        safe_amount = _currency_total(
+            [(spend_source.currency, spend_source.available_balance)]
+        )["by_currency"].get(spend_source.currency, 0.0)
+        known_obligations = None
+        safe_status = "available"
+    else:
+        safe_amount = available_cash["by_currency"].get("USD", 0.0)
+        known_obligations = (
+            _unfunded_bill_total(commitment_repository) if commitment_repository else None
+        )
+        safe_status = "available" if available_cash["by_currency"].get("USD") else "unavailable"
+
     return {
         "total_cash": total_cash,
         "safe_to_spend": {
-            "amount": None,
-            "status": "unavailable",
+            "amount": safe_amount,
+            "status": safe_status,
             "inputs": {
                 "available_cash": available_cash,
-                "known_obligations": None,
-                "reason": "Commitments are not yet available in the normalized graph.",
+                "known_obligations": known_obligations,
+                "reason": None,
             },
         },
         "upcoming_events": [],

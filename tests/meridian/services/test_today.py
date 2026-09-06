@@ -76,8 +76,8 @@ def test_today_reports_cash_inputs_and_stale_graph_without_a_forecast(repository
         "by_currency": {"USD": 400.0},
     }
     assert result["safe_to_spend"] == {
-        "amount": None,
-        "status": "unavailable",
+        "amount": 380.0,
+        "status": "available",
         "inputs": {
             "available_cash": {
                 "amount": 380.0,
@@ -85,7 +85,7 @@ def test_today_reports_cash_inputs_and_stale_graph_without_a_forecast(repository
                 "by_currency": {"USD": 380.0},
             },
             "known_obligations": None,
-            "reason": "Commitments are not yet available in the normalized graph.",
+            "reason": None,
         },
     }
     assert result["upcoming_events"] == []
@@ -338,3 +338,43 @@ def test_breakdown_reports_bills_and_goals(tmp_path):
     assert breakdown["bills"][0]["name"] == "Rent"
     assert result["setup"]["state"] in ("ready", "in_progress")
     assert result["next_run"] is not None
+
+
+def test_today_safe_to_spend_matches_free_to_spend_pocket(repository):
+    """Safe-to-spend should reflect the 'Free to Spend' pocket's available
+    (cleared) balance, not the primary holding Checking pocket."""
+    run = repository.begin_sync_run(
+        provider="crew",
+        connection_external_id="crew-household",
+        connection_name="Crew",
+    )
+    # Primary holding Checking: $0 available.
+    repository.upsert_account(
+        provider="crew",
+        external_id="acct-checking",
+        name="Checking",
+        account_type="checking",
+        balance=500.0,
+        available_balance=0.0,
+        connection_id=run.connection_id,
+        source_updated_at="2026-09-06T08:00:00Z",
+    )
+    # Discretionary 'Free to Spend' pocket: $71.61 cleared/available.
+    repository.upsert_account(
+        provider="crew",
+        external_id="acct-free-to-spend",
+        name="Free to Spend",
+        account_type="pocket",
+        balance=71.61,
+        available_balance=71.61,
+        connection_id=run.connection_id,
+        source_updated_at="2026-09-06T08:00:00Z",
+    )
+    repository.finish_sync_run(
+        run.id, status="complete", accounts_synced=2, transactions_synced=0, errors=0
+    )
+
+    result = build_today(repository, now=datetime.now(timezone.utc))
+
+    assert result["safe_to_spend"]["status"] == "available"
+    assert result["safe_to_spend"]["amount"] == 71.61
