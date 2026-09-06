@@ -115,6 +115,22 @@ class EvidenceRepository:
             ).fetchone()
         return EvidenceItem(**dict(row)) if row is not None else None
 
+    def list_items(self, *, source_kind: str | None = None, limit: int = 200) -> list[EvidenceItem]:
+        """List recent live evidence items, optionally filtered by source_kind."""
+        sql = (
+            "SELECT * FROM evidence_items "
+            "WHERE revoked_at IS NULL AND content_deleted_at IS NULL"
+        )
+        params: list = []
+        if source_kind:
+            sql += " AND source_kind=?"
+            params.append(source_kind)
+        sql += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(sql, params).fetchall()
+        return [EvidenceItem(**dict(row)) for row in rows]
+
     def add_link(
         self,
         *,

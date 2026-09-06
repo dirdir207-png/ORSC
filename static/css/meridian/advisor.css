@@ -95,36 +95,37 @@ body:has(#advisor-panel[data-open]) #advisor-fab.m-advisor-trigger {
 
 #advisor-panel.m-advisor {
   position: fixed;
-  top: max(1.5rem, env(safe-area-inset-top));
-  right: max(1.5rem, env(safe-area-inset-right));
-  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: auto;
   z-index: 60;
   /* Visibility is driven by [data-open] (set/removed by the shell sheet
      primitive and the fallback open/close path) so it is correct on both the
      Meridian shell and the legacy app, independent of any [hidden] rule. */
   display: none;
   flex-direction: column;
-  /* Cropped window: a manageable card, not a full-height tower. */
-  width: min(22rem, 26vw);
+  /* A compact card, not a tower: small footprint, minimal chrome. */
+  width: min(18rem, 24vw);
   max-width: 100vw;
-  max-height: calc(100svh - 3rem);
-  border-radius: 14px;
+  max-height: min(60svh, 30rem);
+  border-radius: 12px;
   background: var(--m-surface, #fff);
   border: 1px solid var(--m-border, #e3ded4);
-  box-shadow: var(--m-elevation-3, 0 8px 28px rgba(0, 0, 0, 0.14));
-  padding: var(--m-space-5, 24px);
-  gap: var(--m-space-4, 16px);
+  box-shadow: var(--m-elevation-2, 0 4px 16px rgba(0, 0, 0, 0.12));
+  padding: var(--m-space-3, 12px);
+  gap: var(--m-space-2, 8px);
   overflow: hidden;
 }
 
-/* On mobile the panel is a near-full-width sheet (not a 26vw sliver) but still
-   capped so it does not dominate the whole viewport. */
+/* On mobile the panel is a compact centered sheet (not a full-height tower). */
 @media (max-width: 900px) {
   #advisor-panel.m-advisor {
     left: max(0.75rem, env(safe-area-inset-left));
     right: max(0.75rem, env(safe-area-inset-right));
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    bottom: auto;
+    top: max(0.75rem, env(safe-area-inset-top));
     width: auto;
+    max-height: min(70svh, 28rem);
   }
 }
 
@@ -157,7 +158,7 @@ body:has(#advisor-panel[data-open]) #advisor-fab.m-advisor-trigger {
   margin: 0;
   font-family: var(--m-font-serif, Georgia, serif);
   font-weight: 500;
-  font-size: var(--m-text-xl, 1.5rem);
+  font-size: var(--m-text-md, 0.9375rem);
   letter-spacing: -0.01em;
   color: var(--m-ink, #201d18);
 }
@@ -188,10 +189,10 @@ body:has(#advisor-panel[data-open]) #advisor-fab.m-advisor-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   border: 0;
   border-radius: var(--m-radius-md, 10px);
   background: transparent;

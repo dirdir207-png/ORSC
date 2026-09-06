@@ -12,6 +12,28 @@ from meridian.funding_repo import FundingRuleRepository
 _HORIZON_DAYS = 30
 _ZERO = Decimal("0")
 
+# Generic words that can appear in a bill name or an email subject but should
+# not alone match an invoice (e.g. "payment", "bill", "your"). The invoice
+# matcher requires a biller-specific token, not these.
+_BILLER_STOPWORDS = {
+    "payment",
+    "payments",
+    "bill",
+    "bills",
+    "invoice",
+    "your",
+    "the",
+    "for",
+    "and",
+    "account",
+    "arrangement",
+    "plan",
+    "monthly",
+    "due",
+    "auto",
+    "autopay",
+}
+
 
 def _money(value) -> Decimal:
     return Decimal(str(value)) if value is not None else _ZERO
@@ -23,6 +45,53 @@ def _biller_status(commitment, *, last_paid=None) -> str:
     from meridian.billers import bill_status_for
 
     return bill_status_for(commitment, last_paid_amount=last_paid)
+
+
+def _bill_invoice_evidence(evidence_repository, bill_name: str, limit: int = 4) -> list[dict]:
+    """Find mail evidence that looks like an invoice for a bill (e.g. "Verizon").
+
+    Matches biller-name tokens against the email subject, so a Verizon invoice
+    subject ("Your Verizon bill is ready") surfaces as clickable invoice evidence
+    on the Verizon bill card. Not a guaranteed match — it is a subject heuristic,
+    and the UI shows it only when a real email is found.
+    """
+    if evidence_repository is None or not bill_name:
+        return []
+    try:
+        from meridian.evidence import EvidenceRepository
+
+        if not isinstance(evidence_repository, EvidenceRepository):
+            return []
+        items = evidence_repository.list_items(source_kind="mail", limit=400)
+    except Exception:  # noqa: BLE001 - evidence lookup is best-effort
+        return []
+    bill_tokens = {
+        t
+        for t in "".join(c.lower() if c.isalnum() else " " for c in bill_name).split()
+        if t and t not in _BILLER_STOPWORDS
+    }
+    if not bill_tokens:
+        return []
+    matches = []
+    for item in items:
+        title = (item.title or "").lower()
+        if not title:
+            continue
+        title_tokens = {
+            t
+            for t in "".join(c if c.isalnum() else " " for c in title).split()
+            if t and t not in _BILLER_STOPWORDS
+        }
+        if bill_tokens & title_tokens:
+            matches.append(
+                {
+                    "id": item.id,
+                    "title": item.title or "Invoice",
+                    "mime_type": item.mime_type,
+                    "content_url": f"/api/meridian/evidence/{item.id}/content",
+                }
+            )
+    return matches[:limit]
 
 
 def _project_commitment(commitment, rules, cash_events, as_of: date):
@@ -64,6 +133,7 @@ def build_plan(
     cash_events: Optional[Sequence[tuple[date, Decimal]]] = None,
     last_paid_by_id: Optional[dict[int, Optional[float]]] = None,
     paycheck=None,
+    evidence_repository=None,
 ) -> dict:
     """Compose the canonical Plan view model from local planning data.
 
@@ -174,6 +244,13 @@ def build_plan(
                 "biller_status": _biller_status(
                     commitment,
                     last_paid=(last_paid_by_id or {}).get(commitment.id),
+                ),
+                # Clickable invoice evidence pulled from mail (e.g. a Verizon
+                # bill email) so the card surfaces the source, when it exists.
+                "invoice_evidence": (
+                    _bill_invoice_evidence(evidence_repository, commitment.name)
+                    if commitment_type == "bill"
+                    else []
                 ),
             }
         )

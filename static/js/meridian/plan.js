@@ -336,6 +336,22 @@ function renderCommitments(root, plan, template) {
       nameCell.append(progress);
     }
 
+    // Clickable invoice evidence pulled from mail (e.g. a Verizon bill email),
+    // shown on the card when a real matching email exists.
+    const invoices = commitment.invoice_evidence || [];
+    for (const invoice of invoices) {
+      const inv = document.createElement("button");
+      inv.type = "button";
+      inv.className = "m-invoice-link";
+      inv.dataset.invoiceId = String(invoice.id);
+      inv.textContent = `Invoice · ${invoice.title || "view email"}`;
+      inv.addEventListener("click", (event) => {
+        event.stopPropagation();
+        window.open(invoice.content_url, "_blank", "noopener");
+      });
+      nameCell.appendChild(inv);
+    }
+
     const fundedCell = document.createElement("div");
     fundedCell.className = "m-plan-table-cell m-plan-cell-funded";
     fundedCell.setAttribute("role", "cell");

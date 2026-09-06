@@ -167,6 +167,49 @@
   margin: 0 0 var(--m-space-2);
 }
 
+/* Pattern evidence: human, clickable rows (merchant · date · amount) that open
+   the transaction inspector rather than a bare numeric id. */
+.m-pattern-evidence {
+  display: grid;
+  gap: var(--m-space-1);
+  margin-bottom: var(--m-space-2);
+}
+
+.m-pattern-evidence-label {
+  margin: 0 0 var(--m-space-1);
+  font-size: var(--m-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--m-ink-faint);
+}
+
+.m-pattern-evidence-link {
+  display: block;
+  width: 100%;
+  padding: var(--m-space-2) var(--m-space-3);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-md);
+  background: var(--m-surface);
+  color: var(--m-ink);
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--m-motion-fast) var(--m-ease-out),
+    background var(--m-motion-fast) var(--m-ease-out);
+}
+
+.m-pattern-evidence-link:hover,
+.m-pattern-evidence-link:focus-visible {
+  border-color: var(--m-border-strong);
+  background: var(--m-surface-muted);
+}
+
+.m-pattern-evidence-link:focus-visible {
+  outline: none;
+  box-shadow: var(--m-focus-ring);
+}
+
 .m-transaction-row {
   display: flex;
   align-items: center;

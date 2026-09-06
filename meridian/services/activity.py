@@ -70,6 +70,24 @@ def get_patterns(repository: FinancialRepository) -> list[dict[str, object]]:
     for transaction in transactions:
         key = (transaction.merchant or transaction.description).strip().casefold()
         by_merchant.setdefault(key, []).append(transaction)
+
+    def _evidence(ordered: list[TransactionRecord]) -> list[dict[str, str]]:
+        # Human, clickable evidence rows instead of raw transaction ids: each
+        # carries a merchant label, a date, and the amount so the UI can surface
+        # "Verizon, Sep 02 · -$75.20" rather than a bare "40".
+        rows = []
+        for item in ordered[-3:]:
+            label = (item.merchant or item.description or "Transaction").strip()
+            rows.append(
+                {
+                    "id": str(item.id),
+                    "title": label,
+                    "date": item.occurred_at[:10] if item.occurred_at else "",
+                    "amount": str(item.amount or ""),
+                }
+            )
+        return rows
+
     patterns = []
     for merchant, items in sorted(by_merchant.items()):
         ordered = sorted(items, key=lambda item: item.occurred_at)
@@ -81,7 +99,7 @@ def get_patterns(repository: FinancialRepository) -> list[dict[str, object]]:
                     {
                         "kind": "recurrence",
                         "title": f"Monthly pattern: {ordered[-1].merchant or ordered[-1].description}",
-                        "evidence_ids": [item.id for item in ordered[-3:]],
+                        "evidence": _evidence(ordered),
                     }
                 )
             categories = {item.classification_category for item in ordered if item.classification_category}
@@ -90,7 +108,7 @@ def get_patterns(repository: FinancialRepository) -> list[dict[str, object]]:
                     {
                         "kind": "category_shift",
                         "title": f"Category changed for {merchant}",
-                        "evidence_ids": [item.id for item in ordered[-3:]],
+                        "evidence": _evidence(ordered),
                     }
                 )
             previous_average = sum(abs(item.amount) for item in ordered[:-1]) / (len(ordered) - 1)
@@ -99,7 +117,7 @@ def get_patterns(repository: FinancialRepository) -> list[dict[str, object]]:
                     {
                         "kind": "merchant_trend",
                         "title": f"Spending increased at {merchant}",
-                        "evidence_ids": [item.id for item in ordered[-3:]],
+                        "evidence": _evidence(ordered),
                     }
                 )
     if len(transactions) >= 6:
@@ -112,7 +130,7 @@ def get_patterns(repository: FinancialRepository) -> list[dict[str, object]]:
                 {
                     "kind": "cash_flow_change",
                     "title": "Recent cash flow changed",
-                    "evidence_ids": [item.id for item in ordered[-3:]],
+                    "evidence": _evidence(ordered),
                 }
             )
     return patterns

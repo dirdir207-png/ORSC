@@ -6,7 +6,7 @@ import pytest
 from meridian.commitments import CommitmentRepository, CommitmentType
 from meridian.funding_repo import FundingRuleRepository
 from meridian.repository import FinancialRepository
-from meridian.services.plan import _next_occurrence, build_plan
+from meridian.services.plan import _bill_invoice_evidence, _next_occurrence, build_plan
 
 
 @pytest.fixture
@@ -89,6 +89,34 @@ def test_next_occurrence_rolls_past_recurring_anchor_forward():
     # A future anchor is left alone; non-recurring bills are unchanged.
     assert _next_occurrence(date(2026, 10, 1), "monthly", date(2026, 9, 6)) == date(2026, 10, 1)
     assert _next_occurrence(date(2026, 1, 16), "one_time", date(2026, 9, 6)) == date(2026, 1, 16)
+
+
+def test_bill_invoice_evidence_matches_by_biller_name(tmp_path):
+    """Mail evidence whose subject names the biller surfaces as invoice evidence."""
+    import hashlib
+
+    from meridian.evidence import EvidenceRepository
+
+    evidence = EvidenceRepository(str(tmp_path / "evidence.db"))
+    blake = hashlib.sha256
+    evidence.add_item(
+        source_kind="mail", source_id="<vz1>",
+        content_hash=blake(b"Your Verizon bill is ready").hexdigest(),
+        mime_type="text/plain", size_bytes=24, title="Your Verizon bill is ready",
+    )
+    evidence.add_item(
+        source_kind="mail", source_id="<vz2>",
+        content_hash=blake(b"Your payment was received").hexdigest(),
+        mime_type="text/plain", size_bytes=31, title="Your payment was received",
+    )
+
+    rows = _bill_invoice_evidence(evidence, "Verizon", limit=4)
+    assert len(rows) == 1
+    assert rows[0]["title"] == "Your Verizon bill is ready"
+    assert rows[0]["content_url"].endswith(f"/evidence/{rows[0]['id']}/content")
+    # A generic 'payment' subject (no biller token) must NOT match any bill.
+    assert _bill_invoice_evidence(evidence, "Comcast", limit=4) == []
+    assert _bill_invoice_evidence(evidence, "Xfinity", limit=4) == []
 
 
 def test_plan_includes_backing_account_names_and_states(env):

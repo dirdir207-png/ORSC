@@ -182,7 +182,7 @@ def plan():
             "Use today's date or omit as_of.",
             400,
         )
-    return jsonify(build_plan(graph, commitments, rules, as_of=as_of, last_paid_by_id=_last_paid_by_id(graph, commitments), paycheck=_paycheck_config(graph)))
+    return jsonify(build_plan(graph, commitments, rules, as_of=as_of, last_paid_by_id=_last_paid_by_id(graph, commitments), paycheck=_paycheck_config(graph), evidence_repository=EvidenceRepository(graph.db_path)))
 
 
 def _paycheck_config(graph):

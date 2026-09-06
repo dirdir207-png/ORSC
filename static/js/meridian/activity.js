@@ -200,8 +200,29 @@ function renderPage(root, payload, { append }) {
       const heading = document.createElement("h2");
       heading.className = "m-day-heading";
       heading.textContent = pattern.title;
-      const evidence = document.createElement("p");
-      evidence.textContent = `Evidence: ${(pattern.evidence_ids || []).join(", ")}`;
+      const evidence = document.createElement("div");
+      evidence.className = "m-pattern-evidence";
+      const evidenceHeader = document.createElement("p");
+      evidenceHeader.className = "m-pattern-evidence-label";
+      evidenceHeader.textContent = "Evidence";
+      evidence.append(evidenceHeader);
+      for (const row of (pattern.evidence || [])) {
+        const link = document.createElement("button");
+        link.type = "button";
+        link.className = "m-pattern-evidence-link";
+        link.dataset.transactionId = row.id;
+        const amt = Number(row.amount);
+        const amountText = Number.isFinite(amt)
+          ? `${amt < 0 ? "−" : "+"}${formatCurrency(Math.abs(amt))}`
+          : "";
+        link.textContent = [row.date, row.title, amountText].filter(Boolean).join(" · ");
+        link.addEventListener("click", () => {
+          if (window.MeridianTransactionInspector) {
+            window.MeridianTransactionInspector.open(Number(row.id), { opener: link });
+          }
+        });
+        evidence.appendChild(link);
+      }
       card.append(heading, evidence);
       ledger.appendChild(card);
     }
