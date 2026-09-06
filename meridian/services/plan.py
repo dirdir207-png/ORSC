@@ -130,9 +130,13 @@ def _bill_invoice_evidence(evidence_repository, bill_name: str, limit: int = 4) 
                 "is_bill": is_bill_word,
             }
         )
-    # Bill/statement emails first, then the rest; stable by id within a group.
+    # Bill/statement emails first; stable by id within a group.
     matches.sort(key=lambda m: (not m["is_bill"], m["id"]))
-    return matches[:limit]
+    bills = [m for m in matches if m["is_bill"]]
+    # Prefer actual bill/statement emails. Only when NONE are found do we fall
+    # back to a single sender-domain item (never a stack of marketing promos).
+    selected = bills if bills else matches[:1]
+    return selected[:limit]
 
 
 def _project_commitment(commitment, rules, cash_events, as_of: date):

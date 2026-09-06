@@ -119,11 +119,11 @@ def test_bill_invoice_evidence_matches_by_biller_name(tmp_path):
     )
 
     rows = _bill_invoice_evidence(evidence, "Verizon", limit=4)
-    assert len(rows) == 2
-    # The bill/statement email ranks first; the marketing email follows.
+    # Only the real bill/statement email surfaces; the marketing email is dropped
+    # when a genuine bill exists.
+    assert len(rows) == 1
     assert rows[0]["title"] == "Your Verizon bill is ready"
     assert rows[0]["is_bill"] is True
-    assert rows[1]["is_bill"] is False
     # Rent-A-Center's host (e.rentacenter.com) must not match the "Rent" bill.
     assert _bill_invoice_evidence(evidence, "Rent", limit=4) == []
     assert _bill_invoice_evidence(evidence, "Xfinity", limit=4) == []
