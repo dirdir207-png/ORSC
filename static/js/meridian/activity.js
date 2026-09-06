@@ -91,9 +91,16 @@ function buildRow(transaction) {
     dot.className = "m-review-dot";
     const confidence = transaction.classification?.confidence || 0;
     const hasCategory = !!transaction.classification?.category;
+    const suggested = transaction.suggested_category || "";
+    // Expose the smart guess to the inline editor via a data attribute.
+    if (suggested) {
+      row.dataset.suggestedCategory = suggested;
+    }
     const catLabel = hasCategory
       ? transaction.classification.category
-      : "No category suggested yet";
+      : suggested
+        ? `Suggested: ${suggested}`
+        : "No category suggested yet";
     const catText = document.createElement("span");
     catText.dataset.confidenceLabel = "";
     catText.textContent = `${catLabel} · ${Math.round(confidence * 100)}% confidence`;
@@ -105,7 +112,8 @@ function buildRow(transaction) {
     approve.type = "button";
     approve.className = "m-button m-review-approve";
     approve.dataset.reviewApprove = "";
-    approve.textContent = hasCategory ? "Approve category" : "Needs category";
+    approve.textContent =
+      hasCategory || suggested ? "Approve category" : "Needs category";
     const correct = document.createElement("button");
     correct.type = "button";
     correct.className = "m-button m-button--quiet m-review-correct";

@@ -697,6 +697,43 @@ class FinancialRepository:
         assert result is not None
         return result
 
+    def suggest_category(self, *, merchant: str | None, description: str | None = None) -> str | None:
+        """Smart category guess for a merchant, drawn from the data.
+
+        Prefers the most-frequent category already assigned to the same merchant
+        (a real signal of how the owner categorises it), then an assignment rule
+        that matches the merchant/description, then a "smart" keyword map. Returns
+        None when nothing looks confident, so the editor stays a free-typed field.
+        """
+        from collections import Counter
+
+        if not merchant and not description:
+            return None
+        merchant_key = (merchant or "").strip().casefold()
+        lower_merchant = merchant_key or None
+        with self._connect() as connection:
+            # 1) Most-common category across this merchant's classified rows.
+            if lower_merchant:
+                rows = connection.execute(
+                    "SELECT classification_category FROM financial_transactions "
+                    "WHERE lower(merchant) = ? AND classification_category IS NOT NULL "
+                    "AND classification_category != '' "
+                    "ORDER BY classification_confidence DESC, updated_at DESC",
+                    (lower_merchant,),
+                ).fetchall()
+                counts = Counter(r["classification_category"] for r in rows)
+                if counts:
+                    return counts.most_common(1)[0][0]
+            # 2) Assignment rule match (merchant or description pattern).
+            description_key = (description or "").strip().casefold() or None
+            for rule in self.list_assignment_rules():
+                pat = (rule.merchant_pattern or rule.description_pattern or "").strip().casefold()
+                if pat and ((lower_merchant and pat == lower_merchant) or (description_key and pat == description_key)):
+                    return rule.category
+        # 3) Keyword heuristic for recognizable merchants.
+        return _keyword_category_guess(merchant or description or "")
+
+
     def list_assignment_rules(self) -> list[StoredAssignmentRule]:
         with self._connect() as connection:
             rows = connection.execute(
@@ -963,3 +1000,23 @@ class FinancialRepository:
             values.setdefault(field, None)
         values.setdefault("classification_version", 0)
         return TransactionRecord(**values)
+
+
+def _keyword_category_guess(text: str) -> str | None:
+    """Heuristic category for obvious merchant keywords (best-effort)."""
+    t = (text or "").lower()
+    table = [
+        (("starbucks", "chipotle", "mcdonald", "dunkin", "wendy", "taco bell", "kfc", "restaurant", "cafe", "coffee", "grill", "pizza", "subway", "bistro"), "Dining"),
+        (("walmart", "target", "costco", "shop", "amazon", "best buy", "store", "mall", "ikea", "ebay"), "Shopping"),
+        (("shell", "chevron", "exxon", "bp ", "sunoco", "gas", "fuel"), "Gas"),
+        (("verizon", "att", "at&t", "tmobile", "t-mobile", "xfinity", "comcast", "spectrum", "internet", "phone"), "Utilities"),
+        (("netflix", "spotify", "hulu", "disney", "hbo", "paramount", "youtube", "google play", "app store", "apple", "steam"), "Entertainment"),
+        (("uber", "lyft", "transit", "metro", "airline", "delta", "united", "southwest", "amtrak"), "Transport"),
+        (("cvs", "walgreens", "pharmacy", "clinic", "doctor", "hospital", "dental"), "Health"),
+        (("rent", "landlord", "lease", "mortgage", "realty"), "Rent"),
+        (("gym", "fitness", "training", "equinox", "planet fitness"), "Health"),
+    ]
+    for keywords, category in table:
+        if any(k in t for k in keywords):
+            return category
+    return None

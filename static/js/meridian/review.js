@@ -74,7 +74,11 @@ function openInlineCategoryEditor(row, onSave) {
   input.setAttribute("aria-label", "Correct category");
   input.setAttribute("list", "meridian-category-suggestions");
   const category = row.dataset.classificationCategory || "";
-  input.value = category === "Uncategorized" ? "" : category;
+  // Prefill with the smart data-derived guess if there's no existing category.
+  input.value =
+    category && category !== "Uncategorized"
+      ? category
+      : (row.dataset.suggestedCategory || "");
   const datalist = document.createElement("datalist");
   datalist.id = "meridian-category-suggestions";
   for (const cat of SUGGESTED_CATEGORIES) {
@@ -140,7 +144,10 @@ document.addEventListener("click", async (event) => {
   const row = event.target.closest("[data-transaction-row]");
   if (event.target.closest("[data-review-approve]") && row) {
     event.stopPropagation();
-    const classification = row.dataset.classificationCategory || "Uncategorized";
+    const classification =
+      row.dataset.classificationCategory ||
+      row.dataset.suggestedCategory ||
+      "Uncategorized";
     await correct(row, classification, row.dataset.kind || "spend", false);
     return;
   }

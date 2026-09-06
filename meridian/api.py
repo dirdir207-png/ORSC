@@ -161,6 +161,20 @@ def _transaction_payload(transaction: TransactionRecord) -> dict[str, object]:
     }
 
 
+def _transaction_payload_with_suggestion(repository, transaction):
+    """Transaction payload plus a data-derived category suggestion (the "smart"
+    first guess for the Review editor)."""
+    payload = _transaction_payload(transaction)
+    if payload["classification"].get("category"):
+        payload["suggested_category"] = None
+    else:
+        payload["suggested_category"] = repository.suggest_category(
+            merchant=transaction.merchant,
+            description=transaction.description,
+        )
+    return payload
+
+
 def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
@@ -781,7 +795,8 @@ def activity():
         return jsonify(
             {
                 "transactions": [
-                    _transaction_payload(item) for item in get_review_queue(repository)
+                    _transaction_payload_with_suggestion(repository, item)
+                    for item in get_review_queue(repository)
                 ],
                 "next_cursor": None,
                 "data_freshness": data_freshness(
