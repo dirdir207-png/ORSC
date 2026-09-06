@@ -758,6 +758,109 @@ function openAutopilotRuleEditor() {
   window.MeridianShell.openSheet(sheet, { modal: true });
 }
 
+/* ---------- New commitment (approval-gated proposal) ---------- */
+
+function openNewCommitmentEditor() {
+  const root = document.querySelector("[data-plan-root]");
+  if (!root || typeof window.MeridianShell === "undefined") return;
+
+  const sheet = document.createElement("section");
+  sheet.className = "m-sheet m-funding-editor m-new-commitment-editor";
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-label", "New commitment");
+  sheet.hidden = true;
+  sheet.innerHTML = `
+    <form class="m-funding-editor" data-new-commitment-form>
+      <h3 class="m-editor-title">New commitment</h3>
+      <label class="m-field">
+        <span class="m-field-label">Type</span>
+        <select class="m-select" name="type">
+          <option value="bill">Bill</option>
+          <option value="goal">Goal</option>
+          <option value="reserve">Reserve</option>
+          <option value="buffer">Buffer</option>
+          <option value="debt">Debt</option>
+        </select>
+      </label>
+      <label class="m-field">
+        <span class="m-field-label">Name</span>
+        <input class="m-input" name="name" type="text" required maxlength="80" placeholder="e.g. New bill">
+      </label>
+      <label class="m-field">
+        <span class="m-field-label">Amount</span>
+        <input class="m-input" name="amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+      </label>
+      <label class="m-field">
+        <span class="m-field-label">Recurrence</span>
+        <select class="m-select" name="recurrence">
+          <option value="one_time">One-time</option>
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </label>
+      <p class="m-editor-preview">Creates a commitment proposal; approve to apply it.</p>
+      <div class="m-editor-actions">
+        <button type="submit" class="m-button">Propose commitment</button>
+        <button type="button" class="m-button m-button--quiet" data-new-commitment-cancel>Cancel</button>
+      </div>
+      <p class="m-editor-note" data-new-commitment-note hidden></p>
+    </form>
+  `;
+
+  const note = sheet.querySelector("[data-new-commitment-note]");
+  sheet.querySelector("[data-new-commitment-cancel]").addEventListener("click", () => {
+    if (window.MeridianShell.closeSheet) window.MeridianShell.closeSheet();
+  });
+  sheet.querySelector("form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const type = sheet.querySelector('select[name="type"]').value;
+    const name = sheet.querySelector('input[name="name"]').value.trim();
+    const amount = Number(sheet.querySelector('input[name="amount"]').value);
+    const recurrence = sheet.querySelector('select[name="recurrence"]').value;
+    note.hidden = true;
+    if (!name) {
+      note.hidden = false; note.dataset.state = "error";
+      note.textContent = "Enter a commitment name.";
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      note.hidden = false; note.dataset.state = "error";
+      note.textContent = "Enter a valid amount greater than zero.";
+      return;
+    }
+    try {
+      // Direct proposal POST (create_commitment is not on the browser allowlist,
+      // so use fetch to /api/actions/propose); approval-gated, never executes.
+      const response = await fetch("/api/actions/propose", {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "create_commitment",
+          params: { type, name, amount, currency: "USD", recurrence },
+          rationale: "New commitment from Plan",
+        }),
+      });
+      if (!response.ok) {
+        let message = "The commitment could not be proposed.";
+        try { const data = await response.json(); if (data?.error) message = data.error; } catch (_) {}
+        throw new MeridianApiError({ code: "proposal_rejected", message, recoveryAction: "Review the form and try again.", status: response.status });
+      }
+      note.hidden = false; note.dataset.state = "ok";
+      note.textContent = "Commitment proposed — approve it in Pending Actions.";
+      sheet.querySelector('[name="name"]') && (sheet.querySelector('[name="name"]').value = "");
+    } catch (error) {
+      note.hidden = false; note.dataset.state = "error";
+      note.textContent = error instanceof MeridianApiError
+        ? `${error.message} ${error.recoveryAction}`
+        : "The commitment could not be proposed.";
+    }
+  });
+
+  document.body.appendChild(sheet);
+  window.MeridianShell.openSheet(sheet, { modal: true });
+}
+
 /* ---------- Load + wiring ---------- */
 
 function indexRules(rules) {
@@ -847,8 +950,9 @@ document.addEventListener("meridian:workspacechange", (event) => {
 
 document.addEventListener("click", (event) => {
   const newButton = event.target.closest("[data-plan-new-commitment]");
-  if (newButton && typeof window.advisorSetOpen === "function") {
-    window.advisorSetOpen(true);
+  if (newButton) {
+    event.preventDefault();
+    openNewCommitmentEditor();
     return;
   }
   const ruleButton = event.target.closest("[data-plan-new-rule]");
