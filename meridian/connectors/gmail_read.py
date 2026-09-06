@@ -131,11 +131,18 @@ class GmailTransport:
         )
 
     def fetch_recent(self, *, max_results: int = 20, since: Optional[str] = None) -> list[GmailEvidence]:
-        """Fetch a bounded number of recent messages, optionally since a date."""
+        """Fetch a bounded number of recent messages, optionally since a date.
+
+        A single message fetch failing (e.g. a transient 403/rate-limit) must not
+        abort the whole batch — it is skipped so a busy backfill keeps progressing.
+        """
         results = []
         for meta in self.list_message_ids(max_results=max_results, since=since):
             message_id = str(meta.get("id") or "")
             if not message_id:
                 continue
-            results.append(self.fetch_message(message_id))
+            try:
+                results.append(self.fetch_message(message_id))
+            except Exception:  # noqa: BLE001 - one bad message must not stop the batch
+                continue
         return results
