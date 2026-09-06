@@ -22,16 +22,20 @@ def ingest_gmail_recent(
     transport: GmailTransport,
     evidence_repo: EvidenceRepository,
     max_messages: int = 20,
+    transactions=None,
 ) -> dict[str, object]:
     """Fetch recent Gmail messages and store each as evidence.
 
-    Returns a sanitized summary: counts stored/duplicate/quarantined/error,
-    plus the subject + source_id of each stored item (never the body).
+    When ``transactions`` is supplied, stored mail evidence is linked to a
+    matching transaction by amount (documented charge receipts). Returns a
+    sanitized summary: counts stored/duplicate/quarantined/error/linked, plus
+    the subject + source_id of each stored item (never the body).
     """
     stored: list[dict[str, str]] = []
     duplicate = 0
     quarantined = 0
     errors = 0
+    linked = 0
 
     messages: list[GmailEvidence] = transport.fetch_recent(max_results=max_messages)
     for msg in messages:
@@ -56,6 +60,15 @@ def ingest_gmail_recent(
         if result.duplicate:
             duplicate += 1
             continue
+        if transactions:
+            created = link_mail_evidence_to_transactions(
+                evidence_repo=evidence_repo,
+                transactions=transactions,
+                evidence_id=result.item_id,
+                subject=msg.subject or "",
+                body=msg.body_text,
+            )
+            linked += created
         stored.append(
             {
                 "id": str(result.item_id),
@@ -71,6 +84,7 @@ def ingest_gmail_recent(
         "duplicate": duplicate,
         "quarantined": quarantined,
         "errors": errors,
+        "linked": linked,
         "items": stored,
     }
 
@@ -119,3 +133,51 @@ def ingest_all_gmail_accounts(
         "total_fetched": total_fetched,
         "total_stored": total_stored,
     }
+
+
+def link_mail_evidence_to_transactions(
+    *,
+    evidence_repo,
+    transactions,
+    evidence_id: int,
+    subject: str,
+    body: str | None = None,
+    provenance: str = "gmail:amount-match",
+) -> int:
+    """Link a mail evidence item to a matching transaction by amount.
+
+    Best-effort: searches the subject (and optional body) for a dollar amount
+    and links the evidence to any transaction with the same amount. Returns the
+    number of links created. Read-only — never mutates a transaction, only adds
+    an evidence link so the store/receipt can be traced to the charge.
+    """
+    import re
+
+    text = f"{subject or ''} {body or ''}"
+    # Match $92.75 / $1,234.56 — capture the numeric part (no $, no sign).
+    amounts = [float(x.replace(",", "")) for x in re.findall(r"\$([\d,]+\.\d{2})", text)]
+    if not amounts:
+        return 0
+    # Compare on absolute amount: a charge is stored negative, a bill email
+    # states the positive amount.
+    targets = {abs(float(getattr(t, "amount", 0))) for t in transactions if getattr(t, "amount", None) is not None}
+    created = 0
+    seen = set()
+    for amount in amounts:
+        if amount in targets and amount not in seen:
+            seen.add(amount)
+            for tx in transactions:
+                if abs(float(getattr(tx, "amount", 0))) != amount:
+                    continue
+                try:
+                    evidence_repo.add_link(
+                        evidence_id=evidence_id,
+                        target_kind="transaction",
+                        target_id=str(getattr(tx, "id", "")),
+                        relation="documents",
+                        provenance=provenance,
+                    )
+                    created += 1
+                except Exception:  # noqa: BLE001 - a bad link must not stop intake
+                    continue
+    return created

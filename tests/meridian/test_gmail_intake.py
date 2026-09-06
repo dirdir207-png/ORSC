@@ -115,3 +115,56 @@ def test_ingest_all_gmail_accounts_iterates_each_token(tmp_path, monkeypatch):
     assert summary["total_stored"] == 2
     assert len(summary["accounts"]) == 2
     assert calls == ["at-a", "at-b"]  # stored token used; refresh fires only on 401
+
+
+def test_link_mail_evidence_matches_transaction_by_amount(tmp_path):
+    import sqlite3
+
+    from meridian.evidence import EvidenceRepository
+    from meridian.gmail_intake import link_mail_evidence_to_transactions
+
+    db = str(tmp_path / "link.db")
+    # A transaction with amount -92.75.
+    conn = sqlite3.connect(db)
+    conn.execute("""CREATE TABLE financial_transactions (
+        id INTEGER PRIMARY KEY, amount REAL, merchant TEXT, description TEXT,
+        account_id INTEGER, provider TEXT, external_id TEXT, currency TEXT,
+        occurred_at TEXT, posted_at TEXT, status TEXT, raw_description TEXT,
+        source_updated_at TEXT, classification_category TEXT, classification_kind TEXT,
+        classification_confidence REAL, classification_rule_id TEXT, classification_evidence TEXT,
+        classification_method TEXT, classification_provider TEXT, classification_model TEXT,
+        classification_version INTEGER, synced_at TEXT, created_at TEXT, updated_at TEXT,
+        occurred_at_valid INTEGER DEFAULT 1)""")
+    conn.execute("INSERT INTO financial_transactions(id, amount) VALUES (40, -92.75)")
+    conn.commit(); conn.close()
+
+    class Tx:
+        def __init__(self, id, amount): self.id = id; self.amount = amount
+
+    repo = EvidenceRepository(str(tmp_path / "ev.db"))
+    repo.add_item(source_kind="mail", source_id="m1", content_hash="a"*64, mime_type="text/plain", size_bytes=10, title="Urgent: $92.75 charged")
+
+    created = link_mail_evidence_to_transactions(
+        evidence_repo=repo, transactions=[Tx(40, -92.75)], evidence_id=1,
+        subject="Urgent: $92.75 charged but no order confirmation",
+    )
+
+    assert created == 1
+    assert len(repo.list_links_for_target("transaction", "40")) == 1
+
+
+def test_link_mail_evidence_no_match_returns_zero(tmp_path):
+    from meridian.evidence import EvidenceRepository
+    from meridian.gmail_intake import link_mail_evidence_to_transactions
+
+    class Tx:
+        def __init__(self, id, amount): self.id = id; self.amount = amount
+
+    repo = EvidenceRepository(str(tmp_path / "ev.db"))
+    repo.add_item(source_kind="mail", source_id="m1", content_hash="b"*64, mime_type="text/plain", size_bytes=10, title="Welcome")
+
+    created = link_mail_evidence_to_transactions(
+        evidence_repo=repo, transactions=[Tx(40, -92.75)], evidence_id=1,
+        subject="Welcome to Waypoint Budget",
+    )
+    assert created == 0
