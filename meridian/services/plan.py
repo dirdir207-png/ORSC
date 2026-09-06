@@ -17,12 +17,12 @@ def _money(value) -> Decimal:
     return Decimal(str(value)) if value is not None else _ZERO
 
 
-def _biller_status(commitment) -> str:
+def _biller_status(commitment, *, last_paid=None) -> str:
     """Subtle per-bill badge for the Plan card (R33). Lazy import avoids a
     module cycle with meridian.billers (which imports commitments + models)."""
     from meridian.billers import bill_status_for
 
-    return bill_status_for(commitment)
+    return bill_status_for(commitment, last_paid_amount=last_paid)
 
 
 def _project_commitment(commitment, rules, cash_events, as_of: date):
@@ -62,6 +62,7 @@ def build_plan(
     *,
     as_of: date,
     cash_events: Optional[Sequence[tuple[date, Decimal]]] = None,
+    last_paid_by_id: Optional[dict[int, Optional[float]]] = None,
 ) -> dict:
     """Compose the canonical Plan view model from local planning data.
 
@@ -162,10 +163,13 @@ def build_plan(
                     if getattr(commitment, "legacy_source", None) == "crew"
                     else None
                 ),
-                # R33: subtle per-bill badge (underfunded / due_soon) shown on the
-                # existing Plan card — no separate "monitor" page. Computed from
-                # funding coverage + due date only (no transaction history).
-                "biller_status": _biller_status(commitment),
+                # R33: subtle per-bill badge (underfunded / due_soon / changed)
+                # shown on the existing Plan card — no separate "monitor" page.
+                # "changed" needs the last-paid charge, passed via last_paid_by_id.
+                "biller_status": _biller_status(
+                    commitment,
+                    last_paid=(last_paid_by_id or {}).get(commitment.id),
+                ),
             }
         )
 

@@ -217,17 +217,20 @@ def bill_status_for(
     commitment: Commitment,
     *,
     today: Optional[date] = None,
+    last_paid_amount: Optional[float] = None,
+    change_threshold: float = DEFAULT_CHANGE_THRESHOLD,
 ) -> str:
     """Compute the Plan-card badge status for a single bill commitment.
 
-    Lightweight (no transaction history): reflects funding coverage and how
-    soon the bill is due. Returns one of ``on_track | unfunded | due_soon``.
-    (``changed`` needs last-paid history and is reported by the monitor, not
-    here, so a Plan badge never claims a drift it did not measure.)
+    Reflecting funding coverage, how soon the bill is due, and (when
+    ``last_paid_amount`` is supplied) whether the amount drifted vs the last
+    charge. Returns one of ``on_track | unfunded | due_soon | changed``.
 
-    Precedence: unfunded wins, then due_soon (unfunded + due soon is shown as
-    ``due_soon`` so the urgent case is not hidden behind a generic underfund
-    badge); fully-funded bills are ``on_track`` regardless of due date.
+    ``changed`` is only reported when a real last-paid amount is provided, so
+    the badge never claims a drift it did not measure. Precedence: unfunded
+    wins, then due_soon (unfunded + due soon is shown as ``due_soon`` so the
+    urgent case is not hidden behind a generic underfund badge, unless the
+    amount also drifted); fully-funded bills are ``on_track`` unless changed.
     """
     if commitment.type != CommitmentType.BILL:
         return "on_track"
@@ -238,10 +241,16 @@ def bill_status_for(
 
     if amount is None or amount <= 0:
         return "on_track"
+
+    # Amount drift vs last paid: an independent attention signal.
+    drifted = False
+    if last_paid_amount is not None:
+        drifted = abs(amount - last_paid_amount) >= change_threshold
+
     funded_ok = funded >= amount
     if not funded_ok:
         days = _days_until(next_due, today)
-        if days is not None and days <= 7:
+        if days is not None and days <= 7 and not drifted:
             return "due_soon"
-        return "unfunded"
-    return "on_track"
+        return "unfunded" if not drifted else "changed"
+    return "changed" if drifted else "on_track"

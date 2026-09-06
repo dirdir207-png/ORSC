@@ -182,7 +182,22 @@ def plan():
             "Use today's date or omit as_of.",
             400,
         )
-    return jsonify(build_plan(graph, commitments, rules, as_of=as_of))
+    return jsonify(build_plan(graph, commitments, rules, as_of=as_of, last_paid_by_id=_last_paid_by_id(graph, commitments)))
+
+
+def _last_paid_by_id(graph, commitment_repository):
+    """Best-effort map of commitment_id -> last-paid amount from charge history.
+
+    Drives the ``changed`` bill badge (amount drift) on the Plan card. Empty
+    when no charge history matches, so the badge is never fabricated.
+    """
+    from meridian.billers import build_biller_monitor
+    from meridian.repository import FinancialRepository
+
+    financial = graph if isinstance(graph, FinancialRepository) else FinancialRepository(graph.db_path)
+    transactions, _cursor = financial.list_transactions(limit=200)
+    bills = build_biller_monitor(commitment_repository.list_active(), transactions)
+    return {b.commitment_id: b.last_paid_amount for b in bills}
 
 
 @meridian_api.get("/billers/monitor")

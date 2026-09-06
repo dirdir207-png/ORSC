@@ -185,3 +185,27 @@ def test_plan_badge_is_on_track_when_unfunded_but_far_out():
     # Unfunded but due in 3+ weeks: covers the funding, badge stays neutral.
     bill = _bill(name="Verizon", amount=101.57, funded_amount=0.0, due_date="2026-10-20")
     assert bill_status_for(bill, today=date(2026, 9, 22)) == "unfunded"
+
+
+# ---- R33 "changed" badge (amount drift) ----
+
+def test_plan_badge_flags_changed_when_amount_drifted_and_funded():
+    bill = _bill(name="Verizon", amount=101.57, funded_amount=101.57, due_date="2026-10-01")
+    assert bill_status_for(bill, today=date(2026, 9, 22), last_paid_amount=85.0) == "changed"
+
+
+def test_plan_badge_not_changed_below_threshold():
+    bill = _bill(name="Verizon", amount=101.57, funded_amount=101.57, due_date="2026-10-01")
+    assert bill_status_for(bill, today=date(2026, 9, 22), last_paid_amount=99.0) == "on_track"
+
+
+def test_plan_badge_changed_wins_over_unfunded():
+    # Underfunded AND amount drifted: the drift is the more actionable signal.
+    bill = _bill(name="Eversource", amount=210.0, funded_amount=0.0, due_date="2026-12-01")
+    assert bill_status_for(bill, today=date(2026, 9, 22), last_paid_amount=189.5) == "changed"
+
+
+def test_plan_badge_changed_with_no_last_paid_returns_funding_status():
+    # No last-paid supplied -> cannot claim changed; stays underfunded.
+    bill = _bill(name="Eversource", amount=210.0, funded_amount=0.0, due_date="2026-12-01")
+    assert bill_status_for(bill, today=date(2026, 9, 22)) == "unfunded"
