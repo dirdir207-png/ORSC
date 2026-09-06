@@ -168,3 +168,26 @@ def test_link_mail_evidence_no_match_returns_zero(tmp_path):
         subject="Welcome to Waypoint Budget",
     )
     assert created == 0
+
+
+def test_ingest_icloud_recent_stores_mail_evidence(tmp_path):
+    from meridian.connectors.icloud_mail import IcloudMailMessage
+    from meridian.evidence import EvidenceRepository
+    from meridian.gmail_intake import ingest_icloud_recent
+
+    class FakeTransport:
+        def fetch_recent(self, *, max_results=20):
+            return [
+                IcloudMailMessage(
+                    message_id="<ic1@icloud.com>", subject="Your iCloud bill",
+                    sender="billing@x.com", received_at="Fri, 05 Sep 2026 12:00:00 +0000",
+                    body_text="Amount due $75.00", thread_id="<ic1@icloud.com>",
+                )
+            ]
+
+    repo = EvidenceRepository(str(tmp_path / "evidence.db"))
+    summary = ingest_icloud_recent(transport=FakeTransport(), evidence_repo=repo, max_messages=5)
+
+    assert summary["stored"] == 1
+    assert summary["items"][0]["subject"] == "Your iCloud bill"
+    assert repo.get_by_content_hash(__import__("hashlib").sha256(b"Amount due $75.00").hexdigest()) is not None

@@ -260,6 +260,67 @@ def _last_paid_by_id(graph, commitment_repository):
     return {b.commitment_id: b.last_paid_amount for b in bills}
 
 
+def _icloud_configured() -> bool:
+    """iCloud Mail is configured when the owner set the IMAP username + app pw."""
+    import os
+
+    return bool(
+        os.environ.get("ICLOUD_MAIL_USERNAME")
+        and os.environ.get("ICLOUD_MAIL_APP_PASSWORD")
+    )
+
+
+@meridian_api.get("/icloud/status")
+@login_required
+@_safe_read
+def icloud_status():
+    """Read-only iCloud Mail connection status (configured or not)."""
+    return jsonify(
+        {
+            "connected": _icloud_configured(),
+            "configured": _icloud_configured(),
+            "read_only": True,
+        }
+    )
+
+
+@meridian_api.post("/icloud/intake")
+@login_required
+@_safe_read
+def icloud_intake():
+    """Ingest recent iCloud Mail as evidence (read-only, no iCloud mutation).
+
+    Best-effort pilot: returns a sanitized summary. Quarantines/errors never
+    leak message bodies.
+    """
+    from meridian.connectors.icloud_mail import IcloudMailReadError, IcloudMailTransport
+    from meridian.evidence import EvidenceRepository
+    from meridian.gmail_intake import ingest_icloud_recent
+    from meridian.repository import FinancialRepository
+
+    graph = _repository()
+    if not _icloud_configured():
+        return _error(
+            "connection_unavailable",
+            "iCloud Mail is not configured.",
+            "Set ICLOUD_MAIL_USERNAME and ICLOUD_MAIL_APP_PASSWORD (an Apple app-specific password) and try again.",
+            503,
+        )
+    try:
+        transport = IcloudMailTransport()
+        financial = graph if isinstance(graph, FinancialRepository) else FinancialRepository(graph.db_path)
+        transactions, _cursor = financial.list_transactions(limit=200)
+        summary = ingest_icloud_recent(
+            transport=transport,
+            evidence_repo=EvidenceRepository(graph.db_path),
+            transactions=transactions,
+            max_messages=20,
+        )
+    except IcloudMailReadError as exc:
+        return _error("connection_unavailable", str(exc), "Check the iCloud Mail credentials and try again.", 503)
+    return jsonify({"state": "ingested", "summary": summary})
+
+
 @meridian_api.get("/billers/monitor")
 @login_required
 @_safe_read

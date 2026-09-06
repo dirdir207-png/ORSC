@@ -181,3 +181,74 @@ def link_mail_evidence_to_transactions(
                 except Exception:  # noqa: BLE001 - a bad link must not stop intake
                     continue
     return created
+
+
+def ingest_icloud_recent(
+    *,
+    transport,
+    evidence_repo,
+    max_messages: int = 20,
+    transactions=None,
+) -> dict[str, object]:
+    """Ingest recent iCloud Mail messages as evidence (reuses the intake).
+
+    Read-only: never mutates iCloud. Stored items are source_kind='mail'
+    (the same evidence surface as Gmail). When ``transactions`` is supplied,
+    stored evidence is linked to matching transactions by amount.
+    """
+    stored: list[dict[str, str]] = []
+    duplicate = 0
+    quarantined = 0
+    errors = 0
+    linked = 0
+
+    messages = transport.fetch_recent(max_results=max_messages)
+    for msg in messages:
+        if not msg.body_text.strip():
+            quarantined += 1
+            continue
+        record = IntakeRecord(
+            source_kind="mail",
+            source_id=msg.message_id,
+            blob=msg.body_text.encode("utf-8"),
+            mime_type="text/plain",
+            title=f"{msg.subject or 'iCloud Mail message'}",
+        )
+        try:
+            result = ingest_record(record, evidence_repo=evidence_repo)
+        except QuarantineError:
+            quarantined += 1
+            continue
+        except Exception:  # noqa: BLE001 - a single bad message must not stop the batch
+            errors += 1
+            continue
+        if result.duplicate:
+            duplicate += 1
+            continue
+        if transactions:
+            created = link_mail_evidence_to_transactions(
+                evidence_repo=evidence_repo,
+                transactions=transactions,
+                evidence_id=result.item_id,
+                subject=msg.subject or "",
+                body=msg.body_text,
+            )
+            linked += created
+        stored.append(
+            {
+                "id": str(result.item_id),
+                "subject": msg.subject or "",
+                "sender": msg.sender or "",
+                "received_at": msg.received_at or "",
+            }
+        )
+
+    return {
+        "fetched": len(messages),
+        "stored": len(stored),
+        "duplicate": duplicate,
+        "quarantined": quarantined,
+        "errors": errors,
+        "linked": linked,
+        "items": stored,
+    }

@@ -22,6 +22,7 @@ _GROUP = {
     "lunchflow": "money",
     "splitwise": "money",
     "gmail": "evidence",
+    "icloud": "evidence",
     "calendar": "time",
 }
 
@@ -31,11 +32,13 @@ _USES = {
     "lunchflow": ("Balances", "Transactions"),
     "splitwise": ("Reimbursements", "Shared expenses"),
     "gmail": ("Bills", "Statements", "Receipts"),
+    "icloud": ("Bills", "Statements", "Receipts"),
     "calendar": ("Paydays", "Due dates", "Events"),
 }
 
 _PERMISSIONS = {
     "gmail": ("Read bills, statements, and receipts",),
+    "icloud": ("Read bills, statements, and receipts",),
     "calendar": ("Read payday, due-date, travel, and event timing",),
 }
 
