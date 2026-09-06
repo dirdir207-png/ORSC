@@ -7,9 +7,11 @@ fabricates autopay/statement/biller-health fields.
 """
 
 
+from datetime import date
+
 import pytest
 
-from meridian.billers import build_biller_monitor
+from meridian.billers import bill_status_for, build_biller_monitor
 from meridian.commitments import Commitment, CommitmentStatus, CommitmentType
 from meridian.models import TransactionRecord
 
@@ -159,3 +161,27 @@ def test_monitor_sorts_by_next_due():
     b = _bill(id=2, name="Verizon", due_date="2026-09-25")
     bills = build_biller_monitor([a, b], [], today=__import__("datetime").date(2026, 9, 1))
     assert [x.name for x in bills] == ["Rent", "Verizon"]
+
+
+# ---- R33 Plan-card badge (bill_status_for) ----
+
+def test_plan_badge_marks_unfunded_when_reserved_below_amount():
+    bill = _bill(name="Xfinity", amount=93.0, funded_amount=0.0, due_date="2026-12-01")
+    assert bill_status_for(bill, today=date(2026, 9, 22)) == "unfunded"
+
+
+def test_plan_badge_marks_due_soon_when_unfunded_and_near():
+    bill = _bill(name="Rent", amount=1442.0, funded_amount=710.98, due_date="2026-09-24")
+    # Underfunded AND due within 7 days -> urgent "due soon", not generic underfund.
+    assert bill_status_for(bill, today=date(2026, 9, 22)) == "due_soon"
+
+
+def test_plan_badge_is_on_track_when_fully_funded_even_if_due():
+    bill = _bill(name="Electric", amount=189.5, funded_amount=189.5, due_date="2026-09-24")
+    assert bill_status_for(bill, today=date(2026, 9, 22)) == "on_track"
+
+
+def test_plan_badge_is_on_track_when_unfunded_but_far_out():
+    # Unfunded but due in 3+ weeks: covers the funding, badge stays neutral.
+    bill = _bill(name="Verizon", amount=101.57, funded_amount=0.0, due_date="2026-10-20")
+    assert bill_status_for(bill, today=date(2026, 9, 22)) == "unfunded"

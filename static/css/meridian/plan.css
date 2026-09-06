@@ -280,6 +280,33 @@
   color: var(--m-ink-muted);
 }
 
+/* R33: subtle per-bill attention badge on the existing Plan card. */
+.m-bill-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  font-size: var(--m-text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  border-radius: 999px;
+  vertical-align: text-top;
+}
+.m-bill-badge--unfunded {
+  color: var(--m-ink-muted);
+  background: var(--m-surface-raised);
+  border: 1px solid var(--m-ink-faint);
+}
+.m-bill-badge--due_soon {
+  color: var(--m-ink-strong, var(--m-ink));
+  background: color-mix(in oklab, var(--m-warn, #b8860b) 16%, transparent);
+  border: 1px solid color-mix(in oklab, var(--m-warn, #b8860b) 40%, transparent);
+}
+.m-bill-badge--changed {
+  color: var(--m-ink-strong, var(--m-ink));
+  background: color-mix(in oklab, var(--m-danger, #c0392b) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--m-danger, #c0392b) 40%, transparent);
+}
+
 .m-plan-cell-funded,
 .m-plan-cell-next {
   font-variant-numeric: tabular-nums;

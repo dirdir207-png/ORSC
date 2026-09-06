@@ -20,6 +20,13 @@ const TYPE_LABELS = {
   debt: "Debt",
 };
 
+// R33: subtle bill-attention badges shown on the existing Plan card.
+const BILLER_STATUS_LABELS = {
+  unfunded: "Underfunded",
+  due_soon: "Due soon",
+  changed: "Amount changed",
+};
+
 function money(value, currency = "USD") {
   return value === null || value === undefined ? "—" : formatCurrency(value, currency);
 }
@@ -283,6 +290,18 @@ function renderCommitments(root, plan, template) {
     type.className = "m-commitment-type";
     type.textContent = TYPE_LABELS[commitment.type] || commitment.type;
     nameWrap.append(name, type);
+
+    // R33: subtle per-bill badge (underfunded / due_soon) on the existing card.
+    // No separate monitor page; only flags bills that need attention.
+    const status = commitment.biller_status;
+    if (status === "unfunded" || status === "due_soon" || status === "changed") {
+      const badge = document.createElement("span");
+      badge.className = `m-bill-badge m-bill-badge--${status}`;
+      badge.dataset.billerStatus = status;
+      badge.setAttribute("aria-label", BILLER_STATUS_LABELS[status]);
+      badge.textContent = BILLER_STATUS_LABELS[status];
+      nameWrap.appendChild(badge);
+    }
 
     const facts = document.createElement("p");
     facts.className = "m-commitment-facts";

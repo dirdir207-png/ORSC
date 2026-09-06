@@ -211,3 +211,37 @@ def build_biller_monitor(
             )
         )
     return sorted(monitor, key=lambda b: b.next_due or "9999-12-31")
+
+
+def bill_status_for(
+    commitment: Commitment,
+    *,
+    today: Optional[date] = None,
+) -> str:
+    """Compute the Plan-card badge status for a single bill commitment.
+
+    Lightweight (no transaction history): reflects funding coverage and how
+    soon the bill is due. Returns one of ``on_track | unfunded | due_soon``.
+    (``changed`` needs last-paid history and is reported by the monitor, not
+    here, so a Plan badge never claims a drift it did not measure.)
+
+    Precedence: unfunded wins, then due_soon (unfunded + due soon is shown as
+    ``due_soon`` so the urgent case is not hidden behind a generic underfund
+    badge); fully-funded bills are ``on_track`` regardless of due date.
+    """
+    if commitment.type != CommitmentType.BILL:
+        return "on_track"
+    today = today or datetime.now(timezone.utc).date()
+    amount = commitment.amount or commitment.target_amount
+    funded = commitment.funded_amount or 0.0
+    next_due = _next_due(commitment, today)
+
+    if amount is None or amount <= 0:
+        return "on_track"
+    funded_ok = funded >= amount
+    if not funded_ok:
+        days = _days_until(next_due, today)
+        if days is not None and days <= 7:
+            return "due_soon"
+        return "unfunded"
+    return "on_track"
