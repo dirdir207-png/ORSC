@@ -3,7 +3,7 @@
    approval-gated proposal. */
 
 import { MeridianApiError, meridianFetch, meridianPropose } from "./api.js";
-import { formatCurrency } from "./format.js";
+import { formatCurrency, parseLocalDate } from "./format.js";
 
 let controller = null;
 
@@ -48,23 +48,17 @@ function isMobileViewport() {
 }
 
 function formatShortDate(value) {
-  if (!value) {
+  const parsed = parseLocalDate(value);
+  if (!parsed) {
     return "—";
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
   }
   return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function formatLongDate(value) {
-  if (!value) {
+  const parsed = parseLocalDate(value);
+  if (!parsed) {
     return "—";
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
   }
   return parsed.toLocaleDateString(undefined, { month: "long", day: "numeric" });
 }
