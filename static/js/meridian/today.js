@@ -80,6 +80,28 @@ function editorialDate(value) {
     .toUpperCase();
 }
 
+/* Truthful editorial headline driven by the forecast state — never a static
+   "you are covered" when the runway/safe-to-spend is actually negative. */
+function forecastHeadline(forecast, sts) {
+  if (!forecast || forecast.available !== true) {
+    return "Your forecast is unavailable.";
+  }
+  const firstShortfall = forecast.first_shortfall;
+  if (firstShortfall && firstShortfall.date) {
+    return `You'll be short around ${formatShortDate(firstShortfall.date)}.`;
+  }
+  const runway = forecast.runway_days;
+  if (typeof runway === "number" && runway <= 0) {
+    return sts && sts.amount < 0
+      ? "You're running short until payday."
+      : "You're not covered to payday yet.";
+  }
+  if (typeof runway === "number" && runway > 0) {
+    return `You have about ${runway} day${runway === 1 ? "" : "s"} of runway.`;
+  }
+  return "You are covered through payday.";
+}
+
 /* Turn a coverage_horizons map into an ordered series of {label, value, norm}
    points. Numeric keys ("7d", "30d") scale horizontally by their day offset;
    semantic keys (today/payday/...) spread evenly in their fixed order. */
@@ -309,6 +331,12 @@ function render(root, payload) {
   }
 
   renderForecast(root, forecast);
+  renderOptionalText(
+    root,
+    "[data-editorial-headline]",
+    forecastHeadline(forecast, sts),
+    "You are covered through payday.",
+  );
 
   const list = root.querySelector("[data-today-inputs]");
   list.textContent = "";
