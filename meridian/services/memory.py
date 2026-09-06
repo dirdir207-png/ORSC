@@ -22,7 +22,31 @@ def _evidence_entries(
         return []
     if item.expires_at is not None and item.expires_at <= _now_iso():
         return []
-    return [{"id": item.id, "span": span or item.title or "record", "confidence": confidence}]
+    # Richer evidence metadata so the UI can label a source (statement / Gmail /
+    # upload / calendar) and show when it was added, not just a bare id/span.
+    label = span or item.title or _source_kind_label(item.source_kind)
+    return [
+        {
+            "id": item.id,
+            "span": span or item.title or item.source_kind or "record",
+            "confidence": confidence,
+            "source_kind": item.source_kind,
+            "mime_type": item.mime_type,
+            "source_id": item.source_id,
+            "created_at": item.created_at,
+            "title": item.title,
+            "label": label,
+        }
+    ]
+
+
+def _source_kind_label(source_kind: str) -> str:
+    return {
+        "mail": "Email",
+        "upload": "Uploaded document",
+        "calendar": "Calendar item",
+        "manual": "Document",
+    }.get(source_kind or "", "Record")
 
 
 def _urgency(due_on: str | None, as_of: date) -> str | None:

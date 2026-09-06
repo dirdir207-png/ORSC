@@ -139,9 +139,20 @@
                     const link = document.createElement('li');
                     const anchor = document.createElement('a');
                     anchor.href = `/api/meridian/evidence/${entry.id}/content`;
-                    anchor.textContent = entry.span || 'evidence';
+                    // Rich label: prefer a resolved title/source, never a bare id.
+                    const label = entry.label || entry.title || entry.span || 'Evidence';
+                    anchor.textContent = label;
                     anchor.setAttribute('target', '_blank');
                     anchor.setAttribute('rel', 'noopener');
+                    // Subdued sub-label: source kind + received date.
+                    if (entry.source_kind || entry.created_at) {
+                        const meta = document.createElement('span');
+                        meta.className = 'memory-item__evidence-meta';
+                        const source = entry.source_kind || '';
+                        const date = entry.created_at ? String(entry.created_at).slice(0, 10) : '';
+                        meta.textContent = [source, date].filter(Boolean).join(' · ');
+                        anchor.appendChild(meta);
+                    }
                     link.appendChild(anchor);
                     links.appendChild(link);
                 });

@@ -100,3 +100,37 @@ def test_memory_requires_auth(tmp_path):
 
     response = app.test_client().get("/api/meridian/memory/today")
     assert response.status_code == 302  # redirected to login
+
+
+def test_evidence_entries_include_rich_source_metadata(tmp_path):
+    """Evidence entries should carry source/mime/date so the UI can render a
+    meaningful label instead of a bare numeric id."""
+    import hashlib
+
+    from meridian.evidence import EvidenceRepository
+    from meridian.services.memory import _evidence_entries
+
+    db_path = str(tmp_path / "mem_evidence.db")
+    repo = EvidenceRepository(db_path)
+    content = b"Your Eversource bill: $210.00 due Sep 20"
+    item = repo.add_item(
+        source_kind="mail",
+        source_id="msg-123",
+        content_hash=hashlib.sha256(content).hexdigest(),
+        mime_type="text/plain",
+        size_bytes=len(content),
+        title="Eversource bill",
+    )
+
+    entries = _evidence_entries(db_path, item.id, None, 0.9)
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry["id"] == item.id
+    assert entry["source_kind"] == "mail"
+    assert entry["mime_type"] == "text/plain"
+    assert entry["source_id"] == "msg-123"
+    assert entry["title"] == "Eversource bill"
+    assert entry["created_at"] == item.created_at
+    # label should resolve to a human source, not "record".
+    assert entry["label"] == "Eversource bill"
