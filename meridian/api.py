@@ -386,6 +386,74 @@ def settings_connection_authorize(kind: str):
     return jsonify({"state": "pending", "authorization_url": authorization_url})
 
 
+@meridian_api.post("/connections/oauth/callback")
+@login_required
+def settings_connection_oauth_callback():
+    """Google OAuth redirect target: exchange code, persist token, mark connected.
+
+    Called by the browser after the owner authorizes in Google (received with
+    ?code&state&scope). Tokens are stored per-account in oauth_tokens; the
+    connection record is upserted as connected. Read-only scopes only.
+    """
+    kind_map = {"gmail": "gmail", "calendar": "calendar"}
+    kind = request.args.get("state", "").replace("-connect", "")
+    code = request.args.get("code", "")
+    if not code or kind not in kind_map:
+        return _error(
+            "invalid_oauth_callback",
+            "The OAuth callback was missing a code or kind.",
+            "Start the connection again and authorize in Google.",
+            400,
+        )
+    authorizer = current_app.config.get("MERIDIAN_CONNECTION_AUTHORIZERS", {}).get(kind)
+    if authorizer is None:
+        return _error(
+            "connection_unavailable",
+            "The connection provider is not configured.",
+            "Set GOOGLE_OAUTH_CLIENT_ID/SECRET for this app.",
+            503,
+        )
+    from meridian.connectors.google_auth import GoogleOAuth2Client, GoogleOAuthConfig, OAuthTokenStore
+    from meridian.connectors.email import READ_ONLY_GMAIL_SCOPE
+    from meridian.connectors.calendar import READ_ONLY_CALENDAR_SCOPE
+
+    scope = READ_ONLY_GMAIL_SCOPE if kind == "gmail" else READ_ONLY_CALENDAR_SCOPE
+    try:
+        client = GoogleOAuth2Client(GoogleOAuthConfig.from_env(), scopes=(scope,))
+        tokens = client.exchange(code)
+    except GoogleOAuthConfigError as exc:
+        return _error("connection_unavailable", str(exc), "Configure the OAuth client and retry.", 503)
+    except Exception as exc:  # noqa: BLE001 - exchange failure is endpoint-facing
+        return _error("oauth_exchange_failed", "Google did not accept the authorization.",
+                      "Try the connection again.", 502)
+    # The account_email comes from the Google token endpoint (id_token/email in
+    # the broader profile) — here we record the token material; account
+    # identity is attached by the connector's next successful read.
+    account_email = tokens.get("email") or f"{kind}-account"
+    OAuthTokenStore(_repository().db_path).save(
+        kind=kind,
+        account_email=account_email,
+        access_token=tokens["access_token"],
+        refresh_token=tokens.get("refresh_token", ""),
+        expires_at=tokens.get("expires_at"),
+    )
+    _connection_repository().upsert(
+        kind=kind,
+        display_name="Gmail" if kind == "gmail" else "Google Calendar",
+        state=ConnectionState.CONNECTED,
+        granted_scopes=(scope,),
+        last_successful_at=_now_iso(),
+        retention_days=365 if kind == "gmail" else 90,
+    )
+    return jsonify({"state": "connected", "kind": kind, "account": account_email})
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 @meridian_api.post("/settings/connections/<public_id>/revoke")
 @login_required
 def settings_connection_revoke(public_id: str):

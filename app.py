@@ -117,6 +117,34 @@ def _evidence_store_factory():
 app.config["MERIDIAN_EVIDENCE_BLOB_STORE_FACTORY"] = _evidence_store_factory
 app.register_blueprint(meridian_api, url_prefix="/api/meridian")
 
+# Google OAuth authorizers (R25): produce the Google authorization URL for
+# Gmail/Calendar using the owner's Google Cloud OAuth client (set via
+# GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET — owner-set, never guessed).
+from meridian.connectors.email import READ_ONLY_GMAIL_SCOPE
+from meridian.connectors.calendar import READ_ONLY_CALENDAR_SCOPE
+from meridian.connectors.google_auth import (
+    GoogleOAuth2Client,
+    GoogleOAuthConfig,
+    GoogleOAuthConfigError,
+)
+
+try:
+    _google_cfg = GoogleOAuthConfig.from_env()
+    app.config["MERIDIAN_CONNECTION_AUTHORIZERS"] = {
+        "gmail": lambda: {
+            "authorization_url": GoogleOAuth2Client(
+                _google_cfg, scopes=(READ_ONLY_GMAIL_SCOPE,)
+            ).authorization_url(state="gmail-connect")
+        },
+        "calendar": lambda: {
+            "authorization_url": GoogleOAuth2Client(
+                _google_cfg, scopes=(READ_ONLY_CALENDAR_SCOPE,)
+            ).authorization_url(state="calendar-connect")
+        },
+    }
+except GoogleOAuthConfigError:  # pragma: no cover - owner not configured yet
+    app.config["MERIDIAN_CONNECTION_AUTHORIZERS"] = {}
+
 def get_or_create_secret_key():
     """Get secret key from database, or generate and save a new one"""
     conn = sqlite3.connect(DB_FILE)
