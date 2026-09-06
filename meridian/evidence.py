@@ -106,6 +106,15 @@ class EvidenceRepository:
             ).fetchone()
         return EvidenceItem(**dict(row)) if row is not None else None
 
+    def get_by_content_hash(self, content_hash: str):
+        """Find a live evidence item by content hash (intake dedup)."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM evidence_items WHERE content_hash=? AND revoked_at IS NULL AND content_deleted_at IS NULL LIMIT 1",
+                (content_hash,),
+            ).fetchone()
+        return EvidenceItem(**dict(row)) if row is not None else None
+
     def add_link(
         self,
         *,
