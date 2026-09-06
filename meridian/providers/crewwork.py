@@ -128,15 +128,22 @@ class CrewWorkSnapshotAdapter:
                 amount = _cents_to_dollars(bill.get("amount"))
                 if not external_id:
                     continue
-                # Keep the full bill amount as the commitment amount (the
-                # anticipated money obligation); the funding surface is what
-                # Coverage estimates, not the stored target.
+                # R33: carry Crew's real per-bill fields so the commitment in
+                # Plan shows the authoritative anchorDate (due date), frequency
+                # (recurrence), and reservedAmount (funded). Crew sets these per
+                # bill; do not drop them.
+                anchor_date = str(bill.get("anchorDate") or "") or None
+                frequency = str(bill.get("frequency") or "").lower() or None
+                reserved = _cents_to_dollars(bill.get("reservedAmount"))
                 result.append(
                     CommitmentCandidate(
                         external_id=external_id,
                         name=name,
                         amount=amount,
                         currency="USD",
+                        due_date=anchor_date,
+                        recurrence=frequency,
+                        funded_amount=reserved,
                     )
                 )
         return result

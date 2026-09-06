@@ -55,7 +55,9 @@ def sync_live_crew(db_path: str, *, snapshot: Optional[dict] = None, binary: str
     report = sync_provider(adapter, repository)
     # sync_provider (singular) persists accounts/transactions but not the
     # snapshot's commitment candidates; apply live bills so Plan shows real
-    # money obligations (idempotent upsert keyed by Crew bill id).
+    # money obligations (idempotent upsert keyed by Crew bill id). R33: carry
+    # the bill's due_date (anchorDate), recurrence (frequency), and funded
+    # amount (reservedAmount) so Plan reflects Crew's authoritative per-bill data.
     snap = adapter.fetch_snapshot()
     commitment_repository = CommitmentRepository(repository.db_path)
     for candidate in snap.commitment_candidates:
@@ -66,7 +68,10 @@ def sync_live_crew(db_path: str, *, snapshot: Optional[dict] = None, binary: str
                 name=candidate.name,
                 amount=candidate.amount,
                 currency=candidate.currency,
-                recurrence="monthly",
+                recurrence=candidate.recurrence or "monthly",
+                due_date=candidate.due_date,
+                target_amount=candidate.amount,
+                funded_amount=candidate.funded_amount or 0.0,
                 legacy_source=adapter.provider_name,
                 legacy_id=candidate.external_id,
             )
@@ -76,6 +81,9 @@ def sync_live_crew(db_path: str, *, snapshot: Optional[dict] = None, binary: str
                 name=candidate.name,
                 amount=candidate.amount,
                 currency=candidate.currency,
+                due_date=candidate.due_date or existing.due_date,
+                recurrence=candidate.recurrence or existing.recurrence,
+                funded_amount=candidate.funded_amount or existing.funded_amount,
             )
     return report
 

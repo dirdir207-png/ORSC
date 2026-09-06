@@ -49,6 +49,10 @@ class CommitmentCandidate:
     amount: float
     currency: str = "USD"
     source_updated_at: Optional[str] = None
+    due_date: Optional[str] = None
+    recurrence: Optional[str] = None
+    funded_amount: Optional[float] = None
+    status: Optional[str] = None
 
 
 @dataclass(frozen=True)

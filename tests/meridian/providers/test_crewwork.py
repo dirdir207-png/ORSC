@@ -208,6 +208,7 @@ def test_adapter_emits_live_bills_as_commitment_candidates():
                                     "frequency": "MONTHLY",
                                     "estimatedNextFundingAmount": 4389,
                                     "reservedAmount": 5000,
+                                    "anchorDate": "2026-09-22",
                                 },
                                 {
                                     "id": "QmlsbDoy",
@@ -217,6 +218,7 @@ def test_adapter_emits_live_bills_as_commitment_candidates():
                                     "frequency": "MONTHLY",
                                     "estimatedNextFundingAmount": 66327,
                                     "reservedAmount": 0,
+                                    "anchorDate": "2026-09-16",
                                 },
                             ]
                         }
@@ -231,5 +233,12 @@ def test_adapter_emits_live_bills_as_commitment_candidates():
     verizon = next(c for c in candidates if c.external_id == "QmlsbDox")
     assert verizon.name == "Verizon"
     assert verizon.amount == 95.41  # cents -> dollars
+    # R33: the anchorDate/frequency/reservedAmount must be carried through so
+    # Plan shows the authoritative due date, recurrence, and funding.
+    assert verizon.due_date == "2026-09-22"
+    assert verizon.recurrence == "monthly"  # MONTHLY normalized to lowercase
+    assert verizon.funded_amount == 50.00  # reservedAmount cents -> dollars
     rent = next(c for c in candidates if c.external_id == "QmlsbDoy")
     assert rent.amount == 1442.00
+    assert rent.due_date == "2026-09-16"
+    assert rent.funded_amount == 0.0
