@@ -84,20 +84,16 @@
   function setInert(page) {
     if (page && typeof page.inert === "boolean") {
       page.inert = true;
-      const nav = document.querySelector("[data-primary-nav]");
-      if (nav && typeof nav.inert === "boolean") {
-        nav.inert = true;
-      }
+      // Leave the primary nav reachable so the owner can always switch
+      // workspace even with a modal sheet open (navigation must never become
+      // "stuck" behind a dialog — the sheet closes on nav, see the click
+      // handler below).
     }
   }
 
   function releaseInert(page) {
     if (page && typeof page.inert === "boolean") {
       page.inert = false;
-      const nav = document.querySelector("[data-primary-nav]");
-      if (nav && typeof nav.inert === "boolean") {
-        nav.inert = false;
-      }
     }
   }
 
@@ -196,6 +192,11 @@
     const target = link.getAttribute("href") || "";
     if (!target.includes("/meridian")) {
       return;
+    }
+    // Close any open modal sheet (and release inert) before navigating, so
+    // the nav is never left inert/unclickable after leaving a modal.
+    while (sheetStack.length > 0) {
+      closeSheet();
     }
     event.preventDefault();
     setWorkspace(link.dataset.workspace, { focus: true });
