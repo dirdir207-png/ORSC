@@ -134,8 +134,14 @@
   font-size: var(--m-figure-xl);
   letter-spacing: -0.02em;
   line-height: 1.05;
-  color: var(--m-healthy);
+  color: var(--m-ink);
 }
+
+/* Value-aware safe-to-spend: green only for positive; red for negative; muted
+   ink for zero so a $0.00 never reads as healthy money it isn't. */
+.m-sts-figure[data-signal="positive"] { color: var(--m-healthy); }
+.m-sts-figure[data-signal="negative"] { color: var(--m-risk); }
+.m-sts-figure[data-signal="zero"] { color: var(--m-ink-faint); }
 
 .m-sts-note {
   display: inline-block;

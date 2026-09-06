@@ -279,9 +279,12 @@ function render(root, payload) {
   const sts = payload.safe_to_spend || {};
   if (sts.amount !== null && sts.amount !== undefined) {
     figure.textContent = formatCurrency(sts.amount, sts.currency);
+    figure.dataset.signal =
+      sts.amount > 0 ? "positive" : sts.amount < 0 ? "negative" : "zero";
     note.hidden = true;
   } else {
     figure.textContent = "—";
+    figure.dataset.signal = "zero";
     note.hidden = false;
     note.textContent =
       sts.status === "unavailable"
