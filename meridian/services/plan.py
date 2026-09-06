@@ -63,14 +63,16 @@ def build_plan(
     as_of: date,
     cash_events: Optional[Sequence[tuple[date, Decimal]]] = None,
     last_paid_by_id: Optional[dict[int, Optional[float]]] = None,
+    paycheck=None,
 ) -> dict:
     """Compose the canonical Plan view model from local planning data.
 
     Cash events default to the graph's current cash balances treated as a
-    single event today; callers with richer timelines may pass them.
+    single event today (plus future paycheck inflows when a paycheck config is
+    supplied); callers with richer timelines may pass them.
     """
     if cash_events is None:
-        cash_events = _cash_events_from_graph(graph_repository, as_of)
+        cash_events = _cash_events_from_graph(graph_repository, as_of, paycheck)
 
     accounts = {account.id: account for account in graph_repository.list_accounts()}
     commitments = commitment_repository.list_active()
@@ -277,7 +279,9 @@ def _date_of(value) -> Optional[date]:
     return None
 
 
-def _cash_events_from_graph(graph_repository, as_of: date) -> list[tuple[date, Decimal]]:
+def _cash_events_from_graph(graph_repository, as_of: date, paycheck=None) -> list[tuple[date, Decimal]]:
+    from decimal import Decimal
+
     total = sum(
         (
             _money(account.balance)
@@ -286,6 +290,11 @@ def _cash_events_from_graph(graph_repository, as_of: date) -> list[tuple[date, D
         ),
         _ZERO,
     )
+    if paycheck is not None:
+        from meridian.paycheck import build_cash_events
+
+        events = build_cash_events(float(total), paycheck, as_of=as_of)
+        return [(date, Decimal(str(amount))) for date, amount in events]
     return [(as_of, total)] if total > _ZERO else []
 
 

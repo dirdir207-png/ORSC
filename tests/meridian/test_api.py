@@ -822,3 +822,32 @@ def test_oauth_callback_rejects_missing_code_or_unknown_kind(api_client):
 
     assert unknown.status_code == 400
     assert unknown.get_json()["error"]["code"] == "invalid_oauth_callback"
+
+
+def test_paycheck_get_returns_none_when_unset(api_client):
+    client, graph = api_client
+    response = client.get("/api/meridian/paycheck")
+    assert response.status_code == 200
+    assert response.get_json()["paycheck"] is None
+
+
+def test_paycheck_set_and_get_roundtrips(api_client):
+    client, graph = api_client
+
+    response = client.post("/api/meridian/paycheck", json={
+        "cadence": "biweekly", "amount": 1200.0, "next_date": "2026-09-18", "active": True,
+    })
+    assert response.status_code == 200
+    assert response.get_json()["paycheck"]["cadence"] == "biweekly"
+
+    got = client.get("/api/meridian/paycheck").get_json()["paycheck"]
+    assert got["amount"] == 1200.0
+    assert got["next_date"] == "2026-09-18"
+
+
+def test_paycheck_set_rejects_invalid_cadence_or_amount(api_client):
+    client, _ = api_client
+    bad_cadence = client.post("/api/meridian/paycheck", json={"cadence": "fortnightly", "amount": 100, "next_date": "2026-09-18"})
+    assert bad_cadence.status_code == 400
+    bad_amount = client.post("/api/meridian/paycheck", json={"cadence": "monthly", "amount": -5, "next_date": "2026-09-18"})
+    assert bad_amount.status_code == 400

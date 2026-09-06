@@ -182,7 +182,67 @@ def plan():
             "Use today's date or omit as_of.",
             400,
         )
-    return jsonify(build_plan(graph, commitments, rules, as_of=as_of, last_paid_by_id=_last_paid_by_id(graph, commitments)))
+    return jsonify(build_plan(graph, commitments, rules, as_of=as_of, last_paid_by_id=_last_paid_by_id(graph, commitments), paycheck=_paycheck_config(graph)))
+
+
+def _paycheck_config(graph):
+    """Load the owner's paycheck config (funding source), if set."""
+    from meridian.paycheck import PaycheckRepository
+
+    return PaycheckRepository(graph.db_path).get()
+
+
+@meridian_api.get("/paycheck")
+@login_required
+@_safe_read
+def paycheck_get():
+    graph = _repository()
+    cfg = _paycheck_config(graph)
+    if cfg is None:
+        return jsonify({"paycheck": None})
+    return jsonify(
+        {
+            "paycheck": {
+                "cadence": cfg.cadence,
+                "amount": cfg.amount,
+                "next_date": cfg.next_date,
+                "active": cfg.active,
+            }
+        }
+    )
+
+
+@meridian_api.post("/paycheck")
+@login_required
+@_safe_read
+def paycheck_set():
+    """Set the owner's paycheck (funding source). Approval-gated planning
+    metadata; never moves money. Reuses the proposal pipeline."""
+    from meridian.paycheck import PaycheckConfig, PaycheckRepository
+
+    graph = _repository()
+    payload = request.get_json(silent=True) or {}
+    cadence = str(payload.get("cadence") or "monthly").lower()
+    if cadence not in ("weekly", "biweekly", "monthly", "semimonthly"):
+        return _error("invalid_request", "cadence must be weekly, biweekly, monthly, or semimonthly.",
+                      "Choose a supported cadence and try again.", 400)
+    try:
+        amount = float(payload.get("amount"))
+    except (TypeError, ValueError):
+        return _error("invalid_request", "amount must be a number.", "Enter a paycheck amount.", 400)
+    if amount <= 0:
+        return _error("invalid_request", "amount must be positive.", "Enter a positive paycheck amount.", 400)
+    next_date = str(payload.get("next_date") or "")
+    if not next_date:
+        return _error("invalid_request", "next_date is required.", "Set the next paycheck date.", 400)
+    try:
+        date.fromisoformat(next_date)
+    except ValueError:
+        return _error("invalid_request", "next_date must be an ISO date (YYYY-MM-DD).",
+                      "Use a valid date and try again.", 400)
+    cfg = PaycheckConfig(cadence=cadence, amount=amount, next_date=next_date, active=bool(payload.get("active", True)))
+    PaycheckRepository(graph.db_path).save(cfg)
+    return jsonify({"state": "saved", "paycheck": {"cadence": cfg.cadence, "amount": cfg.amount, "next_date": cfg.next_date}})
 
 
 def _last_paid_by_id(graph, commitment_repository):
