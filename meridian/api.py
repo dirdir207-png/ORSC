@@ -325,6 +325,7 @@ def settings_connections():
             graph,
             _connection_repository(graph),
             selected_id=request.args.get("selected"),
+            db_path=graph.db_path if hasattr(graph, "db_path") else None,
         )
     )
 
@@ -446,6 +447,31 @@ def settings_connection_oauth_callback():
         retention_days=365 if kind == "gmail" else 90,
     )
     return jsonify({"state": "connected", "kind": kind, "account": account_email})
+
+
+@meridian_api.post("/connections/oauth/<kind>/<account_email>/revoke")
+@login_required
+def settings_connection_oauth_revoke(kind: str, account_email: str):
+    """R27: revoke ONE OAuth identity (token + ingestion cursor) without
+    touching other accounts of the same kind."""
+    if kind not in ("gmail", "calendar"):
+        return _error("invalid_request", "Unsupported connection kind.", "Choose Gmail or Calendar.", 400)
+    from meridian.connection_jobs import IngestionCursorStore
+    from meridian.connectors.google_auth import OAuthTokenStore
+
+    db_path = _repository().db_path
+    # Delete the token row for this identity.
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "DELETE FROM oauth_tokens WHERE kind=? AND account_email=?",
+        (kind, account_email),
+    )
+    conn.commit()
+    conn.close()
+    IngestionCursorStore(db_path).revoke(kind=kind, account_email=account_email)
+    return jsonify({"state": "revoked", "kind": kind, "account": account_email})
 
 
 def _now_iso() -> str:

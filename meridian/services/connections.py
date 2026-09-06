@@ -103,9 +103,21 @@ def build_connections(
     authorizations: ConnectionRepository,
     *,
     selected_id: str | None = None,
+    db_path: str | None = None,
 ) -> dict[str, object]:
     rows = [_financial_payload(item) for item in graph.list_connection_freshness()]
     rows.extend(_authorization_payload(item) for item in authorizations.list_all())
+    # R27: attach per-account OAuth identities (multi-account chooser data).
+    oauth_accounts = {}
+    if db_path:
+        try:
+            from meridian.connectors.google_auth import OAuthTokenStore
+
+            store = OAuthTokenStore(db_path)
+            for kind in ("gmail", "calendar"):
+                oauth_accounts[kind] = store.list_accounts(kind=kind)
+        except Exception:  # pragma: no cover - token store optional
+            oauth_accounts = {}
     groups = []
     for kind in ("money", "evidence", "time"):
         groups.append(
@@ -113,6 +125,9 @@ def build_connections(
                 "kind": kind,
                 "label": _GROUP_LABELS[kind],
                 "connections": [row for row in rows if row["group"] == kind],
+                "oauth_accounts": oauth_accounts.get(
+                    "gmail" if kind == "evidence" else ("calendar" if kind == "time" else ""), []
+                ),
             }
         )
     return {

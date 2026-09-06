@@ -67,3 +67,30 @@ def test_deleted_event_is_not_blocked_by_seen(tmp_path):
     second = inc.run(t2)
     assert second["resumed_cursor"] == "c2"
     assert second["new"] == 0
+
+
+def test_build_connections_includes_oauth_accounts(tmp_path):
+    import json
+    from meridian.connection_jobs import IngestionCursorStore
+    from meridian.connectors.google_auth import OAuthTokenStore
+    from meridian.services.connections import build_connections
+
+    db = str(tmp_path / "c.db")
+    OAuthTokenStore(db).save(kind="gmail", account_email="a@x.com", access_token="t", refresh_token="r")
+    OAuthTokenStore(db).save(kind="calendar", account_email="c@x.com", access_token="t", refresh_token="r")
+
+    class FakeGraph:
+        db_path = db
+
+        def list_connection_freshness(self):
+            return []
+
+    class FakeAuth:
+        def list_all(self):
+            return []
+
+    result = build_connections(FakeGraph(), FakeAuth(), db_path=db)
+    groups = {g["kind"]: g for g in result["groups"]}
+    assert [a["account_email"] for a in groups["evidence"]["oauth_accounts"]] == ["a@x.com"]
+    assert [a["account_email"] for a in groups["time"]["oauth_accounts"]] == ["c@x.com"]
+    assert groups["money"]["oauth_accounts"] == []
