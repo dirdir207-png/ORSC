@@ -50,21 +50,24 @@
       </div>
 
       <section class="m-metric-grid" aria-label="Financial position" data-metric-grid>
-        <article class="m-surface m-metric" data-supporting-metric>
+        <button type="button" class="m-surface m-metric m-metric--link" data-supporting-metric data-go-workspace="plan" aria-label="View next expected income in Plan">
           <p class="m-section-label">Coming in</p>
           <strong data-coming-in>—</strong>
           <span data-coming-in-caption>Next expected income</span>
-        </article>
-        <article class="m-surface m-metric" data-supporting-metric>
+          <span class="m-metric-hint">View in Plan</span>
+        </button>
+        <button type="button" class="m-surface m-metric m-metric--link" data-supporting-metric data-go-workspace="plan" aria-label="View commitments in Plan">
           <p class="m-section-label">Committed</p>
           <strong data-committed>—</strong>
           <span>Known obligations</span>
-        </article>
-        <article class="m-surface m-metric" data-supporting-metric>
+          <span class="m-metric-hint">View in Plan</span>
+        </button>
+        <button type="button" class="m-surface m-metric m-metric--link" data-supporting-metric data-go-workspace="plan" aria-label="View runway forecast in Plan">
           <p class="m-section-label">Runway</p>
           <strong data-runway>—</strong>
           <span data-runway-note>Confidence unavailable</span>
-        </article>
+          <span class="m-metric-hint">View in Plan</span>
+        </button>
       </section>
 
       {# R20: coherent cash / bills / goals breakdown + setup + next run. #}

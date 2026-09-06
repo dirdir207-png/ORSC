@@ -234,6 +234,47 @@
   font-size: var(--m-text-xs);
 }
 
+/* Low-key interactive metric cards: a quiet click-to-source affordance that
+   never shouts. Button reset + a subtle hint that appears on focus/hover. */
+.m-metric--link {
+  width: 100%;
+  appearance: none;
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  color: var(--m-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--m-motion-fast) var(--m-ease-out),
+    background var(--m-motion-fast) var(--m-ease-out);
+}
+
+.m-metric--link:hover,
+.m-metric--link:focus-visible {
+  border-color: var(--m-border-strong);
+  background: var(--m-surface-muted);
+}
+
+.m-metric--link:focus-visible {
+  outline: none;
+  box-shadow: var(--m-focus-ring);
+}
+
+.m-metric-hint {
+  margin-top: var(--m-space-3) !important;
+  color: var(--m-ink-faint) !important;
+  font-size: var(--m-text-xs) !important;
+  letter-spacing: 0.03em;
+  opacity: 0.72;
+}
+
+.m-metric--link:hover .m-metric-hint,
+.m-metric--link:focus-visible .m-metric-hint {
+  color: var(--m-forest, var(--m-healthy)) !important;
+  opacity: 1;
+}
+
 /* ---------- Advisor brief rail ---------- */
 
 .m-today-brief {

@@ -479,6 +479,12 @@ async function loadToday() {
 window.MeridianToday = { loadToday };
 
 document.addEventListener("click", (event) => {
+  const metricLink = event.target.closest("[data-go-workspace]");
+  if (metricLink && window.MeridianShell && typeof window.MeridianShell.setWorkspace === "function") {
+    window.MeridianShell.setWorkspace(metricLink.dataset.goWorkspace, { focus: true });
+    return;
+  }
+
   const advisorOpener = event.target.closest("[data-open-advisor]");
   if (advisorOpener && typeof window.advisorSetOpen === "function") {
     window.advisorSetOpen(true);
