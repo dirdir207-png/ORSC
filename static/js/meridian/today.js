@@ -232,6 +232,32 @@ function renderEvidenceLinks(container, evidence) {
 function render(root, payload) {
   const forecast = payload.forecast || {};
 
+  // R20: coherent cash / bills / goals breakdown + setup + next run.
+  const breakdownWrap = root.querySelector("[data-today-breakdown]");
+  if (breakdownWrap) {
+    const breakdown = payload.breakdown;
+    if (breakdown && (breakdown.bills_total || breakdown.goals_total)) {
+      breakdownWrap.hidden = false;
+      root.querySelector("[data-breakdown-bills]").textContent = formatCurrency(breakdown.bills_total);
+      root.querySelector("[data-breakdown-goals]").textContent = formatCurrency(breakdown.goals_total);
+      const nextRun = payload.next_run;
+      root.querySelector("[data-breakdown-nextrun]").textContent =
+        nextRun && nextRun.state === "rules_present"
+          ? `${nextRun.rule_count} rule${nextRun.rule_count === 1 ? "" : "s"}`
+          : nextRun && nextRun.state === "no_rules"
+            ? "Not set"
+            : "—";
+      const setup = payload.setup;
+      root.querySelector("[data-breakdown-setup]").textContent = setup
+        ? setup.state === "ready"
+          ? "Setup complete"
+          : setup.items.filter((i) => !i.done).map((i) => i.label).join(" · ")
+        : "Setup preview unavailable";
+    } else {
+      breakdownWrap.hidden = true;
+    }
+  }
+
   const today = root.querySelector("[data-today-date]");
   if (today) {
     today.textContent = editorialDate(forecast.as_of);

@@ -315,3 +315,26 @@ def test_today_and_activity_stay_stale_after_partial_sync_until_a_complete_sync(
     read_at = datetime.now(timezone.utc)
     assert build_today(repository, now=read_at)["data_freshness"]["status"] == "fresh"
     assert get_activity(repository, now=read_at)["data_freshness"]["status"] == "fresh"
+
+
+def test_breakdown_reports_bills_and_goals(tmp_path):
+    from meridian.db import run_migrations
+    from meridian.commitments import CommitmentRepository, CommitmentType
+    from meridian.repository import FinancialRepository
+    from meridian.services.today import build_today
+
+    db = str(tmp_path / "r20.db")
+    run_migrations(db)
+    repo = FinancialRepository(db)
+    commitments = CommitmentRepository(db)
+    commitments.create(type=CommitmentType.BILL, name="Rent", amount=1200.0, currency="USD", recurrence="monthly")
+    commitments.create(type=CommitmentType.GOAL, name="Emergency Fund", target_amount=5000.0, currency="USD")
+    from meridian.funding_repo import FundingRuleRepository
+
+    result = build_today(repo, commitments, FundingRuleRepository(db))
+    breakdown = result["breakdown"]
+    assert breakdown["bills_total"] == 1200.0
+    assert breakdown["goals_total"] == 5000.0
+    assert breakdown["bills"][0]["name"] == "Rent"
+    assert result["setup"]["state"] in ("ready", "in_progress")
+    assert result["next_run"] is not None

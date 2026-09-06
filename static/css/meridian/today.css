@@ -432,3 +432,15 @@
     transition: none;
   }
 }
+
+/* R20: cash / bills / goals breakdown row. */
+.m-today-breakdown { margin-top: var(--m-space-3); }
+.m-today-breakdown-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--m-space-3);
+}
+.m-today-breakdown-row strong { display: block; font: var(--m-serif-md, inherit); }
+@media (max-width: 640px) {
+  .m-today-breakdown-row { grid-template-columns: 1fr; }
+}
