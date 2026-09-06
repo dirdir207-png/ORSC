@@ -242,7 +242,42 @@ def build_plan(
         },
         "forecast": asdict(beacon),
         "data_freshness": freshness,
+        "next_paycheck": _next_paycheck_event(paycheck, as_of),
     }
+
+
+def _next_paycheck_event(paycheck, as_of):
+    """Next paycheck inflow from the owner's config (date + amount).
+
+    Surfaced directly so the Funding Schedule card is meaningful even when no
+    funding rules (and therefore no projected timeline events) exist.
+    """
+    if paycheck is None or not getattr(paycheck, "active", False):
+        return None
+    amount = getattr(paycheck, "amount", 0) or 0
+    next_date = getattr(paycheck, "next_date", "") or ""
+    cadence = getattr(paycheck, "cadence", "monthly")
+    if amount <= 0 or not next_date:
+        return None
+    try:
+        import calendar
+
+        anchor = date.fromisoformat(next_date)
+        while anchor < as_of:
+            if cadence == "weekly":
+                anchor = anchor + timedelta(days=7)
+            elif cadence == "biweekly":
+                anchor = anchor + timedelta(days=14)
+            elif cadence == "semimonthly":
+                anchor = anchor + timedelta(days=15)
+            else:
+                year = anchor.year + (1 if anchor.month == 12 else 0)
+                month = 1 if anchor.month == 12 else anchor.month + 1
+                day = min(anchor.day, calendar.monthrange(year, month)[1])
+                anchor = date(year, month, day)
+    except (TypeError, ValueError):
+        return None
+    return {"date": anchor.isoformat(), "amount": round(float(amount), 2), "cadence": cadence}
 
 
 def _coverage_explanation(target: Decimal, funded: Decimal, projected: Decimal) -> list[str]:

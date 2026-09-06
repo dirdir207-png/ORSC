@@ -148,15 +148,61 @@ def _unfunded_bill_total(commitment_repository):
     return round(total, 2)
 
 
+def _next_paycheck_inflow(paycheck, *, now=None):
+    """Next expected income from the paycheck config (funding source).
+
+    Returns ``{"date", "amount", "cadence"}`` when a paycheck is configured and
+    active, rolling the date forward if ``next_date`` has passed; else None.
+    This surfaces the "Next expected income" card instead of an empty cash sum.
+    """
+    if paycheck is None or not getattr(paycheck, "active", False):
+        return None
+    amount = getattr(paycheck, "amount", 0) or 0
+    if amount <= 0:
+        return None
+    try:
+        from datetime import date as _date
+
+        as_of = (now or datetime.now(timezone.utc)).date()
+        import calendar
+
+        next_date = _date.fromisoformat(getattr(paycheck, "next_date", ""))
+        cadence = getattr(paycheck, "cadence", "monthly")
+        # Roll forward if the configured next date has passed.
+        while next_date < as_of:
+            if cadence == "weekly":
+                next_date = next_date + timedelta(days=7)
+            elif cadence == "biweekly":
+                next_date = next_date + timedelta(days=14)
+            elif cadence == "semimonthly":
+                next_date = next_date + timedelta(days=15)
+            else:  # monthly
+                year = next_date.year + (1 if next_date.month == 12 else 0)
+                month = 1 if next_date.month == 12 else next_date.month + 1
+                day = min(next_date.day, calendar.monthrange(year, month)[1])
+                next_date = _date(year, month, day)
+    except (TypeError, ValueError):
+        return None
+    return {
+        "date": next_date.isoformat(),
+        "amount": round(float(amount), 2),
+        "cadence": cadence,
+    }
+
+
 def build_today(
     repository: FinancialRepository,
     commitment_repository=None,
     rule_repository=None,
     *,
     now: Optional[datetime] = None,
+    paycheck=None,
 ) -> dict[str, object]:
     """Build a conservative Today summary from normalized repository records."""
     accounts = repository.list_accounts()
+    # "Next expected income" from the owner's paycheck config (funding source),
+    # if set. Falls back to nothing when no paycheck is configured.
+    next_inflow = _next_paycheck_inflow(paycheck, now=now)
     cash_accounts = [
         account
         for account in accounts
@@ -207,21 +253,24 @@ def build_today(
     # already separated bill/obligation money into other pockets, so no further
     # subtraction.) Otherwise fall back to cash-type available balances.
     spend_source = _spend_source_account(accounts)
+    # "Committed" (known obligations) is independent of which account is the
+    # spend source: it is the unfunded bill/commitment total Meridian is tracking
+    # toward. Always surface it so the card is never dead.
+    known_obligations = (
+        _unfunded_bill_total(commitment_repository) if commitment_repository else None
+    )
     if spend_source is not None and spend_source.available_balance is not None:
         safe_amount = _currency_total(
             [(spend_source.currency, spend_source.available_balance)]
         )["by_currency"].get(spend_source.currency, 0.0)
-        known_obligations = None
         safe_status = "available"
     else:
         safe_amount = available_cash["by_currency"].get("USD", 0.0)
-        known_obligations = (
-            _unfunded_bill_total(commitment_repository) if commitment_repository else None
-        )
         safe_status = "available" if available_cash["by_currency"].get("USD") else "unavailable"
 
     return {
         "total_cash": total_cash,
+        "next_inflow": next_inflow,
         "safe_to_spend": {
             "amount": safe_amount,
             "status": safe_status,

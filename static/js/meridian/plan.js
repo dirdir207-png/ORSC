@@ -151,7 +151,10 @@ function nextPaycheck(plan) {
 }
 
 function renderFundingCard(root, plan, activeRuleCount) {
-  const next = nextPaycheck(plan);
+  // Prefer the explicit next_paycheck field (surfaced from the paycheck config
+  // even when no funding rules produce timeline events); fall back to the first
+  // timeline funding event.
+  const next = plan.next_paycheck || nextPaycheck(plan);
   root.querySelector("[data-next-paycheck-date]").textContent = next
     ? formatLongDate(next.date)
     : "—";
@@ -164,9 +167,13 @@ function renderFundingCard(root, plan, activeRuleCount) {
     0;
   const caption = root.querySelector("[data-funding-caption]");
   if (next) {
-    caption.textContent =
-      `${activeRuleCount} rule${activeRuleCount === 1 ? "" : "s"} allocate ${moneyWhole(next.amount)}; ` +
-      `${moneyWhole(Math.max(0, available))} remains flexible.`;
+    if (activeRuleCount > 0) {
+      caption.textContent =
+        `${activeRuleCount} rule${activeRuleCount === 1 ? "" : "s"} allocate ${moneyWhole(next.amount)}; ` +
+        `${moneyWhole(Math.max(0, available))} remains flexible.`;
+    } else {
+      caption.textContent = `${moneyWhole(next.amount)} expected ${formatLongDate(next.date)}; no funding rules yet.`;
+    }
   } else {
     caption.textContent = "No funding scheduled yet.";
   }

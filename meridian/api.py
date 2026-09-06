@@ -437,7 +437,7 @@ def funding_rules():
 @_safe_read
 def today():
     graph, commitments, rules = _plan_repositories()
-    return jsonify(build_today(graph, commitments, rules))
+    return jsonify(build_today(graph, commitments, rules, paycheck=_paycheck_config(graph)))
 
 
 @meridian_api.get("/sync")

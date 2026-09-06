@@ -3,7 +3,7 @@
    scales are truthful and its labels are direct. */
 
 import { MeridianApiError, freshnessText, meridianFetch } from "./api.js";
-import { formatCurrency } from "./format.js";
+import { formatCurrency, parseLocalDate } from "./format.js";
 
 let controller = null;
 
@@ -55,6 +55,14 @@ function humanDate(value) {
     return null;
   }
   return new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric" }).format(parsed);
+}
+
+function formatShortDate(value) {
+  const parsed = parseLocalDate(value);
+  if (!parsed) {
+    return "—";
+  }
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 /* Editorial command-header date: prefer the data's as-of date, else today. */
@@ -241,11 +249,14 @@ function render(root, payload) {
       root.querySelector("[data-breakdown-bills]").textContent = formatCurrency(breakdown.bills_total);
       root.querySelector("[data-breakdown-goals]").textContent = formatCurrency(breakdown.goals_total);
       const nextRun = payload.next_run;
+      const nextInflow = payload.next_inflow;
       root.querySelector("[data-breakdown-nextrun]").textContent =
         nextRun && nextRun.state === "rules_present"
           ? `${nextRun.rule_count} rule${nextRun.rule_count === 1 ? "" : "s"}`
           : nextRun && nextRun.state === "no_rules"
-            ? "Not set"
+            ? nextInflow
+              ? `Inflow ${formatShortDate(nextInflow.date)}`
+              : "Not set"
             : "—";
       const setup = payload.setup;
       root.querySelector("[data-breakdown-setup]").textContent = setup
@@ -364,11 +375,25 @@ function render(root, payload) {
   }
 
   const comingIn = payload.total_cash || {};
-  renderOptionalText(root, "[data-coming-in]", currencyEntry(comingIn), "—");
+  // "Next expected income" prefers the paycheck config; when set, the amount is
+  // the next inflow and the sub-label carries its date. Falls back to cash total.
+  const nextInflow = payload.next_inflow;
+  const comingInValue = nextInflow
+    ? formatCurrency(nextInflow.amount, nextInflow.currency || "USD")
+    : currencyEntry(comingIn);
+  renderOptionalText(root, "[data-coming-in]", comingInValue, "—");
+  const comingInCaption = root.querySelector("[data-coming-in-caption]");
+  if (comingInCaption) {
+    comingInCaption.textContent = nextInflow
+      ? `Next expected income · ${formatShortDate(nextInflow.date)}`
+      : "Next expected income";
+  }
   renderOptionalText(
     root,
     "[data-committed]",
-    currencyEntry(inputs.known_obligations),
+    typeof inputs.known_obligations === "number"
+      ? formatCurrency(inputs.known_obligations)
+      : currencyEntry(inputs.known_obligations),
     "—",
   );
   renderOptionalText(
