@@ -29,10 +29,34 @@ async function correct(row, category, kind, createRule) {
   window.MeridianActivity.loadActivity({ cursor: null });
 }
 
+// Sensible category suggestions for the inline editor's smart dropdown. The
+// user can still type any value — this only offers a likely first guess.
+const SUGGESTED_CATEGORIES = [
+  "Groceries",
+  "Dining",
+  "Gas",
+  "Transport",
+  "Shopping",
+  "Entertainment",
+  "Travel",
+  "Utilities",
+  "Rent",
+  "Subscriptions",
+  "Health",
+  "Insurance",
+  "Transfers",
+  "Personal Care",
+  "Home",
+  "Education",
+  "Fees",
+  "Other",
+];
+
 // Inline category editor (replaces a native window.prompt, which is unreliable
-// and janky). Opens a small input over the Correct button; Save posts the
-// correction, Cancel dismisses it. An optional `onSave` callback (batch) can
-// route the category elsewhere.
+// and janky). Opens a small input over the Correct button with a "smart"
+// datalist of likely categories (still free-typed) and an "apply to future
+// matching" checkbox that sets create_rule. Cancel dismisses it. An optional
+// `onSave` callback (batch) can route the category elsewhere.
 function openInlineCategoryEditor(row, onSave) {
   const container = row;
   const existing = row.querySelector("[data-review-editor]");
@@ -48,8 +72,22 @@ function openInlineCategoryEditor(row, onSave) {
   input.type = "text";
   input.placeholder = "Category name";
   input.setAttribute("aria-label", "Correct category");
+  input.setAttribute("list", "meridian-category-suggestions");
   const category = row.dataset.classificationCategory || "";
   input.value = category === "Uncategorized" ? "" : category;
+  const datalist = document.createElement("datalist");
+  datalist.id = "meridian-category-suggestions";
+  for (const cat of SUGGESTED_CATEGORIES) {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    datalist.appendChild(opt);
+  }
+  const applyRule = document.createElement("label");
+  applyRule.className = "m-review-editor-rule";
+  const check = document.createElement("input");
+  check.type = "checkbox";
+  check.checked = true;
+  applyRule.append(check, "Apply to future matching");
   const save = document.createElement("button");
   save.type = "button";
   save.className = "m-button m-button--small m-review-editor-save";
@@ -78,12 +116,13 @@ function openInlineCategoryEditor(row, onSave) {
       input.focus();
       return;
     }
+    const createRule = check.checked;
     save.disabled = true;
     try {
       if (onSave) {
-        await onSave(value);
+        await onSave(value, createRule);
       } else {
-        await correct(row, value, row.dataset.kind || "spend", true);
+        await correct(row, value, row.dataset.kind || "spend", createRule);
       }
     } catch (error) {
       save.disabled = false;
@@ -92,7 +131,7 @@ function openInlineCategoryEditor(row, onSave) {
     }
   });
 
-  editor.append(input, save, cancel);
+  editor.append(datalist, input, applyRule, save, cancel);
   container.insertBefore(editor, container.firstChild);
   input.focus();
 }
@@ -120,11 +159,12 @@ document.addEventListener("click", async (event) => {
       `[data-transaction-row][data-transaction-id="${selected[0]}"]`,
     );
     if (first) {
-      openInlineCategoryEditor(first, async (category) => {
+      openInlineCategoryEditor(first, async (category, createRule) => {
         await postCategory("/api/meridian/classifications/batch", {
           transaction_ids: selected,
           category,
           kind: "spend",
+          create_rule: createRule,
         });
         window.MeridianActivity.loadActivity({ cursor: null });
       });

@@ -296,11 +296,14 @@
   display: grid;
   gap: var(--m-space-3);
   width: 100%;
-  padding: var(--m-space-5);
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--m-space-4);
   border: 1px solid var(--m-border);
   border-radius: var(--m-radius-lg);
   background: var(--m-surface);
   cursor: default;
+  box-sizing: border-box;
 }
 
 .m-review-card:hover {
@@ -315,6 +318,7 @@
   display: flex;
   align-items: center;
   gap: var(--m-space-3);
+  min-width: 0;
 }
 
 .m-review-name {
@@ -360,15 +364,17 @@
 .m-review-meta {
   font-size: var(--m-text-sm);
   color: var(--m-ink-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .m-review-category {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--m-space-2);
+  min-width: 0;
   font-size: var(--m-text-md);
   color: var(--m-ink);
 }
@@ -421,12 +427,28 @@
   background: var(--m-surface);
   color: var(--m-ink);
   font-family: var(--m-font-sans);
-  font-size: var(--m-text-sm);
+  font-size: 16px; /* >=16px avoids iOS auto-zoom on focus */
 }
 
 .m-review-editor-input:focus-visible {
   outline: none;
   box-shadow: var(--m-focus-ring);
+}
+
+.m-review-editor-rule {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--m-space-2);
+  font-size: var(--m-text-sm);
+  color: var(--m-ink-muted);
+  cursor: pointer;
+}
+
+.m-review-editor-rule input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--m-healthy);
+  cursor: pointer;
 }
 
 .m-load-more {

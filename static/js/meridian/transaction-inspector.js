@@ -217,6 +217,16 @@ function close() {
 window.MeridianTransactionInspector = { open, close };
 
 document.addEventListener("click", (event) => {
+  // Review-card controls own their own click handlers (Approve / Correct / the
+  // inline category editor / the batch select) — never treat a click on them as
+  // an "open inspector" intent.
+  if (
+    event.target.closest(
+      "[data-review-approve], [data-review-correct], [data-review-editor], [data-review-select], .m-review-actions",
+    )
+  ) {
+    return;
+  }
   const row = event.target.closest("[data-transaction-row]");
   if (row) {
     open(Number(row.dataset.transactionId), { opener: row });
