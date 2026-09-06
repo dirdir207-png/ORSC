@@ -111,6 +111,28 @@
 
   <p class="m-inline-error" data-plan-error role="alert" hidden></p>
 
+  {# Account/parity (R30): honest list of Crew-backed capabilities that are not
+     yet exposed through Meridian. Each has an explicit deferred marker so the
+     UI never implies a control that does not exist. Nothing here triggers a
+     live Crew write. #}
+  <section class="m-plan-parity" aria-label="Crew capabilities still via legacy" data-crew-parity>
+    <h2 class="m-section-label">Crew capabilities (deferred)</h2>
+    <p class="m-parity-note">
+      These actions still run only through the legacy Crew surface; Meridian does
+      not yet expose a control and does not claim to.
+    </p>
+    <ul class="m-parity-list">
+      <li data-parity-deferred="pocket_create">Create pocket</li>
+      <li data-parity-deferred="pocket_delete">Delete pocket</li>
+      <li data-parity-deferred="bill_create">Create bill</li>
+      <li data-parity-deferred="bill_delete">Delete bill</li>
+      <li data-parity-deferred="spend_pocket">Set active spend pocket</li>
+      <li data-parity-deferred="virtual_card">Update virtual card</li>
+      <li data-parity-deferred="edit_autopilot_rule">Edit autopilot rule</li>
+      <li data-parity-deferred="delete_autopilot_rule">Delete autopilot rule</li>
+    </ul>
+  </section>
+
   {# Plan memory (document-driven insights) — wired by memory.js. #}
   <section class="m-plan-memory" aria-label="Plan memory items">
     <h2 class="m-section-label">From your documents</h2>
