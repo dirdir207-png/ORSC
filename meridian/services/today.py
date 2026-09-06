@@ -190,6 +190,58 @@ def _next_paycheck_inflow(paycheck, *, now=None):
     }
 
 
+def _build_beacon_signal(forecast: Optional[dict], safe_amount: Optional[float], safe_status: str) -> dict:
+    """Derive a genuinely valuable Beacon summary from the forecast + safe-to-spend.
+
+    Not a static "plan is steady": it surfaces the real, actionable signal — a
+    shortfall, whether the next paycheck covers it, a negative safe-to-spend, or
+    a positive runway — so the Beacon card is worth reading.
+    """
+    if not forecast or forecast.get("available") is not True:
+        return None
+    shortfall = forecast.get("first_shortfall")
+    covers = bool(forecast.get("paycheck_covers"))
+    next_paycheck = forecast.get("next_paycheck")
+    runway = forecast.get("runway_days")
+    low_point = forecast.get("low_point")
+    daily = forecast.get("daily_expense")
+
+    if safe_amount is not None and safe_amount < 0:
+        detail = f"Safe to spend is negative (${abs(safe_amount):,.2f}); the next paycheck will restore it."
+        title = "You're spending faster than income."
+    elif shortfall and covers:
+        title = "A shortfall is covered by your next paycheck."
+        detail = f"{shortfall.get('cause')} leaves you short on {_iso_short(shortfall.get('date'))}, but your {_iso_short(next_paycheck)} paycheck covers it."
+    elif shortfall:
+        title = "A shortfall is ahead."
+        detail = f"{shortfall.get('cause')} leaves you ${shortfall.get('amount'):,.2f} short on {_iso_short(shortfall.get('date'))}."
+    elif runway is not None and runway == 0:
+        title = "You're running tight until payday."
+        detail = f"Every day costs ${(daily or 0):,.2f} and no runway remains before funding."
+    elif runway is not None and runway > 0:
+        title = f"About {runway} day{'s' if runway != 1 else ''} of runway."
+        detail = f"At ${(daily or 0):,.2f}/day after known obligations, before the next paycheck."
+    elif low_point is not None and low_point < 0:
+        title = "Your low point dips below zero."
+        detail = f"Projected low ${low_point:,.2f} before funding arrives."
+    else:
+        title = "Your plan is steady."
+        detail = "No material change detected."
+    return {"title": title, "summary": title, "detail": detail, "evidence": []}
+
+
+def _iso_short(value) -> str:
+    """'2026-09-16' or a full timestamp -> a short 'Sep 16' label (local-safe)."""
+    try:
+        from datetime import date as _d
+
+        if isinstance(value, str) and len(value) >= 10:
+            return _d.fromisoformat(value[:10]).strftime("%b %-d")
+    except (ValueError, TypeError):
+        pass
+    return str(value or "soon")
+
+
 def build_today(
     repository: FinancialRepository,
     commitment_repository=None,
@@ -239,6 +291,7 @@ def build_today(
                 rule_repository,
                 as_of,
                 freshness=freshness["status"],
+                paycheck=paycheck,
             )
         )
 
@@ -282,6 +335,7 @@ def build_today(
         },
         "upcoming_events": [],
         "forecast": beacon,
+        "beacon": _build_beacon_signal(beacon, safe_amount, safe_status),
         "data_freshness": freshness,
         "breakdown": breakdown,
         "setup": setup,

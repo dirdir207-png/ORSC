@@ -37,6 +37,8 @@ class Forecast:
     factors: tuple[ForecastFactor, ...]
     confidence: float
     freshness: str
+    next_paycheck: date | None = None
+    paycheck_covers: bool = False
 
 
 def _commitment_amount(commitment) -> float:
@@ -61,7 +63,7 @@ def _date(value) -> date | None:
     return None
 
 
-def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh") -> Forecast:
+def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh", paycheck=None) -> Forecast:
     del rules
     accounts = graph.list_accounts()
     starting_cash = sum(
@@ -69,6 +71,19 @@ def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh"
         for account in accounts
         if account.is_active and account.account_type in {"cash", "checking", "savings"}
     )
+    # Future paycheck inflows (the funding source) so the projection does not
+    # treat income as absent and falsely report a shortfall that the next
+    # paycheck would actually cover.
+    paycheck_inflows: dict[date, float] = {}
+    if paycheck is not None and getattr(paycheck, "active", False):
+        try:
+            from meridian.paycheck import future_paycheck_events
+
+            for day, amount in future_paycheck_events(paycheck, as_of=as_of, horizon_days=90):
+                paycheck_inflows.setdefault(day, 0.0)
+                paycheck_inflows[day] += float(amount)
+        except Exception:  # noqa: BLE001 - paycheck is best-effort context
+            paycheck_inflows = {}
     transactions, _ = graph.list_transactions(limit=200)
     expenses = [
         (abs(float(item.amount)), item)
@@ -129,6 +144,7 @@ def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh"
     coverage = {}
     for offset in range(1, 91):
         current = as_of + timedelta(days=offset)
+        balance += paycheck_inflows.get(current, 0.0)
         balance -= daily_expense
         for amount, name in due_by_date.get(current, ()):
             balance -= amount
@@ -144,6 +160,17 @@ def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh"
     sample_confidence = min(0.9, 0.35 + len(expenses) * 0.05)
     confidence = sample_confidence * (0.65 if freshness != "fresh" else 1.0)
     amounts = [amount for amount, _item in expenses]
+    # Does the next paycheck land before the shortfall, so the shortfall is
+    # recoverable by allocating more from it? If so the beacon should suggest
+    # that, not just announce a short.
+    next_paycheck_date = (
+        min(paycheck_inflows) if paycheck_inflows else None
+    )
+    paycheck_covers = bool(
+        first_shortfall is not None
+        and next_paycheck_date is not None
+        and next_paycheck_date <= first_shortfall.date
+    )
     return Forecast(
         True,
         None,
@@ -159,4 +186,6 @@ def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh"
         tuple(factors),
         round(confidence, 2),
         freshness,
+        next_paycheck_date,
+        paycheck_covers,
     )

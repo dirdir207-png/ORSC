@@ -378,3 +378,41 @@ def test_today_safe_to_spend_matches_free_to_spend_pocket(repository):
 
     assert result["safe_to_spend"]["status"] == "available"
     assert result["safe_to_spend"]["amount"] == 71.61
+
+
+def test_beacon_signal_notes_negative_safe_to_spend():
+    from meridian.services.today import _build_beacon_signal
+
+    forecast = {
+        "available": True,
+        "runway_days": 0,
+        "daily_expense": 25.36,
+        "first_shortfall": None,
+        "paycheck_covers": False,
+        "next_paycheck": "2026-09-15",
+        "low_point": -200.0,
+    }
+    beacon = _build_beacon_signal(forecast, -20.20, "available")
+    assert beacon["title"] == "You're spending faster than income."
+    assert "restore" in beacon["detail"]
+
+
+def test_beacon_signal_shortfall_covered_by_paycheck():
+    from meridian.services.today import _build_beacon_signal
+
+    forecast = {
+        "available": True,
+        "runway_days": 0,
+        "daily_expense": 25.36,
+        "first_shortfall": {
+            "date": "2026-09-16",
+            "amount": 984.63,
+            "cause": "Rent",
+        },
+        "paycheck_covers": True,
+        "next_paycheck": "2026-09-15",
+        "low_point": -200.0,
+    }
+    beacon = _build_beacon_signal(forecast, 50.0, "available")
+    assert "covered" in beacon["title"]
+    assert "Rent" in beacon["detail"]

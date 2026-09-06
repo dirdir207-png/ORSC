@@ -81,13 +81,19 @@ function editorialDate(value) {
 }
 
 /* Truthful editorial headline driven by the forecast state — never a static
-   "you are covered" when the runway/safe-to-spend is actually negative. */
+   "you are covered" when the runway/safe-to-spend is actually negative. When a
+   shortfall exists but the next paycheck lands before it, suggest that the
+   paycheck covers it (allocating more), rather than just announcing a short. */
 function forecastHeadline(forecast, sts) {
   if (!forecast || forecast.available !== true) {
     return "Your forecast is unavailable.";
   }
   const firstShortfall = forecast.first_shortfall;
   if (firstShortfall && firstShortfall.date) {
+    // Paycheck covers it: the short is recoverable by allocating more.
+    if (forecast.paycheck_covers) {
+      return `You'll be short ${formatShortDate(firstShortfall.date)}, but your ${formatShortDate(forecast.next_paycheck)} paycheck covers it.`;
+    }
     return `You'll be short around ${formatShortDate(firstShortfall.date)}.`;
   }
   const runway = forecast.runway_days;
