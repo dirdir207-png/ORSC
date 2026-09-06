@@ -119,17 +119,16 @@ Verizon, Xfinity, Eversource, Rent). No financial mutation was performed.
 
 ## 6. Known unresolved capabilities (must NOT be hidden)
 
-- **Autopilot query schema drift (non-green, owner-gated):** the `crew-readonly`
-  snapshot's autopilot query returns
-  `Cannot query field "entities" on type "Rule"`. The autopilot section is
-  therefore `null` in the snapshot (no autopilot-rule data flows into
-  Meridian). This is the **single source of the `partial`/errors=1** sync
-  status and is isolated to enrichment — accounts and transactions sync
-  cleanly. The query spec lives in the **WorkAssistant**
-  (`CrewWorkAssistantOTP/operations/*.graphql`), **not** ORSC, so the fix is
-  owner-gated there. **This is not a release-blocking financial-integrity
-  failure** (Balances/Transactions/Commitments are all correct), but it is an
-  unresolved capability and must be recorded, not claimed green.
+- **Autopilot query schema drift — RESOLVED (2026-09-06):** the `crew-readonly`
+  aggregate autopilot query selected the removed `Rule.entities` field, causing
+  `Cannot query field "entities" on type "Rule"` and `status=partial`/errors=1
+  on every sync. Fixed in the **WorkAssistant** repo
+  (`operations/autopilot.graphql`, commit `a96f2d5`, `main`) by removing the
+  `entities { ... on DebitCard }` selection (card-filter enrichment, not consumed
+  by the read model). Re-verified: the snapshot now returns `complete: true,
+  errors: {}` with 2 autopilot rules, and the Meridian sync reports
+  `status=complete, errors=0`. A regression test
+  (`test_autopilot_query_does_not_reference_removed_rule_entities`) guards it.
 - **Crew feature parity (R30):** pocket/bill create+delete, spend-pocket,
   virtual card, and edit/delete autopilot rule remain **deferred** (explicit
   `data-parity-deferred` markers on the Plan page). Family accounts are out of
@@ -145,15 +144,13 @@ Verizon, Xfinity, Eversource, Rent). No financial mutation was performed.
 - **R32 pillars met:** verification gate (§1), immutable tested-digest artifact
   with compose pin (§2), rollback rehearsal (§4), two fresh read-only captures +
   restart/collector/offline/refresh recovery (§5).
-- **Honest gaps that keep this from a fully-green release:**
+- **Remaining gap that keeps this from a fully-green release:**
   1. The active daily-use preview runs from source, not from the tested Docker
      digest (§3) — compose target matches, daily instance does not.
-  2. The autopilot `entities` schema-drift error leaves `status=partial` on
-     every sync (§6) — benign to accounts/transactions/commitments, but an
-     unresolved capability.
+  (The autopilot schema-drift item is resolved per §6 and no longer blocks.)
 
-**Decision: R32 is accepted as a tested daily-use snapshot with two recorded
-non-green items (live instance from source + autopilot schema drift).** A
-formal "release" should not be declared until (a) the daily instance runs the
-tested digest and (b) the autopilot query is reconciled. Neither blocks local
-daily use or the correctness of the financial read model.
+**Decision: R32 is accepted as a tested daily-use snapshot with one recorded
+non-green item (live instance from source rather than the tested digest).** A
+formal "release" should not be declared until the daily instance runs the tested
+digest. Neither the remaining digest item nor the formerly-listed autopilot drift
+blocks local daily use or the correctness of the financial read model.

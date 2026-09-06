@@ -126,14 +126,12 @@ See `docs/project/PRIVATE_RELEASE_ACCEPTANCE.md` for the full record. Summary:
 
 ## Current blockers
 
-- **Autopilot schema drift (owner-gated, WorkAssistant):** `crew-readonly` autopilot
-  query fails on `Rule.entities`; autopilot section is null. Fix lives in
-  `CrewWorkAssistantOTP/operations/*.graphql`, not this repo. Keeps sync
-  `status=partial` (errors=1) until reconciled.
 - **Daily instance from source, not the tested digest:** the running preview on
   port 8081 is `run_preview_local.sh`; the Docker port-8080 slot is occupied by a
   pre-existing deployment from another project directory. "Deployed==tested" is
-  met for the compose target only.
+  met for the compose target only. (Autopilot schema drift was resolved 2026-09-06
+  in WorkAssistant `a96f2d5` — snapshot now `complete: true, errors: {}`, sync
+  `status=complete`.)
 - TokenX routing unavailable: sub-agent spawning is blocked in this session, so parallel execution must occur in a verified Codex CLI environment or run sequentially in the parent.
 - AI providers: owner's OpenAI key has no credits (429); OpenRouter free-tier quota tight
 - Verification workflow: Playwright screenshot harness against isolated instance gates all UI changes
