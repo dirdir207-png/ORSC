@@ -77,8 +77,15 @@
   letter-spacing: -0.025em;
   line-height: 1.02;
   font-variant-numeric: tabular-nums;
-  color: var(--m-healthy);
+  color: var(--m-ink);
 }
+
+/* Value-aware signal: green only for healthy positive money; red for negative;
+   neutral (default ink) for zero so a $0.00 never reads as a strong positive. */
+.m-accounts-figure[data-signal="positive"] { color: var(--m-healthy); }
+.m-accounts-figure[data-signal="negative"] { color: var(--m-risk); }
+.m-accounts-figure[data-signal="attention"] { color: var(--m-caution); }
+.m-accounts-figure[data-signal="neutral"] { color: var(--m-ink-faint); }
 
 .m-accounts-figure-note {
   margin: var(--m-space-1) 0 0;

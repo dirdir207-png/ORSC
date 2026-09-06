@@ -141,9 +141,18 @@ function renderGroups(groups) {
 
 function summarize(groups) {
   const all = groups.flatMap((g) => g.accounts.map((a) => ({ ...a, role: g.role })));
-  const liquidRoles = new Set(["cash", "savings", "investments"]);
-  const liquid = all.filter((a) => liquidRoles.has(a.role));
-  const liabilities = all.filter((a) => a.role === "liabilities");
+  // Liquid = real cash-typed accounts (cash/checking/savings) plus the spendable
+  // "Free to Spend" pocket, which is where Crew keeps discretionary money. This
+  // matches the Today safe-to-spend convention (the pockets are the actual
+  // spendable liquid money, not an "other" bucket).
+  const liquid = all.filter((a) => {
+    if (a.account_type === "checking" || a.account_type === "cash" || a.account_type === "savings") {
+      return true;
+    }
+    return a.account_type === "pocket" && /free to spend/i.test(a.name || "");
+  });
+  // Liabilities = accounts carrying a negative balance (debt/cards owe money).
+  const liabilities = all.filter((a) => (Number(a.balance) || 0) < 0);
 
   const available = liquid.reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
   const liabilityTotal = liabilities.reduce((sum, a) => sum + Math.abs(Number(a.balance) || 0), 0);
@@ -153,9 +162,7 @@ function summarize(groups) {
     liabilities: liabilityTotal,
     availableNote: `Across ${providerList(all)} · synced ${relativeAge(liquid.length ? liquid[0].synced_at : null)}`,
     liabilitiesNote: liabilities.length
-      ? `${liabilities.length} ${liabilities.length === 1 ? "card" : "cards"} · ${
-          providerList(all.filter((a) => a.role === "liabilities"))
-        }`
+      ? `${liabilities.length} ${liabilities.length === 1 ? "card" : "cards"} · ${providerList(liabilities)}`
       : "No outstanding balances",
   };
 }
@@ -169,6 +176,19 @@ function renderSummary(summary) {
   if (liabilities) liabilities.textContent = formatCurrency(summary.liabilities, "USD");
   if (availableNote) availableNote.textContent = summary.availableNote;
   if (liabilitiesNote) liabilitiesNote.textContent = summary.liabilitiesNote;
+
+  // Value-aware figure color: a $0 or negative balance should never render in
+  // the "good" green (it reads as healthy money). Green only for positive
+  // available; red for negative; neutral for zero.
+  if (available) {
+    available.dataset.signal =
+      summary.available > 0 ? "positive" : summary.available < 0 ? "negative" : "neutral";
+  }
+  if (liabilities) {
+    // No debt (0) is good; any liability deserves attention.
+    liabilities.dataset.signal =
+      summary.liabilities > 0 ? "attention" : "neutral";
+  }
 }
 
 /* ---------- Reimbursements ---------- */
