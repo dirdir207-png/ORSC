@@ -73,3 +73,49 @@ def ingest_gmail_recent(
         "errors": errors,
         "items": stored,
     }
+
+
+def ingest_all_gmail_accounts(
+    *,
+    db_path: str,
+    evidence_repo: EvidenceRepository,
+    token_client,
+    max_messages_per_account: int = 10,
+) -> dict[str, object]:
+    """Ingest recent Gmail from every connected Gmail account.
+
+    Enumerates all stored Gmail OAuth tokens (multi-account), builds a transport
+    for each, and stores each account's recent messages as evidence. Read-only
+    Gmail; no mutation. Returns a per-account summary plus a total.
+    """
+    from .connectors.google_auth import OAuthTokenStore
+
+    store = OAuthTokenStore(db_path)
+    accounts = store.list_accounts(kind="gmail")
+    total_fetched = 0
+    total_stored = 0
+    per_account: list[dict[str, object]] = []
+    for acct in accounts:
+        email = str(acct.get("account_email") or "")
+        token = store.get(kind="gmail", account_email=email)
+        if not token:
+            continue
+
+        def _refresh(_tok=token):
+            return token_client.refresh(_tok["refresh_token"])
+
+        transport = GmailTransport(access_token=token["access_token"], refresh=_refresh)
+        summary = ingest_gmail_recent(
+            transport=transport,
+            evidence_repo=evidence_repo,
+            max_messages=max_messages_per_account,
+        )
+        per_account.append({"account_email": email, **summary})
+        total_fetched += int(summary["fetched"])
+        total_stored += int(summary["stored"])
+
+    return {
+        "accounts": per_account,
+        "total_fetched": total_fetched,
+        "total_stored": total_stored,
+    }
