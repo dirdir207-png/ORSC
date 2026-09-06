@@ -1,5 +1,6 @@
 """Stable, authenticated HTTP read models for Meridian."""
 
+import os
 from datetime import date
 from functools import wraps
 from io import BytesIO
@@ -37,6 +38,19 @@ def _evidence_repository(graph=None):
         return factory()
     graph = graph or _repository()
     return EvidenceRepository(graph.db_path)
+
+
+def _evidence_blob_store(graph=None):
+    """Build the encrypted evidence blob store (same as app._evidence_store_factory).
+
+    Intake needs this to persist the raw content so invoice/evidence links can
+    later decrypt and display it. Uses the app secret key as the derived key.
+    """
+    from meridian.storage import DerivedKeyProvider, EncryptedBlobStore
+
+    graph = graph or _repository()
+    evidence_root = os.path.join(os.path.dirname(os.path.abspath(graph.db_path)), "evidence")
+    return EncryptedBlobStore(evidence_root, DerivedKeyProvider(current_app.secret_key.encode()))
 
 
 def _connection_repository(graph=None):
@@ -336,6 +350,7 @@ def icloud_intake():
             transactions=transactions,
             max_messages=100,
             since_days=30,
+            blob_store=_evidence_blob_store(graph),
         )
     except IcloudMailReadError as exc:
         return _error("connection_unavailable", str(exc), "Check the iCloud Mail credentials and try again.", 503)
@@ -371,6 +386,7 @@ def gmail_intake():
         token_client=_token_client(),
         max_messages_per_account=50,
         since_days=30,
+        blob_store=_evidence_blob_store(graph),
     )
     return jsonify({"state": "ingested", "summary": summary})
 
@@ -939,7 +955,16 @@ def evidence_content(evidence_id: str):
             "Configure the encrypted evidence store.",
             503,
         )
-    content = factory().read(item.content_hash)
+    try:
+        content = factory().read(item.content_hash)
+    except Exception:  # noqa: BLE001 - a missing/undecryptable blob must not
+        # surface as a raw provider error; degrade to the evidence's cached facts.
+        return _error(
+            "evidence_content_missing",
+            "This document's content is not stored yet.",
+            "It was created before content was persisted; re-run the mail intake to backfill it.",
+            404,
+        )
     return send_file(
         BytesIO(content),
         mimetype=item.mime_type,

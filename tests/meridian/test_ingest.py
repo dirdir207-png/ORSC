@@ -11,6 +11,34 @@ def _repo(tmp_path):
     return EvidenceRepository(str(tmp_path / "e.db"))
 
 
+def test_intake_persists_blob_for_later_content_read(tmp_path):
+    """Ingest must write the encrypted blob so invoice/evidence links can open."""
+    from meridian.storage import DerivedKeyProvider, EncryptedBlobStore
+
+    repo = _repo(tmp_path)
+    store = EncryptedBlobStore(
+        str(tmp_path / "evidence"),
+        DerivedKeyProvider(b"test-secret-key-00000000000000000000000000"),
+    )
+    blob = b"Verizon bill: amount due $85.00"
+    result = ingest_record(
+        IntakeRecord("mail", "m1", blob, "text/plain", "Your Verizon bill"),
+        evidence_repo=repo,
+        blob_store=store,
+    )
+    assert result.duplicate is False
+    content = store.read(result.content_hash)
+    assert content == blob
+    # A duplicate re-ingest must also leave the blob retrievable.
+    r2 = ingest_record(
+        IntakeRecord("mail", "m1", blob, "text/plain", "Your Verizon bill"),
+        evidence_repo=repo,
+        blob_store=store,
+    )
+    assert r2.duplicate is True
+    assert store.read(r2.content_hash) == blob
+
+
 def test_duplicate_receipt_not_double_counted(tmp_path):
     repo = _repo(tmp_path)
     blob = b"Bank statement total: $123.45"

@@ -55,9 +55,15 @@ def ingest_record(
     record: IntakeRecord,
     *,
     evidence_repo,
+    blob_store=None,
     extraction_limit_bytes: int = 8 * 1024 * 1024,
 ) -> IntakeResult:
-    """One intake step: validate → dedup → extract → store evidence."""
+    """One intake step: validate → dedup → extract → store evidence.
+
+    When ``blob_store`` is provided, the raw content is also persisted to the
+    encrypted blob store so the evidence content can later be retrieved (opening
+    an invoice link needs the decrypted blob, not just the metadata row).
+    """
     if len(record.blob) > extraction_limit_bytes:
         raise QuarantineError("intake exceeds size limit")
     if not record.blob:
@@ -71,6 +77,13 @@ def ingest_record(
 
     existing = evidence_repo.get_by_content_hash(record.content_hash) if hasattr(evidence_repo, "get_by_content_hash") else None
     if existing is not None:
+        # Still persist the blob on a duplicate (a prior run may have created the
+        # metadata row before blob storage was wired, leaving the content missing).
+        if blob_store is not None:
+            try:
+                blob_store.put(record.blob, mime_type=record.mime_type)
+            except Exception:  # noqa: BLE001 - best-effort
+                pass
         return IntakeResult(
             item_id=existing.id, content_hash=record.content_hash,
             document_type="duplicate", extracted={}, duplicate=True,
@@ -91,6 +104,12 @@ def ingest_record(
         title=record.title or doc.document_type,
         sender=record.sender,
     )
+    # Persist the encrypted blob so the evidence content is retrievable.
+    if blob_store is not None:
+        try:
+            blob_store.put(record.blob, mime_type=record.mime_type)
+        except Exception:  # noqa: BLE001 - blob persistence is best-effort
+            pass
     facts = [
         {
             "field": f.field,

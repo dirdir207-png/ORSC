@@ -31,6 +31,7 @@ def ingest_gmail_recent(
     max_messages: int = 20,
     since_days: int = 30,
     transactions=None,
+    blob_store=None,
 ) -> dict[str, object]:
     """Fetch recent Gmail messages and store each as evidence.
 
@@ -64,7 +65,7 @@ def ingest_gmail_recent(
             sender=msg.sender or None,
         )
         try:
-            result = ingest_record(record, evidence_repo=evidence_repo)
+            result = ingest_record(record, evidence_repo=evidence_repo, blob_store=blob_store)
         except QuarantineError:
             quarantined += 1
             continue
@@ -110,6 +111,7 @@ def ingest_all_gmail_accounts(
     token_client,
     max_messages_per_account: int = 10,
     since_days: int = 30,
+    blob_store=None,
 ) -> dict[str, object]:
     """Ingest recent Gmail from every connected Gmail account.
 
@@ -139,6 +141,7 @@ def ingest_all_gmail_accounts(
             evidence_repo=evidence_repo,
             max_messages=max_messages_per_account,
             since_days=since_days,
+            blob_store=blob_store,
         )
         per_account.append({"account_email": email, **summary})
         total_fetched += int(summary["fetched"])
@@ -206,6 +209,7 @@ def ingest_icloud_recent(
     max_messages: int = 20,
     since_days: int = 30,
     transactions=None,
+    blob_store=None,
 ) -> dict[str, object]:
     """Ingest recent iCloud Mail messages as evidence (reuses the intake).
 
@@ -237,7 +241,7 @@ def ingest_icloud_recent(
             sender=msg.sender or None,
         )
         try:
-            result = ingest_record(record, evidence_repo=evidence_repo)
+            result = ingest_record(record, evidence_repo=evidence_repo, blob_store=blob_store)
         except QuarantineError:
             quarantined += 1
             continue
