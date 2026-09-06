@@ -9,9 +9,32 @@ export function parseLocalDate(value) {
   if (!value) {
     return null;
   }
-  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
-  const parsed = isDateOnly ? new Date(`${value}T12:00:00`) : new Date(value);
+  // Date-only ISO "2026-09-16".
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return parseDateOnly(new Date(`${value}T12:00:00`));
+  }
+  // A calendar date expressed as midnight UTC (e.g. "Wed, 16 Sep 2026 00:00:00 GMT"
+  // from the API) also shifts a day earlier in a UTC-negative timezone. Detect an
+  // all-zero time and re-parse from the UTC calendar date so the displayed day is
+  // the API's (Sep 16), not the local-shifted prior day (Sep 15).
+  if (/00:00:00/i.test(value)) {
+    const asDate = new Date(value);
+    if (!Number.isNaN(asDate.getTime())) {
+      return new Date(
+        asDate.getUTCFullYear(),
+        asDate.getUTCMonth(),
+        asDate.getUTCDate(),
+        12,
+      );
+    }
+  }
+  const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseDateOnly(parsed) {
+  // Return the same calendar day but at local noon (avoids any DST/zone shift).
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 12);
 }
 
 export function formatCurrency(amount, currency) {
