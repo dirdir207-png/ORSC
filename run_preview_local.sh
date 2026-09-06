@@ -6,5 +6,6 @@ if [ -f "$(dirname "$0")/.env" ]; then
   . "$(dirname "$0")/.env"
 fi
 set +a
+export FLASK_DEBUG="${FLASK_DEBUG:-1}"
 export DB_FILE="${DB_FILE:-/tmp/gate-preview/gate.db}"
 exec python3 "$(dirname "$0")/run_preview.py"
