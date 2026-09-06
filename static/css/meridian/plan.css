@@ -209,8 +209,10 @@
 .m-plan-table-head,
 .m-plan-table-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px 90px 110px;
-  gap: var(--m-space-3);
+  /* Keep the funded + next figures comfortably close to the bill name rather
+     than shoved to the far edge of an oversized name column. */
+  grid-template-columns: minmax(0, 1fr) minmax(80px, 120px) minmax(60px, 110px) auto;
+  gap: var(--m-space-4);
   align-items: center;
 }
 
@@ -313,12 +315,23 @@
   font-size: var(--m-text-md);
 }
 
+.m-plan-cell-funded {
+  font-family: var(--m-font-serif);
+  font-size: var(--m-text-md);
+  font-weight: 600;
+  color: var(--m-ink);
+}
+
 .m-plan-cell-next {
   color: var(--m-ink-muted);
 }
 
 .m-plan-cell-action {
   text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-space-1);
+  align-items: flex-end;
 }
 
 .m-plan-table-footer {
