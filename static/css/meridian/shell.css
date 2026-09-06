@@ -18,10 +18,9 @@
   display: none !important;
 }
 
-/* Meridian exposes the advisor through intentional in-context controls. */
-body:has([data-meridian-shell]) #advisor-fab {
-  display: none !important;
-}
+/* Meridian exposes the advisor through a persistent, low-key branded trigger
+   (advisor.css) plus in-context controls on Today. The trigger must remain
+   reachable on every workspace, so it is NOT hidden here. */
 
 /* ---------- Theme support ---------- */
 

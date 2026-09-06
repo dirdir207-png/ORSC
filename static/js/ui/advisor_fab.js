@@ -30,7 +30,7 @@ function advisorLoadPersisted() {
     if (log) {
         log.innerHTML = '';
         if (advisorFabHistory.length === 0) {
-            advisorBubble('assistant', "Hi! I'm your Crew copilot. Ask about balances, pockets, or spending — or tell me to move money and I'll draft a proposal for your approval.");
+            advisorBubble('assistant', "Hi! I'm Virgil. Ask about your balances, pockets, or spending — or tell me to move money and I'll draft a proposal for your approval.");
         } else {
             for (const m of advisorFabHistory) {
                 if (m && m.content) advisorBubble(m.role, m.content, true);

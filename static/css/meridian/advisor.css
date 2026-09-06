@@ -56,30 +56,20 @@
   box-shadow: var(--m-elevation-2, 0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
-/* The Meridian shell uses in-context [data-open-advisor] controls. Keep the
-   legacy floating trigger hidden so it cannot compete with financial actions. */
+/* The Meridian shell uses in-context [data-open-advisor] controls (Today) plus
+   a persistent, low-key branded trigger on every workspace so the advisor is
+   reachable on Today/Plan/Activity/Accounts alike. The trigger sits at a quiet
+   corner and never competes with in-flow financial actions. */
 body:has([data-meridian-shell]) #advisor-fab.m-advisor-trigger {
-  display: none !important;
-}
-
-/* Activity has no persistent in-context advisor CTA, so retain the accessible
-   branded trigger there; Today and Plan use their contextual buttons instead. */
-body:has([data-meridian-shell])
-  .m-shell:has([data-workspace-section="activity"]:not([hidden]))
-  ~ #advisor-fab.m-advisor-trigger {
   display: inline-flex !important;
 }
 
-/* Mobile: the bottom dock owns the screen, so the trigger retreats and the
-   advisor is reached only from [data-open-advisor] in-context buttons.
-   Kept at equal-or-higher specificity than the desktop Activity reveal so it
-   always wins on small screens. */
+/* Mobile: keep the trigger visible as a quiet floating pill above the bottom
+   dock (never competing with in-flow actions, just always reachable). */
 @media (max-width: 900px) {
-  body:has([data-meridian-shell])
-    .m-shell:has([data-workspace-section="activity"]:not([hidden]))
-    ~ #advisor-fab.m-advisor-trigger,
   body:has([data-meridian-shell]) #advisor-fab.m-advisor-trigger {
-    display: none !important;
+    display: inline-flex !important;
+    bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 56px);
   }
 }
 

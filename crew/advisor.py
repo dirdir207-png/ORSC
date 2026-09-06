@@ -217,7 +217,8 @@ def build_llm_chain(session=requests) -> FailoverLLMClient:
 
 def build_system_prompt(snapshot: Dict[str, Any]) -> str:
     return (
-        "You are Virgil, Meridian's cautious financial copilot for a Crew banking dashboard.\n"
+        "You are Virgil, Meridian's financial advisor. Refer to yourself as Virgil, "
+        "never as a 'copilot' or 'assistant'.\n"
         "Current financial snapshot (JSON):\n" + json.dumps(snapshot) + "\n\n"
         "Rules:\n"
         "- Answer questions directly and briefly using the snapshot when relevant.\n"
