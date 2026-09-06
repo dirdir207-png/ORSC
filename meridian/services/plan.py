@@ -136,13 +136,11 @@ def _bill_invoice_evidence(evidence_repository, bill_name: str, limit: int = 4) 
                 "is_bill": is_bill_word,
             }
         )
-    # Bill/statement emails first; stable by id within a group.
-    matches.sort(key=lambda m: (not m["is_bill"], m["id"]))
-    bills = [m for m in matches if m["is_bill"]]
-    # Prefer actual bill/statement emails. Only when NONE are found do we fall
-    # back to a single sender-domain item (never a stack of marketing promos).
-    selected = bills if bills else matches[:1]
-    return selected[:limit]
+    # Only real bill/statement emails surface. A sender-domain marketing email
+    # (e.g. a Verizon iPhone promo) is NOT an invoice, so it is never shown —
+    # the bill simply has no invoice link until a genuine bill/statement email
+    # exists in evidence.
+    return [m for m in matches if m["is_bill"]][:limit]
 
 
 def _project_commitment(commitment, rules, cash_events, as_of: date):
