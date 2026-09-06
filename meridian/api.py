@@ -3,9 +3,8 @@
 import os
 from datetime import date
 from functools import wraps
-from io import BytesIO
 
-from flask import Blueprint, current_app, jsonify, request, send_file
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import login_required
 
 from meridian.ai.advisor import AdvisorContext
@@ -965,12 +964,48 @@ def evidence_content(evidence_id: str):
             "It was created before content was persisted; re-run the mail intake to backfill it.",
             404,
         )
-    return send_file(
-        BytesIO(content),
-        mimetype=item.mime_type,
-        download_name=item.title or f"evidence-{item.id}",
-        as_attachment=False,
-    )
+    # Render email HTML in a minimal, script-free viewer (so it reads like an
+    # email, not raw source) while never running its scripts. Plain text is
+    # shown escaped in a readable block.
+    text = content.decode("utf-8", errors="replace")
+    return Response(_evidence_viewer_html(text, item.title), mimetype="text/html")
+
+
+def _evidence_viewer_html(content: str, title: str | None) -> str:
+    """Wrap evidence content in a safe, readable viewer.
+
+    HTML content is embedded in a sandboxed iframe (no scripts, no remote
+    origin) so it renders but can never run code. Plain text is escaped and shown
+    in a `<pre>`. A header shows the subject/title and a way back to the app.
+    """
+    import html as _html
+
+    looks_html = "<" in content[:400] and (">" in content[:400])
+    if looks_html:
+        framed = f'<iframe sandbox srcdoc="{_html.escape(content, quote=True)}"></iframe>'
+    else:
+        framed = f"<pre>{_html.escape(content)}</pre>"
+    safe_title = _html.escape(title or "Evidence")
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{safe_title}</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-src 'none'">
+<style>
+  :root {{ color-scheme: light dark; }}
+  body {{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; background:#14110d; color:#ece7de; }}
+  .bar {{ position:sticky; top:0; display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem;
+          background:#1d1915; border-bottom:1px solid #332d25; }}
+  .bar h1 {{ margin:0; font-size:.9rem; font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+  .bar a {{ font-size:.8rem; color:#7fb0dc; text-decoration:none; }}
+  .content {{ padding:1rem; overflow-wrap:anywhere; }}
+  .content pre {{ margin:0; white-space:pre-wrap; font-family:ui-monospace,Menlo,monospace; font-size:.85rem; }}
+  iframe {{ border:0; width:100%; height:calc(100vh - 60px); background:transparent; }}
+</style></head>
+<body>
+  <div class="bar"><h1>{safe_title}</h1><a href="/meridian?workspace=plan">Back to Plan</a></div>
+  <div class="content">{framed}</div>
+</body></html>"""
 
 
 @meridian_api.get("/memory/<workspace>")

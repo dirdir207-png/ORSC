@@ -120,6 +120,12 @@ def _bill_invoice_evidence(evidence_repository, bill_name: str, limit: int = 4) 
             if t
         }
         is_bill_word = bool(bill_keywords & raw_title_tokens)
+        # A subject-only match (no biller-domain signature) is only trustworthy
+        # when the subject also reads as a bill/statement. Otherwise a marketing
+        # promo that merely mentions the bill name (e.g. "Rent is due, are you
+        # covered?") from an unrelated sender would surface as an invoice.
+        if not sender_match and not is_bill_word:
+            continue
         matches.append(
             {
                 "id": item.id,

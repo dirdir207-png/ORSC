@@ -117,6 +117,12 @@ def test_bill_invoice_evidence_matches_by_biller_name(tmp_path):
         mime_type="text/plain", size_bytes=15,
         title="Your Ultimate Tech Setup Is Here!", sender="Rent-A-Center <messages@e.rentacenter.com>",
     )
+    evidence.add_item(
+        source_kind="mail", source_id="<rent2>",
+        content_hash=blake(b"Rent due promo").hexdigest(),
+        mime_type="text/plain", size_bytes=18,
+        title="Rent is due, are you covered?", sender="Money App <mail@moneyapp.com>",
+    )
 
     rows = _bill_invoice_evidence(evidence, "Verizon", limit=4)
     # Only the real bill/statement email surfaces; the marketing email is dropped
@@ -125,6 +131,9 @@ def test_bill_invoice_evidence_matches_by_biller_name(tmp_path):
     assert rows[0]["title"] == "Your Verizon bill is ready"
     assert rows[0]["is_bill"] is True
     # Rent-A-Center's host (e.rentacenter.com) must not match the "Rent" bill.
+    assert _bill_invoice_evidence(evidence, "Rent", limit=4) == []
+    # A marketing promo that merely mentions "rent" from an unrelated sender
+    # is NOT an invoice and must not surface.
     assert _bill_invoice_evidence(evidence, "Rent", limit=4) == []
     assert _bill_invoice_evidence(evidence, "Xfinity", limit=4) == []
 
