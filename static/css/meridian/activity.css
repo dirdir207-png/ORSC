@@ -404,6 +404,31 @@
   color: var(--m-ink);
 }
 
+/* Inline category editor (replaces a native prompt). */
+.m-review-editor {
+  display: flex;
+  gap: var(--m-space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.m-review-editor-input {
+  flex: 1 1 160px;
+  min-height: 40px;
+  padding: var(--m-space-2) var(--m-space-3);
+  border: 1px solid var(--m-border-strong);
+  border-radius: var(--m-radius-md);
+  background: var(--m-surface);
+  color: var(--m-ink);
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-sm);
+}
+
+.m-review-editor-input:focus-visible {
+  outline: none;
+  box-shadow: var(--m-focus-ring);
+}
+
 .m-load-more {
   width: 100%;
   margin-top: var(--m-space-4);

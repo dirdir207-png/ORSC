@@ -262,7 +262,9 @@ body:has(#advisor-panel[data-open]) #advisor-fab.m-advisor-trigger {
   background: var(--m-surface, #fff);
   color: var(--m-ink, #201d18);
   font-family: var(--m-font-sans, system-ui, sans-serif);
-  font-size: var(--m-text-sm, 0.8125rem);
+  /* 16px prevents the iOS auto-zoom that fires when an <input> < 16px gains
+     focus — the root cause of "I have to zoom in every time Virgil opens". */
+  font-size: 16px;
   line-height: 1.3;
   transition: border-color var(--m-motion-fast, 120ms) var(--m-ease-out, ease);
 }
@@ -307,23 +309,6 @@ body:has(#advisor-panel[data-open]) #advisor-fab.m-advisor-trigger {
 /* ------------------------------------------------------------------ */
 /* Mobile composition: full-height sheet. */
 /* ------------------------------------------------------------------ */
-
-@media (max-width: 900px) {
-  #advisor-panel.m-advisor {
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 70;
-    width: 100vw;
-    max-width: 100vw;
-    border-left: none;
-    padding: calc(var(--m-space-5, 24px) + env(safe-area-inset-top))
-      max(var(--m-space-4, 16px), env(safe-area-inset-right))
-      calc(var(--m-space-4, 16px) + env(safe-area-inset-bottom))
-      max(var(--m-space-4, 16px), env(safe-area-inset-left));
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /* Motion: respect reduced-motion preferences. */
