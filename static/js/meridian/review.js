@@ -79,9 +79,29 @@ function openInlineCategoryEditor(row, onSave) {
     category && category !== "Uncategorized"
       ? category
       : (row.dataset.suggestedCategory || "");
+  // Ranked options from the backend (suggestion first + merchant history +
+  // defaults); fall back to the static list when the row carries none.
+  let options = null;
+  try {
+    options = JSON.parse(row.dataset.categoryOptions || "null");
+  } catch {
+    options = null;
+  }
+  if (!Array.isArray(options)) {
+    options = [];
+    const guess = row.dataset.suggestedCategory;
+    if (guess) {
+      options.push(guess);
+    }
+    for (const cat of SUGGESTED_CATEGORIES) {
+      if (!options.includes(cat)) {
+        options.push(cat);
+      }
+    }
+  }
   const datalist = document.createElement("datalist");
   datalist.id = "meridian-category-suggestions";
-  for (const cat of SUGGESTED_CATEGORIES) {
+  for (const cat of options) {
     const opt = document.createElement("option");
     opt.value = cat;
     datalist.appendChild(opt);

@@ -25,6 +25,26 @@ def test_keyword_category_guess_recognizes_common_merchants():
     assert _keyword_category_guess("UnknownCorp") is None
 
 
+def test_category_options_puts_history_and_defaults_after_suggestion(repository):
+    """Ranked options: the merchant's own most-common category comes first."""
+    account = repository.upsert_account(
+        provider="crew", external_id="cat-acc", name="Everyday",
+        account_type="checking", balance=100.0, synced_at="2026-08-26T10:00:00Z",
+    )
+    tx = repository.upsert_transaction(
+        provider="crew", external_id="cat-tx", account_id=account.id,
+        amount=-20.0, currency="USD", occurred_at="2026-08-25T12:00:00Z",
+        description="Blue Bottle Coffee", status="posted", merchant="Blue Bottle",
+        synced_at="2026-08-25T12:02:00Z",
+    )
+    repository.correct_classification(tx.id, category="Dining", kind="spend")
+    # The owner's own category ("Dining") ranks first over the keyword/default pool.
+    options = repository.category_options(merchant="Blue Bottle")
+    assert options[0] == "Dining"
+    assert "Groceries" in options  # standard pool still present
+    assert "Shopping" in options
+
+
 @pytest.fixture
 def repository(tmp_path):
     return FinancialRepository(str(tmp_path / "financial.db"))

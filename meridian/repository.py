@@ -733,6 +733,35 @@ class FinancialRepository:
         # 3) Keyword heuristic for recognizable merchants.
         return _keyword_category_guess(merchant or description or "")
 
+    def category_options(self, *, merchant: str | None, description: str | None = None, limit: int = 10) -> list[str]:
+        """Ranked category options for a merchant's editor dropdown.
+
+        The suggested category is first (the smart guess), then the merchant's
+        historically-assigned categories (by frequency), then the standard pool.
+        The UI still lets the owner type anything — this only orders suggestions.
+        """
+        from collections import Counter
+
+        suggestion = self.suggest_category(merchant=merchant, description=description)
+        ordered: list[str] = []
+        if suggestion:
+            ordered.append(suggestion)
+        lower_merchant = (merchant or "").strip().casefold() or None
+        if lower_merchant:
+            with self._connect() as connection:
+                rows = connection.execute(
+                    "SELECT classification_category FROM financial_transactions "
+                    "WHERE lower(merchant) = ? AND classification_category IS NOT NULL "
+                    "AND classification_category != ''",
+                    (lower_merchant,),
+                ).fetchall()
+            for category, _count in Counter(r["classification_category"] for r in rows).most_common():
+                if category not in ordered:
+                    ordered.append(category)
+        for category in _DEFAULT_CATEGORIES:
+            if category not in ordered:
+                ordered.append(category)
+        return ordered[:limit]
 
     def list_assignment_rules(self) -> list[StoredAssignmentRule]:
         with self._connect() as connection:
@@ -1020,3 +1049,24 @@ def _keyword_category_guess(text: str) -> str | None:
         if any(k in t for k in keywords):
             return category
     return None
+
+_DEFAULT_CATEGORIES = [
+    "Groceries",
+    "Dining",
+    "Gas",
+    "Transport",
+    "Shopping",
+    "Entertainment",
+    "Travel",
+    "Utilities",
+    "Rent",
+    "Subscriptions",
+    "Health",
+    "Insurance",
+    "Transfers",
+    "Personal Care",
+    "Home",
+    "Education",
+    "Fees",
+    "Other",
+]

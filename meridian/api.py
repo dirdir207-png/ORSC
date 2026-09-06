@@ -163,12 +163,17 @@ def _transaction_payload(transaction: TransactionRecord) -> dict[str, object]:
 
 def _transaction_payload_with_suggestion(repository, transaction):
     """Transaction payload plus a data-derived category suggestion (the "smart"
-    first guess for the Review editor)."""
+    first guess for the Review editor) and ranked category options."""
     payload = _transaction_payload(transaction)
     if payload["classification"].get("category"):
         payload["suggested_category"] = None
+        payload["category_options"] = []
     else:
         payload["suggested_category"] = repository.suggest_category(
+            merchant=transaction.merchant,
+            description=transaction.description,
+        )
+        payload["category_options"] = repository.category_options(
             merchant=transaction.merchant,
             description=transaction.description,
         )

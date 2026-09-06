@@ -96,6 +96,10 @@ function buildRow(transaction) {
     if (suggested) {
       row.dataset.suggestedCategory = suggested;
     }
+    // Ranked category options (suggestion first + merchant history + defaults).
+    if (Array.isArray(transaction.category_options) && transaction.category_options.length) {
+      row.dataset.categoryOptions = JSON.stringify(transaction.category_options);
+    }
     const catLabel = hasCategory
       ? transaction.classification.category
       : suggested
