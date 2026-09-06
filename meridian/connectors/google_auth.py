@@ -61,26 +61,36 @@ class GoogleOAuth2Client:
         self._scopes = tuple(scopes)
 
     def authorization_url(
-        self, *, state: str, access_type: str = "offline", prompt: str = "consent"
+        self,
+        *,
+        state: str,
+        redirect_uri: str | None = None,
+        access_type: str = "offline",
+        prompt: str = "consent",
     ) -> str:
+        # Google requires the authorization and the exchange to use the SAME
+        # redirect URI. A phone reaching the app at http://100.118.158.2:8081
+        # must authorize + exchange against that exact URI, not 127.0.0.1.
+        uri = redirect_uri or self._config.redirect_uris[0]
         return (
             f"{self.AUTH_URL}?client_id={self._config.client_id}"
-            f"&redirect_uri={_quote(self._config.redirect_uris[0])}"
+            f"&redirect_uri={_quote(uri)}"
             f"&response_type=code&scope={_quote(' '.join(self._scopes))}"
             f"&state={state}&access_type={access_type}&prompt={prompt}"
         )
 
-    def exchange(self, code: str, transport=None) -> dict:
+    def exchange(self, code: str, transport=None, *, redirect_uri: str | None = None) -> dict:
         """Exchange an authorization code for tokens. transport=httpx or requests."""
         import requests
 
+        uri = redirect_uri or self._config.redirect_uris[0]
         response = requests.post(
             self.TOKEN_URL,
             data={
                 "code": code,
                 "client_id": self._config.client_id,
                 "client_secret": self._config.client_secret,
-                "redirect_uri": self._config.redirect_uris[0],
+                "redirect_uri": uri,
                 "grant_type": "authorization_code",
             },
             timeout=20,
@@ -169,6 +179,17 @@ def _quote(value: str) -> str:
     from urllib.parse import quote
 
     return quote(value, safe="")
+
+
+def callback_redirect_uri(host_url: str) -> str:
+    """Build the OAuth callback URI for a given request host.
+
+    host_url is Flask's ``request.host_url`` (e.g. ``http://100.118.158.2:8081/``).
+    Deriving the callback from the request host lets a phone reach the app on
+    the Tailscale address and authorize against that same URI, instead of being
+    pinned to the hardcoded http://127.0.0.1:8081 loopback.
+    """
+    return (host_url or "").rstrip("/") + "/api/meridian/connections/oauth/callback"
 
 
 # Identity scopes are required for Google to return an id_token whose email

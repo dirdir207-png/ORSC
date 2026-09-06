@@ -130,15 +130,15 @@ from meridian.connectors.google_auth import (
 try:
     _google_cfg = GoogleOAuthConfig.from_env()
     app.config["MERIDIAN_CONNECTION_AUTHORIZERS"] = {
-        "gmail": lambda: {
+        "gmail": lambda redirect_uri=None: {
             "authorization_url": GoogleOAuth2Client(
                 _google_cfg, scopes=(READ_ONLY_GMAIL_SCOPE,) + GOOGLE_IDENTITY_SCOPES
-            ).authorization_url(state="gmail-connect")
+            ).authorization_url(state="gmail-connect", redirect_uri=redirect_uri)
         },
-        "calendar": lambda: {
+        "calendar": lambda redirect_uri=None: {
             "authorization_url": GoogleOAuth2Client(
                 _google_cfg, scopes=(READ_ONLY_CALENDAR_SCOPE,) + GOOGLE_IDENTITY_SCOPES
-            ).authorization_url(state="calendar-connect")
+            ).authorization_url(state="calendar-connect", redirect_uri=redirect_uri)
         },
     }
 except GoogleOAuthConfigError:  # pragma: no cover - owner not configured yet

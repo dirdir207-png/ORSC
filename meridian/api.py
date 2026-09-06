@@ -541,7 +541,9 @@ def settings_connection_authorize(kind: str):
             503,
         )
     try:
-        handoff = authorizer()
+        from meridian.connectors.google_auth import callback_redirect_uri
+
+        handoff = authorizer(callback_redirect_uri(request.host_url))
         authorization_url = handoff["authorization_url"]
         _connection_repository().upsert(
             kind=kind,
@@ -607,8 +609,10 @@ def settings_connection_oauth_callback():
 
     scope = READ_ONLY_GMAIL_SCOPE if kind == "gmail" else READ_ONLY_CALENDAR_SCOPE
     try:
+        from meridian.connectors.google_auth import callback_redirect_uri
+
         client = GoogleOAuth2Client(GoogleOAuthConfig.from_env(), scopes=(scope,))
-        tokens = client.exchange(code)
+        tokens = client.exchange(code, redirect_uri=callback_redirect_uri(request.host_url))
     except GoogleOAuthConfigError as exc:
         return _error("connection_unavailable", str(exc), "Configure the OAuth client and retry.", 503)
     except Exception:  # noqa: BLE001 - exchange failure is endpoint-facing

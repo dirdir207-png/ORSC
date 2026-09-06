@@ -174,7 +174,7 @@ def test_connection_authorize_returns_only_provider_handoff_state(
     monkeypatch.setitem(
         simplecrew.app.config,
         "MERIDIAN_CONNECTION_AUTHORIZERS",
-        {"gmail": lambda: {"authorization_url": "https://accounts.google.test/oauth"}},
+        {"gmail": lambda redirect_uri=None: {"authorization_url": "https://accounts.google.test/oauth"}},
     )
 
     response = client.post("/api/meridian/settings/connections/gmail/authorize")
@@ -201,7 +201,7 @@ def test_connection_authorize_reuses_one_row_per_kind(api_client, monkeypatch):
     monkeypatch.setitem(
         simplecrew.app.config,
         "MERIDIAN_CONNECTION_AUTHORIZERS",
-        {"gmail": lambda: {"authorization_url": "https://accounts.google.test/oauth"}},
+        {"gmail": lambda redirect_uri=None: {"authorization_url": "https://accounts.google.test/oauth"}},
     )
 
     for _ in range(3):
@@ -743,7 +743,7 @@ def test_oauth_callback_exchanges_code_stores_token_and_marks_connected(
     monkeypatch.setitem(
         simplecrew.app.config,
         "MERIDIAN_CONNECTION_AUTHORIZERS",
-        {"gmail": lambda: {"authorization_url": "https://accounts.google.test/oauth"}},
+        {"gmail": lambda redirect_uri=None: {"authorization_url": "https://accounts.google.test/oauth"}},
     )
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "app-123.apps.googleusercontent.com")
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "GOCSPX-not-a-real-secret")

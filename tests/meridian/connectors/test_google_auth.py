@@ -7,6 +7,7 @@ from meridian.connectors.google_auth import (
     GoogleOAuthConfig,
     GoogleOAuthConfigError,
     OAuthTokenStore,
+    callback_redirect_uri,
 )
 
 
@@ -35,6 +36,54 @@ def test_authorization_url_contains_scopes_and_state():
     assert "gmail.readonly" in url
     assert "state=st-1" in url
     assert "access_type=offline" in url
+
+
+def test_authorization_url_defaults_to_loopback_callback():
+    from urllib.parse import unquote
+
+    config = GoogleOAuthConfig(
+        client_id="app-123.apps.googleusercontent.com",
+        client_secret="secret",
+    )
+    client = GoogleOAuth2Client(config, scopes=("gmail.readonly",))
+    url = client.authorization_url(state="st-1")
+    assert "127.0.0.1:8081/api/meridian/connections/oauth/callback" in unquote(url)
+
+
+def test_authorization_url_accepts_host_derived_callback():
+    """A phone hitting the app on the Tailscale address gets that same callback."""
+    from urllib.parse import unquote
+
+    config = GoogleOAuthConfig(
+        client_id="app-123.apps.googleusercontent.com",
+        client_secret="secret",
+    )
+    client = GoogleOAuth2Client(config, scopes=("gmail.readonly",))
+    uri = callback_redirect_uri("http://100.118.158.2:8081/")
+    url = client.authorization_url(state="st-1", redirect_uri=uri)
+    assert "100.118.158.2:8081/api/meridian/connections/oauth/callback" in unquote(url)
+    assert uri == "http://100.118.158.2:8081/api/meridian/connections/oauth/callback"
+
+
+def test_exchange_uses_host_derived_callback(monkeypatch):
+    """The token exchange must send the SAME redirect URI the browser used."""
+    captured = {}
+
+    def fake_post(url, **kwargs):
+        captured["data"] = kwargs.get("data", {})
+        return _FakeAuthResponse({"access_token": "at", "refresh_token": "rt"})
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    cfg = GoogleOAuthConfig(
+        client_id="app-123.apps.googleusercontent.com",
+        client_secret="GOCSPX-secret",
+    )
+    client = GoogleOAuth2Client(cfg, scopes=("gmail.readonly",))
+    uri = callback_redirect_uri("http://100.118.158.2:8081/")
+    tokens = client.exchange("code-1", redirect_uri=uri)
+    assert tokens["access_token"] == "at"
+    assert captured["data"]["redirect_uri"] == uri
 
 
 def test_token_store_persists_and_multi_account(tmp_path):
