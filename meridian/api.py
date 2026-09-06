@@ -185,6 +185,44 @@ def plan():
     return jsonify(build_plan(graph, commitments, rules, as_of=as_of))
 
 
+@meridian_api.get("/billers/monitor")
+@login_required
+@_safe_read
+def billers_monitor():
+    """Read-only biller monitor (R33).
+
+    Computes bill state from Meridian's own bill commitments + transaction
+    charge history. No provider/network, no payment-method switching, no
+    autopay/statement/biller-health fields (Crew exposes none of these) — every
+    returned field is tagged with provenance so nothing looks provider-backed
+    when it was computed locally. Reuses existing commitment ids (no second
+    bill identity).
+    """
+    from meridian.billers import build_biller_monitor
+    from meridian.repository import FinancialRepository
+
+    graph = _repository()
+    _graph, commitment_repository, _rules = _plan_repositories()
+    bill_commitments = [
+        c for c in commitment_repository.list_active()
+    ]
+    # Pull available charge history via the financial repository (paged enough
+    # to cover bill-charge matching; best-effort on brand aliases).
+    financial = graph if isinstance(graph, FinancialRepository) else FinancialRepository(graph.db_path)
+    transactions, _cursor = financial.list_transactions(limit=200)
+    bills = build_biller_monitor(bill_commitments, transactions)
+    return jsonify(
+        {
+            "bills": [b.__dict__ for b in bills],
+            "safeguards": {
+                "read_only": True,
+                "no_payment_switching": True,
+                "no_second_bill_identity": True,
+            },
+        }
+    )
+
+
 @meridian_api.get("/commitments")
 @login_required
 @_safe_read
