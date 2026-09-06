@@ -416,3 +416,28 @@ def test_beacon_signal_shortfall_covered_by_paycheck():
     beacon = _build_beacon_signal(forecast, 50.0, "available")
     assert "covered" in beacon["title"]
     assert "Rent" in beacon["detail"]
+
+
+def test_virgil_brief_surfaces_negative_safe_to_spend():
+    from meridian.services.today import _build_virgil_brief
+
+    forecast = {
+        "available": True,
+        "runway_days": 0,
+        "first_shortfall": None,
+        "paycheck_covers": False,
+        "next_paycheck": "2026-09-15",
+        "factors": (),
+        "low_point": -200.0,
+    }
+    brief = _build_virgil_brief(forecast, forecast, -20.20, "available")
+    assert brief["title"] == "You're spending faster than income."
+    assert "restore" in brief["summary"]
+
+
+def test_virgil_brief_falls_back_when_unavailable():
+    from meridian.services.today import _build_virgil_brief
+
+    brief = _build_virgil_brief({"available": False}, None, None, "unavailable")
+    assert brief["title"] == "A useful connection"
+    assert "Nothing" in brief["summary"]

@@ -263,6 +263,59 @@ def _iso_short(value) -> str:
     return str(value or "soon")
 
 
+def _build_virgil_brief(forecast: Optional[dict], beacon: Optional[dict], safe_amount: Optional[float], safe_status: str) -> dict:
+    """Virgil's brief: the single most actionable thing right now + evidence.
+
+    Unlike the Beacon (a general status), this is a pointed, decision-ready
+    insight — what to do next. Falls back to a calm 'nothing urgent' only when
+    nothing material is happening.
+    """
+    title = "A useful connection"
+    summary = "Nothing needs your attention right now."
+    evidence = []
+    if not forecast or forecast.get("available") is not True:
+        return {"title": title, "summary": summary, "evidence": evidence}
+
+    first_shortfall = forecast.get("first_shortfall")
+    covers = bool(forecast.get("paycheck_covers"))
+    next_paycheck = forecast.get("next_paycheck")
+    runway = forecast.get("runway_days")
+
+    if safe_amount is not None and safe_amount < 0:
+        title = "You're spending faster than income."
+        summary = f"Safe to spend is ${safe_amount:,.2f}; your {_iso_short(next_paycheck)} paycheck restores it."
+    elif first_shortfall and covers:
+        title = f"{first_shortfall.get('cause')} is covered, but tight."
+        summary = f"Short on {_iso_short(first_shortfall.get('date'))}, covered by the {_iso_short(next_paycheck)} paycheck."
+    elif first_shortfall:
+        title = f"Plan for the {first_shortfall.get('cause')} shortfall."
+        summary = f"You'll be ${first_shortfall.get('amount'):,.2f} short on {_iso_short(first_shortfall.get('date'))}; allocate more from the next paycheck."
+    elif runway is not None and runway == 0:
+        title = "You're running tight to payday."
+        summary = f"No runway remains before your {_iso_short(next_paycheck)} paycheck."
+    elif runway is not None and runway > 0:
+        title = f"You have about {runway} day{'s' if runway != 1 else ''} of runway."
+        summary = "Projected to cover known obligations before the next paycheck."
+    else:
+        title = "Your plan is steady."
+        summary = "No material change detected."
+    # Attach forecast evidence (commitment factors) so a suggestion can link back.
+    for factor in forecast.get("factors") or ():
+        if factor.get("kind") == "commitment":
+            evidence.append(
+                {
+                    "id": str(factor.get("name") or factor.get("explanation") or "commitment"),
+                    "span": factor.get("explanation") or "commitment",
+                    "label": factor.get("explanation") or "commitment",
+                }
+            )
+    return {
+        "title": title,
+        "summary": summary,
+        "evidence": evidence[:3],
+    }
+
+
 def build_today(
     repository: FinancialRepository,
     commitment_repository=None,
@@ -358,6 +411,7 @@ def build_today(
         "upcoming_events": [],
         "forecast": beacon,
         "beacon": _build_beacon_signal(beacon, safe_amount, safe_status),
+        "brief": _build_virgil_brief(beacon, beacon, safe_amount, safe_status),
         "data_freshness": freshness,
         "breakdown": breakdown,
         "setup": setup,
