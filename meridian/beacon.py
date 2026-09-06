@@ -39,6 +39,7 @@ class Forecast:
     freshness: str
     next_paycheck: date | None = None
     paycheck_covers: bool = False
+    paycheck_range: tuple[float, float] | None = None
 
 
 def _commitment_amount(commitment) -> float:
@@ -63,7 +64,7 @@ def _date(value) -> date | None:
     return None
 
 
-def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh", paycheck=None) -> Forecast:
+def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh", paycheck=None, paycheck_range=None) -> Forecast:
     del rules
     accounts = graph.list_accounts()
     starting_cash = sum(
@@ -188,4 +189,5 @@ def forecast(graph, commitments, rules, as_of: date, *, freshness: str = "fresh"
         freshness,
         next_paycheck_date,
         paycheck_covers,
+        tuple(paycheck_range) if paycheck_range else None,
     )

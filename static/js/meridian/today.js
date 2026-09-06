@@ -67,8 +67,10 @@ function formatShortDate(value) {
 
 /* Editorial command-header date: prefer the data's as-of date, else today. */
 function editorialDate(value) {
-  const parsed = value ? new Date(value) : new Date();
-  if (Number.isNaN(parsed.getTime())) {
+  // Use the timezone-safe parser so a UTC-midnight date (e.g. "Sun, 06 Sep 2026
+  // 00:00:00 GMT") renders as Sep 6, not the shifted prior day (Sep 5) in EDT.
+  const parsed = value ? parseLocalDate(value) : new Date();
+  if (!parsed || Number.isNaN(parsed.getTime())) {
     return "Today";
   }
   return new Intl.DateTimeFormat(undefined, {

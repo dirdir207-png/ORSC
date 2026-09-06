@@ -219,10 +219,39 @@ def plan():
 
 
 def _paycheck_config(graph):
-    """Load the owner's paycheck config (funding source), if set."""
-    from meridian.paycheck import PaycheckRepository
+    """Load the owner's paycheck config, OR learn it from real income.
 
-    return PaycheckRepository(graph.db_path).get()
+    Prefers the owner's explicit config; when none is set, auto-learn the typical
+    recurring income (e.g. a Cash App paycheck) so the forecast/beacon reflect
+    reality. The learned config auto-updates as new paychecks land.
+    """
+    from meridian.paycheck import PaycheckConfig, PaycheckRepository
+
+    manual = PaycheckRepository(graph.db_path).get()
+    if manual is not None:
+        return manual
+    learned = _learned_paycheck(graph)
+    if learned is not None:
+        return PaycheckConfig(
+            cadence=learned["cadence"],
+            amount=learned["amount"],
+            next_date=learned["next_date"],
+            active=True,
+        )
+    return None
+
+
+def _learned_paycheck(graph):
+    """Learn the paycheck from recent income transactions (best-effort)."""
+    try:
+        from meridian.paycheck_learning import learn_paycheck
+        from meridian.repository import FinancialRepository
+
+        financial = graph if isinstance(graph, FinancialRepository) else FinancialRepository(graph.db_path)
+        transactions, _cursor = financial.list_transactions(limit=200)
+        return learn_paycheck(transactions)
+    except Exception:  # noqa: BLE001 - learning is best-effort
+        return None
 
 
 @meridian_api.get("/paycheck")

@@ -190,6 +190,20 @@ def _next_paycheck_inflow(paycheck, *, now=None):
     }
 
 
+def _learned_paycheck_range(repository) -> Optional[tuple[float, float]]:
+    """(min, max) of the learned recurring paycheck, for forecast variability."""
+    try:
+        from meridian.paycheck_learning import learn_paycheck
+
+        transactions, _cursor = repository.list_transactions(limit=200)
+        learned = learn_paycheck(transactions)
+        if learned:
+            return (float(learned["min_amount"]), float(learned["max_amount"]))
+    except Exception:  # noqa: BLE001 - learning is best-effort context
+        pass
+    return None
+
+
 def _build_beacon_signal(forecast: Optional[dict], safe_amount: Optional[float], safe_status: str) -> dict:
     """Derive a genuinely valuable Beacon summary from the forecast + safe-to-spend.
 
@@ -227,6 +241,13 @@ def _build_beacon_signal(forecast: Optional[dict], safe_amount: Optional[float],
     else:
         title = "Your plan is steady."
         detail = "No material change detected."
+    # When the paycheck varies (learnt min != max), communicate the range so a
+    # single figure isn't mistaken for guaranteed.
+    p_range = forecast.get("paycheck_range")
+    if p_range and isinstance(p_range, (list, tuple)) and len(p_range) == 2:
+        lo, hi = float(p_range[0]), float(p_range[1])
+        if hi > lo:
+            detail = f"{detail} Paycheck ${lo:,.0f}–${hi:,.0f} depending on the week."
     return {"title": title, "summary": title, "detail": detail, "evidence": []}
 
 
@@ -292,6 +313,7 @@ def build_today(
                 as_of,
                 freshness=freshness["status"],
                 paycheck=paycheck,
+                paycheck_range=_learned_paycheck_range(repository),
             )
         )
 
