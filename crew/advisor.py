@@ -38,7 +38,12 @@ _JSON_BLOCK = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
 
 def llm_configured() -> bool:
-    return bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("AI_API_KEY"))
+    return bool(
+        os.environ.get("DEEPSEEK_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("AI_API_KEY")
+        or os.environ.get("OPENROUTER_API_KEY")
+    )
 
 
 def llm_model() -> str:
@@ -165,8 +170,23 @@ class FailoverLLMClient:
 
 
 def build_llm_chain(session=requests) -> FailoverLLMClient:
-    """Provider chain from environment: OpenAI primary, OpenRouter fallback."""
+    """Provider chain from environment: DeepSeek primary, OpenAI / OpenRouter fallback."""
     providers: List[tuple] = []
+
+    # DeepSeek is the primary AI. It speaks the OpenAI chat-completions API, so
+    # it plugs in via OPENAI_BASE_URL/OPENAI_MODEL-like env or its own vars.
+    # The owner sets DEEPSEEK_API_KEY (never guessed or logged here).
+    deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+    if deepseek_key:
+        providers.append((
+            "deepseek",
+            OpenAICompatClient(
+                api_key=deepseek_key,
+                base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
+                model=os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
+                session=session,
+            ),
+        ))
 
     openai_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("AI_API_KEY")
     if openai_key:
@@ -197,7 +217,7 @@ def build_llm_chain(session=requests) -> FailoverLLMClient:
 
 def build_system_prompt(snapshot: Dict[str, Any]) -> str:
     return (
-        "You are SimpleCrew's cautious financial copilot for a Crew banking dashboard.\n"
+        "You are Virgil, Meridian's cautious financial copilot for a Crew banking dashboard.\n"
         "Current financial snapshot (JSON):\n" + json.dumps(snapshot) + "\n\n"
         "Rules:\n"
         "- Answer questions directly and briefly using the snapshot when relevant.\n"

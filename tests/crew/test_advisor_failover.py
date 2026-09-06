@@ -116,3 +116,23 @@ def test_build_chain_from_env(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY")
     chain = build_llm_chain(session=FakeSession(responses_by_host={}))
     assert chain.providers() == ["openrouter"]
+
+
+def test_build_llm_chain_uses_deepseek_when_configured(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds-abc")
+
+    chain = build_llm_chain()
+
+    providers = chain.providers()
+    assert providers[0] == "deepseek"
+
+
+def test_llm_configured_true_for_deepseek(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds-abc")
+    from crew.advisor import llm_configured
+    assert llm_configured() is True

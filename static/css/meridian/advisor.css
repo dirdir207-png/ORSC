@@ -94,23 +94,37 @@ body:has(#advisor-panel[data-open]) #advisor-fab.m-advisor-trigger {
 
 #advisor-panel.m-advisor {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: max(1.5rem, env(safe-area-inset-top));
+  right: max(1.5rem, env(safe-area-inset-right));
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
   z-index: 60;
   /* Visibility is driven by [data-open] (set/removed by the shell sheet
      primitive and the fallback open/close path) so it is correct on both the
      Meridian shell and the legacy app, independent of any [hidden] rule. */
   display: none;
   flex-direction: column;
-  width: min(24rem, 30vw);
+  /* Cropped window: a manageable card, not a full-height tower. */
+  width: min(22rem, 26vw);
   max-width: 100vw;
+  max-height: calc(100svh - 3rem);
+  border-radius: 14px;
   background: var(--m-surface, #fff);
-  border-left: 1px solid var(--m-border, #e3ded4);
+  border: 1px solid var(--m-border, #e3ded4);
   box-shadow: var(--m-elevation-3, 0 8px 28px rgba(0, 0, 0, 0.14));
   padding: var(--m-space-5, 24px);
   gap: var(--m-space-4, 16px);
   overflow: hidden;
+}
+
+/* On mobile the panel is a near-full-width sheet (not a 26vw sliver) but still
+   capped so it does not dominate the whole viewport. */
+@media (max-width: 900px) {
+  #advisor-panel.m-advisor {
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: auto;
+  }
 }
 
 #advisor-panel.m-advisor[data-open] {

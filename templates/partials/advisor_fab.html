@@ -1,7 +1,7 @@
-{# Meridian contextual advisor.
+{# Meridian contextual advisor (branded "Virgil").
    Desktop: right-rail briefing (right gutter). Mobile: full-height sheet.
-   Branded with the Meridian serif "M" wordmark; grounded in visible context
-   and evidence. The shell shows an in-context trigger, never a competing FAB. #}
+   Grounded in visible context and evidence. The shell shows an in-context
+   trigger, never a competing FAB. #}
 
 {# In-context trigger: a discreet branded pill. The Meridian shell hides the
    floating FAB on mobile (where the bottom dock owns the screen) and relies on
@@ -10,12 +10,12 @@
   type="button"
   id="advisor-fab"
   class="m-advisor-trigger"
-  title="Ask Meridian"
-  aria-label="Open Meridian advisor"
+  title="Ask Virgil"
+  aria-label="Open Virgil advisor"
   aria-haspopup="dialog"
 >
-  <span class="m-advisor-trigger-mark" aria-hidden="true">M</span>
-  <span class="m-advisor-trigger-label">Ask Meridian</span>
+  <span class="m-advisor-trigger-mark" aria-hidden="true">V</span>
+  <span class="m-advisor-trigger-label">Ask Virgil</span>
 </button>
 
 {# Advisor panel: the rail/sheet that carries the conversation. #}
@@ -24,13 +24,13 @@
   class="m-advisor"
   role="dialog"
   aria-modal="true"
-  aria-label="Meridian advisor"
+  aria-label="Virgil advisor"
   hidden
 >
   <header class="m-advisor-header">
     <div class="m-advisor-heading">
-      <p class="m-advisor-kicker">Advisor</p>
-      <h2 class="m-advisor-title">Morning brief</h2>
+      <p class="m-advisor-kicker">Virgil</p>
+      <h2 class="m-advisor-title">Virgil</h2>
     </div>
     <div class="m-advisor-header-actions">
       <span id="advisor-fab-status" class="m-advisor-status" role="status"></span>
@@ -59,7 +59,7 @@
   ></div>
 
   <div id="advisor-fab-inputrow" class="m-advisor-composer">
-    <label class="m-visually-hidden" for="advisor-fab-input">Ask Meridian</label>
+    <label class="m-visually-hidden" for="advisor-fab-input">Ask Virgil</label>
     <input
       type="text"
       id="advisor-fab-input"
