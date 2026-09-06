@@ -282,6 +282,28 @@
   color: var(--m-ink-muted);
 }
 
+/* Low-key funding progress bar on each commitment card. */
+.m-commitment-progress {
+  width: 100%;
+  max-width: 220px;
+}
+
+.m-commitment-progress-track {
+  display: block;
+  height: 6px;
+  border-radius: var(--m-radius-pill);
+  background: var(--m-surface-muted);
+  overflow: hidden;
+}
+
+.m-commitment-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--m-radius-pill);
+  background: var(--m-healthy);
+  transition: width var(--m-motion-fast) var(--m-ease-out);
+}
+
 /* R33: subtle per-bill attention badge on the existing Plan card. */
 .m-bill-badge {
   display: inline-block;
@@ -597,24 +619,44 @@
     display: none;
   }
 
+  .m-plan-table {
+    border-radius: var(--m-radius-lg);
+  }
+
   .m-plan-table-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: var(--m-space-3);
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "name name"
+      "funded next"
+      "action action";
+    gap: var(--m-space-3);
     padding: var(--m-space-4);
+    border-radius: var(--m-radius-md);
   }
 
+  .m-plan-table-row + .m-plan-table-row {
+    margin-top: var(--m-space-3);
+    border: 1px solid var(--m-border);
+  }
+
+  /* Name + type + badge span the card; facts and the progress bar run beneath. */
   .m-plan-cell-commitment {
-    grid-column: 1 / -1;
+    grid-area: name;
   }
 
-  .m-plan-cell-action {
-    grid-column: 1 / -1;
-    justify-self: stretch;
-    text-align: left;
+  .m-plan-cell-name {
+    flex-wrap: wrap;
   }
 
-  .m-plan-cell-action .m-button {
-    width: 100%;
+  .m-plan-cell-funded {
+    grid-area: funded;
+  }
+
+  .m-plan-cell-next {
+    grid-area: next;
+    justify-self: end;
+    text-align: right;
   }
 
   .m-plan-cell-funded::before,
@@ -634,6 +676,28 @@
 
   .m-plan-cell-next::before {
     content: "Next";
+  }
+
+  .m-plan-cell-funded,
+  .m-plan-cell-next {
+    font-size: var(--m-text-lg);
+  }
+
+  /* Actions become one quiet row, right-aligned and compact. */
+  .m-plan-cell-action {
+    grid-area: action;
+    display: flex;
+    gap: var(--m-space-2);
+    justify-content: flex-end;
+    padding-top: var(--m-space-2);
+    border-top: 1px solid var(--m-border);
+  }
+
+  .m-plan-cell-action .m-button {
+    width: auto;
+    min-height: 40px;
+    padding: var(--m-space-2) var(--m-space-3);
+    font-size: var(--m-text-sm);
   }
 
   .m-plan-coverage-card,

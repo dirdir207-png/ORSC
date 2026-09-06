@@ -309,6 +309,26 @@ function renderCommitments(root, plan, template) {
     facts.textContent = factsParts.join(" · ");
     nameCell.append(nameWrap, facts);
 
+    // Funding progress: a low-key bar so a bill's funded share reads at a
+    // glance without a chart. Width is clamped to 0..100%, hidden when unknown.
+    if (typeof commitment.target === "number" && commitment.target > 0) {
+      const progress = document.createElement("div");
+      progress.className = "m-commitment-progress";
+      progress.setAttribute("role", "progressbar");
+      const pct = Math.max(0, Math.min(100, (commitment.funded / commitment.target) * 100));
+      progress.setAttribute("aria-valuenow", String(Math.round(pct)));
+      progress.setAttribute("aria-valuemin", "0");
+      progress.setAttribute("aria-valuemax", "100");
+      const track = document.createElement("span");
+      track.className = "m-commitment-progress-track";
+      const fill = document.createElement("span");
+      fill.className = "m-commitment-progress-fill";
+      fill.style.width = `${pct}%`;
+      track.append(fill);
+      progress.append(track);
+      nameCell.append(progress);
+    }
+
     const fundedCell = document.createElement("div");
     fundedCell.className = "m-plan-table-cell m-plan-cell-funded";
     fundedCell.setAttribute("role", "cell");
