@@ -100,6 +100,9 @@ def build_plan(
 
         due_date = _date_of(getattr(commitment, "due_date", None))
         target_date = _date_of(getattr(commitment, "target_date", None))
+        # Recurring bill anchors that have passed are rolled to the next
+        # occurrence so the surfaced due date is a real future date.
+        due_date = _next_occurrence(due_date, getattr(commitment, "recurrence", "") or "", as_of)
         if due_date and (next_due is None or due_date < next_due):
             next_due = due_date
 
@@ -312,6 +315,39 @@ def _date_of(value) -> Optional[date]:
         except ValueError:
             return None
     return None
+
+
+def _next_occurrence(anchor: date, recurrence: str, as_of: date) -> date:
+    """Roll a recurring bill's anchor date forward to the next occurrence.
+
+    Crew's ``anchorDate`` is the original anchor of a recurring bill (e.g.
+    2026-01-16). Storing it verbatim surfaces a past date as the bill's due date.
+    For a recurring bill whose anchor has passed, advance it by its cadence until
+    it is >= as_of so the "next due" is a real future date. Non-recurring (or
+    unknown) bills keep their anchor unchanged.
+    """
+    rec = (recurrence or "").lower()
+    anchor = anchor if isinstance(anchor, date) else _date_of(str(anchor)) if anchor else None
+    if anchor is None:
+        return None
+    if rec not in ("weekly", "biweekly", "monthly", "semimonthly"):
+        return anchor
+    import calendar
+
+    candidate = anchor
+    while candidate < as_of:
+        if rec == "weekly":
+            candidate = candidate + timedelta(days=7)
+        elif rec == "biweekly":
+            candidate = candidate + timedelta(days=14)
+        elif rec == "semimonthly":
+            candidate = candidate + timedelta(days=15)
+        else:  # monthly
+            year = candidate.year + (1 if candidate.month == 12 else 0)
+            month = 1 if candidate.month == 12 else candidate.month + 1
+            day = min(candidate.day, calendar.monthrange(year, month)[1])
+            candidate = date(year, month, day)
+    return candidate
 
 
 def _cash_events_from_graph(graph_repository, as_of: date, paycheck=None) -> list[tuple[date, Decimal]]:

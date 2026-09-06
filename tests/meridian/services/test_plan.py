@@ -6,7 +6,7 @@ import pytest
 from meridian.commitments import CommitmentRepository, CommitmentType
 from meridian.funding_repo import FundingRuleRepository
 from meridian.repository import FinancialRepository
-from meridian.services.plan import build_plan
+from meridian.services.plan import _next_occurrence, build_plan
 
 
 @pytest.fixture
@@ -79,6 +79,16 @@ def test_plan_summarizes_commitments_and_coverage(env):
     assert Decimal(str(plan["summary"]["unfunded"])) == Decimal("830.00")
     assert 0 < plan["summary"]["coverage_ratio"] < 1
     assert plan["summary"]["next_due"] == "2026-10-01"
+
+
+def test_next_occurrence_rolls_past_recurring_anchor_forward():
+    """A monthly bill anchored in the past surfaces its next future occurrence."""
+    assert _next_occurrence(date(2026, 1, 16), "monthly", date(2026, 9, 6)) == date(2026, 9, 16)
+    assert _next_occurrence(date(2026, 9, 16), "monthly", date(2026, 9, 6)) == date(2026, 9, 16)
+    assert _next_occurrence(date(2026, 1, 22), "weekly", date(2026, 9, 6)) <= date(2026, 9, 10)
+    # A future anchor is left alone; non-recurring bills are unchanged.
+    assert _next_occurrence(date(2026, 10, 1), "monthly", date(2026, 9, 6)) == date(2026, 10, 1)
+    assert _next_occurrence(date(2026, 1, 16), "one_time", date(2026, 9, 6)) == date(2026, 1, 16)
 
 
 def test_plan_includes_backing_account_names_and_states(env):

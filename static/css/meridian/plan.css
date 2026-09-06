@@ -227,7 +227,7 @@
 }
 
 .m-plan-table-row {
-  padding: var(--m-space-4) var(--m-space-5);
+  padding: var(--m-space-3) var(--m-space-5);
   border-bottom: 1px solid var(--m-border);
   cursor: pointer;
   transition: background var(--m-motion-fast) var(--m-ease-out);
@@ -259,14 +259,15 @@
 .m-plan-cell-name {
   display: flex;
   align-items: baseline;
-  gap: var(--m-space-3);
+  gap: var(--m-space-2);
 }
 
 .m-commitment-name {
   font-family: var(--m-font-serif);
-  font-size: var(--m-text-lg);
-  font-weight: 500;
+  font-size: var(--m-text-md);
+  font-weight: 600;
   margin: 0;
+  color: var(--m-ink);
 }
 
 .m-commitment-type {
@@ -339,13 +340,14 @@
 
 .m-plan-cell-funded {
   font-family: var(--m-font-serif);
-  font-size: var(--m-text-md);
+  font-size: var(--m-text-sm);
   font-weight: 600;
-  color: var(--m-ink);
+  color: var(--m-healthy);
 }
 
 .m-plan-cell-next {
-  color: var(--m-ink-muted);
+  color: var(--m-information);
+  font-weight: 500;
 }
 
 .m-plan-cell-action {
@@ -630,13 +632,13 @@
       "name name"
       "funded next"
       "action action";
-    gap: var(--m-space-3);
-    padding: var(--m-space-4);
+    gap: var(--m-space-2);
+    padding: var(--m-space-3);
     border-radius: var(--m-radius-md);
   }
 
   .m-plan-table-row + .m-plan-table-row {
-    margin-top: var(--m-space-3);
+    margin-top: var(--m-space-2);
     border: 1px solid var(--m-border);
   }
 
@@ -672,15 +674,17 @@
 
   .m-plan-cell-funded::before {
     content: "Funded";
+    color: var(--m-healthy);
   }
 
   .m-plan-cell-next::before {
     content: "Next";
+    color: var(--m-information);
   }
 
   .m-plan-cell-funded,
   .m-plan-cell-next {
-    font-size: var(--m-text-lg);
+    font-size: var(--m-text-md);
   }
 
   /* Actions become one quiet row, right-aligned and compact. */
