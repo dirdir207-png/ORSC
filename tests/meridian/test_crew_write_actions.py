@@ -76,3 +76,35 @@ def test_unknown_write_type_rejected_by_store(tmp_path):
     except ValueError:
         return
     raise AssertionError("unknown action type must be rejected")
+
+
+def test_autopilot_rule_executor_enriches_formula_before_write(tmp_path, monkeypatch):
+    """The create-autopilot executor must inject real accountId into the action so
+    Crew never rejects a null accountId."""
+    from meridian import crew_write_actions
+
+    seen = {}
+    def fake_execute(operation, input_payload):
+        seen["operation"] = operation
+        seen["payload"] = input_payload
+        return {"ok": True, "result": {}}
+
+    monkeypatch.setattr(crew_write_actions, "execute_crew_write", fake_execute)
+    specs = crew_write_actions.crew_write_executors(str(tmp_path / "m.db"))
+    executor = specs["create_crew_autopilot_rule"][0]
+    executor({
+        "name": "Zz Diag",
+        "account_id": "Acct:checking",
+        "subaccount_id": "Sub:fts",
+        "formula": {
+            "name": "Zz Diag",
+            "triggers": ["ACCOUNT_DEPOSIT_RECEIVED"],
+            "actions": [{"roundUpTransfer": {"roundToNearest": 100}}],
+        },
+    })
+    assert seen["operation"] == "create_autopilot_rule"
+    formula = seen["payload"]["formula"]
+    action = formula["actions"][0]["roundUpTransfer"]
+    assert action["accountId"] == "Acct:checking"
+    assert action["accountType"] == "ACCOUNT"
+    assert action["roundToNearest"] == 100

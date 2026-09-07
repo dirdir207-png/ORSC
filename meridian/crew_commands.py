@@ -237,7 +237,12 @@ def build_command_payload(kind: str, params: dict[str, object]):
         # conditions. Accept either an explicit verified ``formula`` (preferred,
         # any action type) or a roundUpTransfer convenience.
         if isinstance(params.get("formula"), dict):
-            formula = _build_formula_from_payload(params["formula"])
+            formula_payload = dict(params["formula"])
+            # Thread the caller's account/subaccount context into the formula so
+            # roundUp/sweep/target actions get real ids (never a null accountId).
+            formula_payload.setdefault("account_id", params.get("account_id"))
+            formula_payload.setdefault("subaccount_id", params.get("subaccount_id"))
+            formula = _build_formula_from_payload(formula_payload)
         else:
             formula = _build_roundup_formula(params)
         if kind == "create_autopilot_rule":
@@ -317,7 +322,10 @@ def _build_formula_from_payload(payload: dict) -> dict:
     Accepts the exact Crew formula shape: {name, description, triggers,
     conditions{and.conditions[idMatch{entityId,entitySchema}]}, actions[
     <actionType>{...}]}. Every action key must be a known action type (the
-    union from the real schema) so we never emit an invented action.
+    union from the real schema) so we never emit an invented action. Each
+    action's required fields (from the verified schema) are enforced and the
+    common account/subaccount ids are filled from the action payload or the
+    top-level payload defaults, so we never send a null accountId to Crew.
     """
     formula = dict(payload)
     if "name" not in formula:
@@ -333,15 +341,73 @@ def _build_formula_from_payload(payload: dict) -> dict:
         "splitDepositByAmount", "internalTransfer", "sendNotification",
         "sendWebhook", "sweepExcess",
     })
+    # Common defaults (account, subaccount) surfaced by the caller so a
+    # roundUp/sweep/target action can be completed without repeating ids.
+    default_account_id = str(payload.get("account_id") or "").strip()
+    default_subaccount_id = str(payload.get("subaccount_id") or "").strip()
+
+    def _require(value, field):
+        value = str(value or "").strip()
+        if not value:
+            raise ValueError(f"formula action field '{field}' is required")
+        return value
+
+    normalized = []
     for action in actions:
         if not isinstance(action, dict) or len(action) != 1:
             raise ValueError("each formula.actions entry must be a single {type: {...}} object")
         key = next(iter(action))
         if key not in _KNOWN_ACTIONS:
             raise ValueError(f"unknown autopilot rule action type: {key}")
+        body = dict(action[key] or {})
+        if key == "roundUpTransfer":
+            body.setdefault("accountId", default_account_id)
+            body["accountId"] = _require(body.get("accountId"), "accountId")
+            body.setdefault("accountType", "ACCOUNT")
+        elif key == "targetBalanceTransfer":
+            body.setdefault("accountId", default_account_id)
+            body["accountId"] = _require(body.get("accountId"), "accountId")
+            body.setdefault("direction", "INTO")
+            body = {k: v for k, v in body.items() if v is not None}
+        elif key in ("splitDeposit", "splitDepositByAmount"):
+            destinations = body.get("destinations")
+            if not isinstance(destinations, list) or not destinations:
+                raise ValueError(f"formula action '{key}' requires a destinations list")
+            norm_dest = []
+            for dest in destinations:
+                d = dict(dest or {})
+                d.setdefault("type", "SUBACCOUNT")
+                norm_dest.append(d)
+            body["destinations"] = norm_dest
+        elif key == "internalTransfer":
+            body["accountFromId"] = _require(
+                body.get("accountFromId") or default_account_id, "accountFromId"
+            )
+            body["accountToId"] = _require(body.get("accountToId"), "accountToId")
+        elif key == "sendNotification":
+            body["message"] = _require(body.get("message"), "message")
+            body["method"] = body.get("method", "PUSH")
+        elif key == "sendWebhook":
+            body["url"] = _require(body.get("url"), "url")
+        elif key == "sweepExcess":
+            body["subaccountId"] = _require(
+                body.get("subaccountId") or default_subaccount_id, "subaccountId"
+            )
+            sweep_dest = body.get("sweepDestinations")
+            if not isinstance(sweep_dest, list) or not sweep_dest:
+                raise ValueError("formula action 'sweepExcess' requires sweepDestinations")
+            norm_dest = []
+            for dest in sweep_dest:
+                d = dict(dest or {})
+                d.setdefault("type", "SUBACCOUNT")
+                d.setdefault("percentage", 100)
+                norm_dest.append(d)
+            body["sweepDestinations"] = norm_dest
+        normalized.append({key: body})
+
     conditions = formula.get("conditions")
     if conditions is not None and not isinstance(conditions, dict):
         raise ValueError("formula.conditions must be an object (or absent)")
     return {"name": formula["name"], "description": formula.get("description"),
             "triggers": triggers, "conditions": conditions,
-            "actions": actions}
+            "actions": normalized}

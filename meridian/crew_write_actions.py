@@ -17,7 +17,21 @@ from .crew_write import execute_crew_write
 
 def _crew_write_executor(operation: str):
     def execute(params: Dict[str, Any]) -> Dict[str, Any]:
-        outcome = execute_crew_write(operation, params)
+        # Autopilot rule create/edit must be run through the verified formula
+        # builder so the required per-action ids (accountId/subaccountId) are
+        # filled — otherwise Crew rejects the raw {roundToNearest} with a null
+        # accountId. We send the enriched variables (not the raw params).
+        if operation in ("create_autopilot_rule", "edit_autopilot_rule"):
+            from .crew_commands import build_command_payload
+
+            kind = "edit_autopilot_rule" if operation == "edit_autopilot_rule" else "create_autopilot_rule"
+            try:
+                _op, _query, variables = build_command_payload(kind, dict(params))
+            except ValueError as exc:
+                raise RuntimeError(str(exc)) from exc
+            outcome = execute_crew_write(operation, variables.get("input") or params)
+        else:
+            outcome = execute_crew_write(operation, params)
         if not outcome.get("ok"):
             raise RuntimeError(outcome.get("message") or outcome.get("error") or "Crew write failed")
         # execute_approved_action expects an explicit success flag.

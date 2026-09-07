@@ -940,7 +940,7 @@ def _apply_funding_rule(params):
         stored = repository.update(int(rule_id), **fields)
     else:
         stored = repository.create(commitment_id=int(params["commitment_id"]), kind=rule["kind"], **fields)
-    return {"rule_id": stored.id, "kind": stored.kind}
+    return {"success": True, "rule_id": stored.id, "kind": stored.kind}
 
 
 def verify_funding_rule_action(params, result):
@@ -979,7 +979,7 @@ def _apply_create_commitment(params):
         name=params.get("name"),
         **allowed_fields,
     )
-    return {"commitment_id": commitment.id}
+    return {"success": True, "commitment_id": commitment.id}
 
 
 def verify_create_commitment_action(params, result):

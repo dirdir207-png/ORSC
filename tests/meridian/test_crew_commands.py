@@ -201,3 +201,47 @@ def test_command_spec_is_mutation_and_has_a_readback_key():
     assert spec.operation_name == "CreateSubaccount"
     assert spec.is_mutation is True
     assert spec.readback_key == "createSubaccount"
+
+
+def test_autopilot_rule_formula_fills_account_ids_from_params():
+    # The UI passes account_id/subaccount_id at params level; the builder must
+    # inject them into the roundUp action so Crew never sees a null accountId.
+    op, query, variables = build_command_payload(
+        "create_autopilot_rule",
+        {
+            "name": "Zz Diag Rule",
+            "account_id": "Acct:checking",
+            "subaccount_id": "Sub:fts",
+            "formula": {
+                "name": "Zz Diag Rule",
+                "triggers": ["ACCOUNT_DEPOSIT_RECEIVED"],
+                "conditions": {"and": {"conditions": [
+                    {"idMatch": {"entitySchema": "SUBACCOUNTS", "entityId": "Sub:fts"}}
+                ]}},
+                "actions": [{"roundUpTransfer": {"roundToNearest": 100}}],
+            },
+        },
+    )
+    form = variables["input"]["formula"]
+    action = form["actions"][0]["roundUpTransfer"]
+    assert action["accountId"] == "Acct:checking"
+    assert action["accountType"] == "ACCOUNT"
+    assert action["roundToNearest"] == 100
+
+
+def test_autopilot_rule_formula_rejects_incomplete_action_ids():
+    # Without account_id anywhere, the roundUp action cannot satisfy the schema's
+    # required accountId (ID!) — the builder must reject rather than send null.
+    import pytest as _pt
+    with _pt.raises(ValueError):
+        build_command_payload(
+            "create_autopilot_rule",
+            {
+                "name": "Zz Rule",
+                "formula": {
+                    "name": "Zz Rule",
+                    "triggers": ["ACCOUNT_DEPOSIT_RECEIVED"],
+                    "actions": [{"roundUpTransfer": {"roundToNearest": 100}}],
+                },
+            },
+        )
