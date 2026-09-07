@@ -194,3 +194,10 @@ def test_plan_actions_panel_cards_are_styled():
     assert ".m-plan-actions" in css
     assert ".m-action-form" in css
     assert "border-radius: var(--m-radius-lg)" in css
+
+
+def test_mobile_main_clears_floating_advisor():
+    from pathlib import Path
+    css = Path("static/css/meridian/shell.css").read_text(encoding="utf-8")
+    assert "env(safe-area-inset-bottom)" in css
+    assert "m-space-7" in css  # extra bottom clearance so cards scroll clear of the FAB

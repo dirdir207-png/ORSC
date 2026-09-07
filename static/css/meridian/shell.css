@@ -438,7 +438,7 @@
 
   .m-main {
     padding: var(--m-space-5) var(--m-space-4)
-      calc(var(--m-space-6) + env(safe-area-inset-bottom));
+      calc(var(--m-space-7) + var(--m-space-6) + env(safe-area-inset-bottom));
   }
 
   .m-inspector,
