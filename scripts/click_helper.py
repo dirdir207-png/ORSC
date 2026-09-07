@@ -19,8 +19,9 @@ import argparse
 import subprocess
 import sys
 
-WIN_X = 302   # crew window left (screen pt)
-WIN_Y = 144   # crew window top  (screen pt)
+# Defaults (overridden by --win-x/--win-y or live introspection).
+WIN_X = 301
+WIN_Y = 108
 WIN_W = 288   # window width pt
 WIN_H = 545   # window height pt
 IMG_W = 576   # capture width px (2x)
