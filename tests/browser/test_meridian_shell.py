@@ -208,7 +208,10 @@ def test_keyboard_workspace_change_moves_focus_and_announces_the_new_workspace()
 
 
 def test_modal_sheet_preserves_inert_until_the_final_close_and_restores_focus():
-    """Fails if closing one nested modal re-enables the page or strands opener focus."""
+    """Modal sheets keep #main inert until the last closes, restore opener focus,
+    and — by design — leave the primary nav REACHABLE so the owner can always
+    switch workspace (never a stuck nav behind a dialog). The nav click closes
+    the sheet before switching."""
     playwright = pytest.importorskip("playwright.sync_api")
     _setup_module()
 
@@ -256,12 +259,65 @@ def test_modal_sheet_preserves_inert_until_the_final_close_and_restores_focus():
 
         assert state == {
             "mainInert": True,
-            "navInert": True,
+            "navInert": False,  # nav stays reachable so switching is never stuck
             "focus": "test-sheet-one",
             "finalMainInert": False,
             "finalNavInert": False,
             "finalFocus": "today",
         }
+        browser.close()
+
+
+def test_nav_remains_reachable_and_closes_modal_on_workspace_change():
+    """The primary nav must never be 'stuck' behind a modal: it stays interactive,
+    and choosing a workspace closes the sheet and switches without leaving inert
+    behind."""
+    playwright = pytest.importorskip("playwright.sync_api")
+    _setup_module()
+
+    with playwright.sync_playwright() as browser_driver:
+        browser = browser_driver.chromium.launch()
+        context, page = _shell_page(browser, DESKTOP_VIEWPORT)
+        page.goto(f"{APP_URL}/meridian", wait_until="domcontentloaded")
+        _wait_for_shell(page)
+
+        opened = page.evaluate(
+            """() => {
+              const sheet = document.createElement("aside");
+              sheet.id = "nav-test-sheet";
+              sheet.hidden = true;
+              const close = document.createElement("button");
+              close.type = "button";
+              close.dataset.sheetInitialFocus = "";
+              close.textContent = "Close";
+              sheet.append(close);
+              document.body.append(sheet);
+              window.MeridianShell.openSheet(sheet, { modal: true });
+              return {
+                sheetOpen: !document.querySelector("#nav-test-sheet").hidden,
+                navInteractable: !document.querySelector("[data-primary-nav]").inert,
+              };
+            }"""
+        )
+        assert opened["sheetOpen"] is True
+        assert opened["navInteractable"] is True
+
+        _nav_link(page, "plan").click()
+        page.wait_for_timeout(300)
+        _expect_active(page, "plan")
+        leftover = page.evaluate(
+            """() => {
+              const sheet = document.querySelector("#nav-test-sheet");
+              return {
+                sheetClosed: sheet ? sheet.hidden : true,
+                mainInert: document.querySelector("#main").inert,
+                navInert: document.querySelector("[data-primary-nav]").inert,
+              };
+            }"""
+        )
+        assert leftover["sheetClosed"] is True
+        assert leftover["mainInert"] is False
+        assert leftover["navInert"] is False
         browser.close()
 
 
@@ -461,4 +517,36 @@ def test_reload_preserves_the_active_workspace_from_the_url():
 
         _expect_active(page, "plan")
         assert not page.locator('[data-workspace-section="today"]').is_visible()
+        browser.close()
+
+
+def test_state_colored_figures_and_badges_carry_non_color_labels():
+    """State that is conveyed by color (data-signal figures, bill badges) must
+    also be exposed as text/aria so meaning is never color-alone."""
+    playwright = pytest.importorskip("playwright.sync_api")
+    _setup_module()
+
+    with playwright.sync_playwright() as browser_driver:
+        browser = browser_driver.chromium.launch()
+        context, page = _shell_page(browser, DESKTOP_VIEWPORT)
+
+        # Today: safe-to-spend figure uses data-signal color and must expose the
+        # sign via aria-label.
+        page.goto(f"{APP_URL}/meridian?workspace=today", wait_until="domcontentloaded")
+        _wait_for_shell(page)
+        sts = page.locator("[data-sts-figure]")
+        signal = sts.get_attribute("data-signal")
+        label = sts.get_attribute("aria-label")
+        if signal and signal != "zero":
+            assert label and ("Positive" in label or "Negative" in label), (
+                "safe-to-spend figure uses color for state without an aria label"
+            )
+
+        # Plan: bill attention badge uses color but must carry an aria-label.
+        page.goto(f"{APP_URL}/meridian?workspace=plan", wait_until="domcontentloaded")
+        _wait_for_shell(page)
+        badge = page.locator("[data-bill-badge]").first
+        if badge.count():
+            badge_label = badge.get_attribute("aria-label")
+            assert badge_label, "bill-badge conveys state by color alone (no aria-label)"
         browser.close()

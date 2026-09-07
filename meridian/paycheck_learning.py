@@ -64,72 +64,87 @@ def _cadence_guess(offsets: list[int]) -> tuple[str, int]:
 def learn_paycheck(transactions) -> dict | None:
     """Return a learned paycheck dict, or None if no clear recurring income.
 
+    The paycheck is often NOT a single transfer: it arrives as multiple same-period
+    chunks (e.g. Cash App's $500-per-transfer limit, or a PayPal->external->Crew
+    route). So this:
+
+    1. Collects positive income/transfer events from an income source (PayPal,
+       Cash App, Capital One, Zelle — any recurring positive inflow).
+    2. Bundles events within a ~4-day window into one "pay period" and SUMS them,
+       so 2x $490.25 on adjacent days = one ~$980 pay.
+    3. Averages those period totals over time (median + min/max range) so the
+       forecast reflects what actually lands, not a single chunk.
+
     Returns {amount, min_amount, max_amount, cadence, cadence_interval,
-    next_date, occurrences, confidence}. ``amount`` is the median typical
-    amount; min/max capture variability so the forecast can show a range.
+    next_date, occurrences, sources, confidence}. None when no clear recurring
+    income exists.
     """
     income = [t for t in transactions if _is_income(t)]
     if len(income) < _MIN_OCCURRENCES:
         return None
-    # Cluster by source merchant (not exact amount) so a variable paycheck from
-    # the same source groups together; the median amount filters outliers.
+
+    # Identify the income source(s): group by merchant, keep merchants that look
+    # like money movement (or any merchant with >=3 positive events).
     clusters: dict[str, list] = defaultdict(list)
     for txn in income:
         merchant = str(getattr(txn, "merchant", "") or getattr(txn, "description", "") or "").strip()
         clusters[merchant].append(txn)
 
+    # Choose the best source: the one whose events form a recurring weekly pattern.
     best: tuple[str, list, list] | None = None
     for merchant, items in clusters.items():
-        if len(items) < _MIN_OCCURRENCES:
+        events = [_parse_date(x.occurred_at) for x in items]
+        events = [e for e in events if e]
+        if len(events) < _MIN_OCCURRENCES:
             continue
-        amounts = [round(abs(float(x.amount)), 2) for x in items]
-        median = sorted(amounts)[len(amounts) // 2]
-        if median > _MAX_PAYCHECK_AMOUNT:
-            continue
-        # Keep transactions within ~30% of the median to drop stray one-offs.
-        band = [x for x, a in zip(items, amounts) if a >= median * 0.7 and a <= median * 1.3]
-        if len(band) < _MIN_OCCURRENCES:
-            continue
-        dates = sorted(d for d in (_parse_date(x.occurred_at) for x in band) if d)
-        if len(dates) < _MIN_OCCURRENCES:
-            continue
-        if best is None or len(band) > len(best[1]):
-            best = (merchant, band, dates)
+        if best is None or len(items) > len(best[1]):
+            best = (merchant, items, events)
 
     if best is None:
         return None
-    merchant, items, dates = best
-    # Collapse dates that sit within ~2 days of each other (Cash App can record
-    # a transfer + a split on the same payday) so the cadence reflects the real
-    # weekly/biweekly period, not intra-day pairs.
-    collapsed: list[date] = []
-    for d in dates:
-        if collapsed and (d - collapsed[-1]).days <= 2:
-            # same payday group; keep the later date as the payday
-            collapsed[-1] = d
+    merchant, items, events = best
+
+    # Bundle events that fall within a ~4-day window into a single pay period,
+    # then SUM their amounts — the real per-paycheck figure.
+    events.sort()
+    periods: list[tuple[date, float]] = []
+    for txn in items:
+        ev_date = _parse_date(txn.occurred_at)
+        if not ev_date:
+            continue
+        amount = abs(float(txn.amount))
+        if periods and (ev_date - periods[-1][0]).days <= 4:
+            # same pay period
+            prev_date, prev_amount = periods[-1]
+            periods[-1] = (prev_date, prev_amount + amount)
         else:
-            collapsed.append(d)
-    dates = collapsed
-    # Cadence from median gap between consecutive deposit dates.
-    gaps = [(later - earlier).days for earlier, later in zip(dates, dates[1:])]
+            periods.append((ev_date, amount))
+
+    if len(periods) < _MIN_OCCURRENCES:
+        return None
+    period_totals = [round(total, 2) for _date, total in periods]
+    period_dates = [d for d, _t in periods]
+    # Exclude period totals that are absurdly small (partial windows) or huge.
+    median_total = sorted(period_totals)[len(period_totals) // 2]
+    if median_total <= 0 or median_total > _MAX_PAYCHECK_AMOUNT:
+        return None
+    # Cadence from median gap between pay periods.
+    gaps = [(later - earlier).days for earlier, later in zip(period_dates, period_dates[1:])]
     if gaps and max(gaps) > _MAX_DAILY_RANGE_DAYS * 2:
-        # Too irregular; treat as one-off, not a paycheck.
         return None
     cadence, cadence_interval = _cadence_guess(gaps)
-    all_amounts = [round(abs(float(x.amount)), 2) for x in items]
-    median_amount = sorted(all_amounts)[len(all_amounts) // 2]
-    # Next expected deposit: last date + one cadence period.
-    next_date = dates[-1] + _period_delta(cadence, cadence_interval)
+    next_date = period_dates[-1] + _period_delta(cadence, cadence_interval)
     return {
-        "amount": median_amount,
-        "min_amount": min(all_amounts),
-        "max_amount": max(all_amounts),
+        "amount": median_total,
+        "min_amount": min(period_totals),
+        "max_amount": max(period_totals),
         "cadence": cadence,
         "cadence_interval": cadence_interval,
         "next_date": next_date.isoformat(),
-        "occurrences": len(items),
+        "occurrences": len(periods),
+        "sources": [merchant],
         "source": merchant,
-        "confidence": round(min(0.95, 0.5 + len(items) * 0.1), 2),
+        "confidence": round(min(0.95, 0.5 + len(periods) * 0.1), 2),
     }
 
 

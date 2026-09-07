@@ -311,10 +311,17 @@ function render(root, payload) {
     figure.textContent = formatCurrency(sts.amount, sts.currency);
     figure.dataset.signal =
       sts.amount > 0 ? "positive" : sts.amount < 0 ? "negative" : "zero";
+    // State colored by data-signal; also expose the sign as text so the meaning
+    // is never color-alone.
+    figure.setAttribute(
+      "aria-label",
+      `${sts.amount < 0 ? "Negative" : sts.amount > 0 ? "Positive" : "Zero"} safe to spend: ${formatCurrency(sts.amount, sts.currency)}`
+    );
     note.hidden = true;
   } else {
     figure.textContent = "—";
     figure.dataset.signal = "zero";
+    figure.removeAttribute("aria-label");
     note.hidden = false;
     note.textContent =
       sts.status === "unavailable"
