@@ -386,6 +386,44 @@ function renderCommitments(root, plan, template) {
         openCrewBillEditor(root, commitment, template);
       });
       actionCell.appendChild(crew);
+
+      // Delete/archive the live Crew bill (owner-direct executes immediately;
+      // an ambiguous delete proposes for approval).
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "m-button m-button--quiet m-button--small m-button--danger";
+      del.textContent = "Delete";
+      del.setAttribute("aria-label", `Delete bill ${commitment.name}`);
+      del.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (!window.confirm(`Delete the Crew bill "${commitment.name}"? This cannot be undone.`)) {
+          return;
+        }
+        (async () => {
+          const note = document.createElement("p");
+          note.className = "m-action-note";
+          note.dataset.state = "ok";
+          try {
+            const result = await meridianMutate({
+              type: "archive_crew_bill",
+              params: { bill_id: commitment.crew_bill_id },
+              provenance: "owner_direct",
+              rationale: `Delete the Crew bill ${commitment.name} from Meridian.`,
+            });
+            note.textContent = result.routing_direct
+              ? `Deleted (${result.action && result.action.state}).`
+              : "Proposed — approve it in Pending Actions.";
+          } catch (error) {
+            note.dataset.state = "error";
+            note.textContent =
+              error instanceof MeridianApiError
+                ? `${error.message} ${error.recoveryAction}`
+                : "The bill could not be deleted.";
+          }
+          actionCell.appendChild(note);
+        })();
+      });
+      actionCell.appendChild(del);
     }
 
     row.append(nameCell, fundedCell, nextCell, actionCell);
@@ -827,26 +865,32 @@ function openAutopilotRuleEditor() {
       note.textContent = "Enter a rule name.";
       return;
     }
-    // Build the verified formula action (subset of the real action union).
+    // Build the verified formula action (subset of the real action union) with
+    // the real Crew account/subaccount ids injected so the server never sends a
+    // null accountId (which Crew rejects).
+    const crewIds = (currentPlan && currentPlan.crew_ids) || {};
+    const accountId = crewIds.account_id || "";
+    const subaccountId = crewIds.free_to_spend_subaccount_id || "";
     const actions = [];
     if (action === "roundUpTransfer") {
-      actions.push({ roundUpTransfer: { roundToNearest: 100 } });
+      actions.push({ roundUpTransfer: { roundToNearest: 100, accountId, accountType: "ACCOUNT", subaccountId } });
     } else if (action === "sweepExcess" || action === "targetBalanceTransfer") {
       const amtField = form.querySelector('input[name="rule-merchant"]').value;
       const amount = Number(amtField) || 1;
       if (action === "sweepExcess") {
         actions.push({ sweepExcess: {
+          subaccountId: subaccountId || toSub,
           amountToRemain: Math.round(amount * 100),
-          sweepDestinations: [{ type: "SUBACCOUNT", percentage: 100, subaccountId: toSub || "" }],
+          sweepDestinations: [{ type: "SUBACCOUNT", percentage: 100, subaccountId: subaccountId || toSub || "" }],
         }});
       } else {
-        actions.push({ targetBalanceTransfer: { target: Math.round(amount * 100), direction: "INTO" } });
+        actions.push({ targetBalanceTransfer: { target: Math.round(amount * 100), direction: "INTO", accountId, subaccountId } });
       }
     } else if (action === "internalTransfer") {
       const amt = Number(form.querySelector('input[name="rule-amount"]').value);
-      actions.push({ internalTransfer: { amount: Math.round(amt * 100), memo: name } });
+      actions.push({ internalTransfer: { amount: Math.round(amt * 100), memo: name, accountFromId: accountId, accountToId: subaccountId || toSub } });
     } else if (action === "splitDeposit") {
-      actions.push({ splitDeposit: { destinations: [{ type: "SUBACCOUNT", percentage: 100, subaccountId: toSub || "" }] }});
+      actions.push({ splitDeposit: { destinations: [{ type: "SUBACCOUNT", percentage: 100, subaccountId: subaccountId || toSub || "" }] }});
     }
     const rule = {
       name,
@@ -855,7 +899,7 @@ function openAutopilotRuleEditor() {
         triggers: [trigger],
         conditions: { and: { conditions: [{ idMatch: {
           entitySchema: "SUBACCOUNTS",
-          entityId: (currentPlan && currentPlan.crew_ids && currentPlan.crew_ids.free_to_spend_subaccount_id) || "",
+          entityId: subaccountId,
         } }] } },
         actions,
       },
@@ -863,7 +907,7 @@ function openAutopilotRuleEditor() {
     try {
       const result = await meridianMutate({
         type: "create_crew_autopilot_rule",
-        params: { name, formula: rule.formula },
+        params: { name, account_id: accountId, subaccount_id: subaccountId, formula: rule.formula },
         provenance: "owner_direct",
         rationale: `Create an autopilot rule (${action}) from Meridian.`,
       });

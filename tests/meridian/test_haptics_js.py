@@ -47,3 +47,11 @@ def test_autopilot_editor_supports_action_union():
         assert action in js, f"missing action option {action}"
     assert "create_crew_autopilot_rule" in js
     assert "meridianMutate" in js
+
+
+def test_plan_js_has_delete_bill_control():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert 'archive_crew_bill' in js
+    assert 'Delete bill' in js or '"Delete"' in js
+    assert 'meridianMutate' in js
