@@ -1010,22 +1010,26 @@ function wireCrewActions(root) {
       }
     });
   };
-  attach(root.querySelector("[data-ca-create-pocket]"), (f) => ({
-    type: "create_crew_pocket",
-    params: {
-      account_id: "",
-      name: f.querySelector('input[name="name"]').value.trim(),
-      type: "SAVINGS",
-    },
-    provenance: "owner_direct",
-    rationale: "Create a pocket from Meridian.",
-  }));
+  attach(root.querySelector("[data-ca-create-pocket]"), (f) => {
+    const crew = (currentPlan && currentPlan.crew_ids) || {};
+    return {
+      type: "create_crew_pocket",
+      params: {
+        account_id: crew.account_id || "",
+        name: f.querySelector('input[name="name"]').value.trim(),
+        type: "SAVINGS",
+      },
+      provenance: "owner_direct",
+      rationale: "Create a pocket from Meridian.",
+    };
+  });
   attach(root.querySelector("[data-ca-create-bill]"), (f) => {
     const amount = Number(f.querySelector('input[name="amount"]').value);
+    const crew = (currentPlan && currentPlan.crew_ids) || {};
     return {
       type: "create_crew_bill",
       params: {
-        account_id: "",
+        account_id: crew.account_id || "",
         name: f.querySelector('input[name="name"]').value.trim(),
         amount: Math.round(amount * 100),
         frequency: "MONTHLY",
@@ -1038,12 +1042,17 @@ function wireCrewActions(root) {
   });
   attach(root.querySelector("[data-ca-top-up]"), (f) => {
     const amount = f.querySelector('input[name="amount"]').value;
+    const crew = (currentPlan && currentPlan.crew_ids) || {};
+    const fill = f.querySelector('input[name="bill_reserve_id"]');
+    if (fill && crew.bill_reserve_id && !fill.value) {
+      fill.value = crew.bill_reserve_id;
+    }
     return {
       type: "top_up_crew_reserve",
       params: {
         bill_reserve_id: f.querySelector('input[name="bill_reserve_id"]').value.trim(),
         amount: amount ? Math.round(Number(amount) * 100) : 0,
-        subaccount_id: "",
+        subaccount_id: crew.free_to_spend_subaccount_id || "",
       },
       provenance: "owner_direct",
       rationale: "Top up the Crew bill reserve from Meridian.",

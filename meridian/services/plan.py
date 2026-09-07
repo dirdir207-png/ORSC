@@ -10,6 +10,67 @@ from meridian.funding import project_funding
 from meridian.funding_repo import FundingRuleRepository
 
 _HORIZON_DAYS = 30
+
+# Where the live Crew read-only snapshot is written (the opaque GraphQL ids live
+# there). Overridable so tests can inject a fixture.
+_CREW_SNAPSHOT_PATH = None
+
+
+def _crew_ids() -> Optional[dict]:
+    """Extract the Crew opaque GraphQL ids (account + spend subaccounts) for the UI.
+
+    Reads the live Crew snapshot the sync already produces and returns the ids the
+    write forms need: {account_id, checking_subaccount_id, free_to_spend_subaccount_id}.
+    None when the snapshot is unavailable or not parseable (the UI then leaves the
+    id fields blank and the write routes to a proposal/rejects safely).
+    """
+    import ast
+    import os
+
+    path = _CREW_SNAPSHOT_PATH or os.path.expanduser(
+        "~/Library/Application Support/SimpleCrew/live_crew_snapshot.txt"
+    )
+    try:
+        with open(path, encoding="utf-8") as handle:
+            payload = ast.literal_eval(handle.read())
+    except Exception:  # noqa: BLE001 - snapshot is best-effort context
+        return None
+    data = payload.get("data", {}) if isinstance(payload, dict) else {}
+    accounts = None
+
+    def find(o):
+        nonlocal accounts
+        if isinstance(o, dict):
+            if (
+                "accounts" in o
+                and isinstance(o["accounts"], list)
+                and o["accounts"]
+                and isinstance(o["accounts"][0], dict)
+                and "subaccounts" in o["accounts"][0]
+            ):
+                accounts = o["accounts"]
+                return
+            for v in o.values():
+                find(v)
+        elif isinstance(o, list):
+            for x in o:
+                find(x)
+
+    find(data)
+    if not accounts:
+        return None
+    result = {}
+    for acc in accounts:
+        name = (acc.get("displayName") or acc.get("name") or "").strip().lower()
+        if name == "checking":
+            result["account_id"] = acc.get("id")
+        for sub in acc.get("subaccounts", []):
+            subname = (sub.get("displayName") or sub.get("name") or "").strip().lower()
+            if name == "checking" and subname == "checking":
+                result["checking_subaccount_id"] = sub.get("id")
+            if subname in ("free to spend", "free to spend "):
+                result["free_to_spend_subaccount_id"] = sub.get("id")
+    return result or None
 _ZERO = Decimal("0")
 
 # Generic words that can appear in a bill name or an email subject but should
@@ -345,6 +406,7 @@ def build_plan(
         freshness=freshness["status"],
     )
     return {
+        "crew_ids": _crew_ids(),
         "summary": {
             "headline": headline,
             "commitment_count": len(commitments),

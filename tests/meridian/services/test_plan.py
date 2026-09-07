@@ -305,3 +305,21 @@ def test_plan_includes_explainable_beacon_forecast(env):
 
     assert plan["forecast"]["available"] is True
     assert plan["forecast"]["factors"][0]["kind"] == "historical_expense"
+
+
+def test_crew_ids_parses_snapshot(tmp_path, monkeypatch):
+    """The plan payload exposes the Crew opaque ids for the write forms."""
+    from meridian.services import plan as plan_mod
+    snapshot = (
+        "{'mode': 'read-only', 'source': 'crew', 'data': {'accounts': {'data': "
+        "{'currentUser': {'accounts': [{'displayName': 'Checking', 'id': 'Acct:checking', "
+        "'subaccounts': [{'displayName': 'Checking', 'id': 'Sub:checking'}, "
+        "{'displayName': 'Free to Spend', 'id': 'Sub:fts'}]}]}}}}}"
+    )
+    f = tmp_path / "snapshot.txt"
+    f.write_text(snapshot, encoding="utf-8")
+    monkeypatch.setattr(plan_mod, "_CREW_SNAPSHOT_PATH", str(f))
+    ids = plan_mod._crew_ids()
+    assert ids["account_id"] == "Acct:checking"
+    assert ids["checking_subaccount_id"] == "Sub:checking"
+    assert ids["free_to_spend_subaccount_id"] == "Sub:fts"
