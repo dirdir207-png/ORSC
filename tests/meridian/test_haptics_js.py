@@ -80,3 +80,19 @@ def test_plan_js_builds_cohesive_commitment_action_cell():
     assert 'm-button--danger' in js
     assert 'Delete' in js
     assert 'archive_crew_bill' in js
+
+
+def test_shared_buttons_have_snappy_transitions():
+    from pathlib import Path
+    css = Path("static/css/meridian/workspaces.css").read_text(encoding="utf-8")
+    assert ".m-button {" in css
+    assert "transition:" in css
+    assert "var(--m-motion-fast)" in css
+    assert "var(--m-ease-out)" in css
+
+
+def test_plan_summary_cards_have_hover_lift():
+    from pathlib import Path
+    css = Path("static/css/meridian/plan.css").read_text(encoding="utf-8")
+    assert ".m-plan-coverage-card:hover," in css
+    assert "var(--m-elevation-2)" in css

@@ -39,6 +39,9 @@
   border-radius: var(--m-radius-lg);
   background: color-mix(in srgb, var(--m-surface) 96%, var(--m-canvas));
   box-shadow: var(--m-elevation-1);
+  transition:
+    border-color var(--m-motion-fast) var(--m-ease-out),
+    box-shadow var(--m-motion-fast) var(--m-ease-out);
 }
 
 
@@ -50,6 +53,15 @@
   border-radius: var(--m-radius-md);
   padding: var(--m-space-3) var(--m-space-4);
   cursor: pointer;
+  transition:
+    background var(--m-motion-fast) var(--m-ease-out),
+    transform var(--m-motion-fast) var(--m-ease-out),
+    box-shadow var(--m-motion-fast) var(--m-ease-out);
+}
+
+.m-primary-button,
+.m-secondary-button:active {
+  transform: translateY(1px);
 }
 
 
@@ -153,6 +165,16 @@
   font-family: var(--m-font-sans);
   font-size: var(--m-text-md);
   font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--m-motion-fast) var(--m-ease-out),
+    border-color var(--m-motion-fast) var(--m-ease-out),
+    transform var(--m-motion-fast) var(--m-ease-out),
+    box-shadow var(--m-motion-fast) var(--m-ease-out);
+}
+
+.m-button:active {
+  transform: translateY(1px);
 }
 
 

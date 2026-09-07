@@ -74,6 +74,15 @@
 .m-plan-coverage-card,
 .m-plan-funding-card {
   min-width: 0;
+  transition:
+    border-color var(--m-motion-fast) var(--m-ease-out),
+    box-shadow var(--m-motion-fast) var(--m-ease-out);
+}
+
+.m-plan-coverage-card:hover,
+.m-plan-funding-card:hover {
+  border-color: var(--m-border-strong);
+  box-shadow: var(--m-elevation-2);
 }
 
 /* ---------- Coverage orbit ---------- */
