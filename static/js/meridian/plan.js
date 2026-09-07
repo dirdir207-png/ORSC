@@ -413,6 +413,10 @@ function renderCommitments(root, plan, template) {
             note.textContent = result.routing_direct
               ? `Deleted (${result.action && result.action.state}).`
               : "Proposed — approve it in Pending Actions.";
+            // A direct delete removes the bill locally too, so refresh the plan.
+            if (result.routing_direct) {
+              setTimeout(() => loadPlan(), 600);
+            }
           } catch (error) {
             note.dataset.state = "error";
             note.textContent =
