@@ -2,7 +2,7 @@
    inspector, and the funding-rule editor whose only write path is an
    approval-gated proposal. */
 
-import { MeridianApiError, meridianFetch, meridianPropose } from "./api.js";
+import { MeridianApiError, meridianFetch, meridianPropose, meridianMutate } from "./api.js";
 import { formatCurrency, parseLocalDate } from "./format.js";
 
 let controller = null;
@@ -977,9 +977,84 @@ async function loadPlan() {
 
 window.MeridianPlan = { loadPlan };
 
+/* Wire the Crew action panel (create pocket / create bill / top up reserve) to
+   POST /api/actions/mutate, which routes owner-direct inputs straight to Crew and
+   AI-composed/under-specified inputs to a proposal for approval. */
+function wireCrewActions(root) {
+  const attach = (form, build) => {
+    if (!form || form.__wired) {
+      return;
+    }
+    form.__wired = true;
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const note = form.querySelector("[data-note]");
+      const payload = build(form);
+      note.hidden = true;
+      try {
+        const result = await meridianMutate(payload);
+        const direct = result.routing_direct;
+        const state = result.action && result.action.state;
+        note.hidden = false;
+        note.dataset.state = "ok";
+        note.textContent = direct
+          ? `Executed (${state}).`
+          : `Proposed — approve it in Pending Actions.`;
+      } catch (error) {
+        note.hidden = false;
+        note.dataset.state = "error";
+        note.textContent =
+          error instanceof MeridianApiError
+            ? `${error.message} ${error.recoveryAction}`
+            : "The Crew action could not be sent.";
+      }
+    });
+  };
+  attach(root.querySelector("[data-ca-create-pocket]"), (f) => ({
+    type: "create_crew_pocket",
+    params: {
+      account_id: "",
+      name: f.querySelector('input[name="name"]').value.trim(),
+      type: "SAVINGS",
+    },
+    provenance: "owner_direct",
+    rationale: "Create a pocket from Meridian.",
+  }));
+  attach(root.querySelector("[data-ca-create-bill]"), (f) => {
+    const amount = Number(f.querySelector('input[name="amount"]').value);
+    return {
+      type: "create_crew_bill",
+      params: {
+        account_id: "",
+        name: f.querySelector('input[name="name"]').value.trim(),
+        amount: Math.round(amount * 100),
+        frequency: "MONTHLY",
+        frequency_interval: 1,
+        anchor_date: new Date().toISOString().slice(0, 10),
+      },
+      provenance: "owner_direct",
+      rationale: "Create a bill from Meridian.",
+    };
+  });
+  attach(root.querySelector("[data-ca-top-up]"), (f) => {
+    const amount = f.querySelector('input[name="amount"]').value;
+    return {
+      type: "top_up_crew_reserve",
+      params: {
+        bill_reserve_id: f.querySelector('input[name="bill_reserve_id"]').value.trim(),
+        amount: amount ? Math.round(Number(amount) * 100) : 0,
+        subaccount_id: "",
+      },
+      provenance: "owner_direct",
+      rationale: "Top up the Crew bill reserve from Meridian.",
+    };
+  });
+}
+
 document.addEventListener("meridian:workspacechange", (event) => {
   if (event.detail.workspace === "plan") {
     loadPlan();
+    wireCrewActions(document);
   } else {
     closePlanInspector();
   }
@@ -1015,10 +1090,14 @@ document.addEventListener("click", (event) => {
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
+    wireCrewActions(document);
     if (window.MeridianShell && window.MeridianShell.getWorkspace() === "plan") {
       loadPlan();
     }
   });
-} else if (window.MeridianShell && window.MeridianShell.getWorkspace() === "plan") {
-  loadPlan();
+} else {
+  wireCrewActions(document);
+  if (window.MeridianShell && window.MeridianShell.getWorkspace() === "plan") {
+    loadPlan();
+  }
 }

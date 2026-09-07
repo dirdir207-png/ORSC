@@ -133,11 +133,52 @@
     </ul>
   </section>
 
-  {# Plan memory (document-driven insights) — wired by memory.js. #}
-  <section class="m-plan-memory" aria-label="Plan memory items">
-    <h2 class="m-section-label">From your documents</h2>
-    <div data-memory-plan></div>
+  {# Crew write actions — now wired bi-directionally through /api/actions/mutate.
+     Owner-direct inputs execute immediately; AI-composed / under-specified inputs
+     route to a proposal for approval (see the write model). #}
+  <section class="m-plan-actions" aria-label="Crew write actions" data-crew-actions>
+    <h2 class="m-section-label">Crew actions</h2>
+    <p class="m-parity-note">
+      These write to Crew directly. Fully-specified owner inputs execute; anything
+      requiring interpretation becomes a proposal you approve.
+    </p>
+    <form class="m-action-form" data-ca-create-pocket>
+      <h3 class="m-editor-title">Create pocket</h3>
+      <label class="m-field">
+        <span class="m-field-label">Pocket name</span>
+        <input class="m-input" name="name" type="text" placeholder="Savings, Vacation, …" required>
+      </label>
+      <p class="m-action-note" data-note hidden></p>
+      <button type="submit" class="m-button m-button-primary">Create pocket</button>
+    </form>
+    <form class="m-action-form" data-ca-create-bill>
+      <h3 class="m-editor-title">Create bill</h3>
+      <label class="m-field">
+        <span class="m-field-label">Bill name</span>
+        <input class="m-input" name="name" type="text" placeholder="Rent, Eversource, …" required>
+      </label>
+      <label class="m-field">
+        <span class="m-field-label">Amount</span>
+        <input class="m-input" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required>
+      </label>
+      <p class="m-action-note" data-note hidden></p>
+      <button type="submit" class="m-button m-button-primary">Create bill</button>
+    </form>
+    <form class="m-action-form" data-ca-top-up>
+      <h3 class="m-editor-title">Top up reserve</h3>
+      <label class="m-field">
+        <span class="m-field-label">Amount ($)</span>
+        <input class="m-input" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal">
+      </label>
+      <label class="m-field">
+        <span class="m-field-label">Funding id (optional)</span>
+        <input class="m-input" name="bill_reserve_id" type="text" placeholder="Reserve id">
+      </label>
+      <p class="m-action-note" data-note hidden></p>
+      <button type="submit" class="m-button m-button-primary">Top up reserve</button>
+    </form>
   </section>
+
 </div>
 
 <template data-funding-editor-template>

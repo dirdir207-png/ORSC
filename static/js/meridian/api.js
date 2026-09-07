@@ -84,6 +84,33 @@ export async function meridianPropose(path, payload) {
   return _parse(response);
 }
 
+export async function meridianMutate(action) {
+  /* Write-routing channel (POST /api/actions/mutate). The server routes the
+     mutation DIRECT (owner-direct/fully-specified -> executes) or to a PROPOSAL
+     (AI-interpreted/composed/low-confidence/plan-level -> awaits approval). The
+     response.routing_direct tells the caller which happened, so the UI can say
+     "executed" vs "proposed — approve in Pending Actions." */
+  let response;
+  try {
+    response = await fetch("/api/actions/mutate", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(action),
+    });
+  } catch (error) {
+    if (error && error.name === "AbortError") {
+      throw error;
+    }
+    throw new MeridianApiError({
+      code: "network_unreachable",
+      message: "Meridian could not reach the server.",
+      recoveryAction: "Check your connection and try again.",
+      status: 0,
+    });
+  }
+  return _parse(response);
+}
+
 async function _parse(response) {
   const contentType = response.headers.get("content-type") || "";
   let payload = null;
