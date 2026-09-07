@@ -1013,6 +1013,7 @@ action_store = ActionStore(
         "create_crew_pocket_reassignment_rule",
         "delete_crew_pocket_reassignment_rule",
         "update_crew_virtual_card",
+        "set_crew_spend_pocket",
     ) + MEMORY_ACTION_TYPES,
 )
 local_proposer_key = get_or_create_local_key(DB_FILE)

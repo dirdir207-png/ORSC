@@ -32,6 +32,7 @@ _ALLOWED = {
     "delete_rule",
     "create_pocket_reassignment_rule",
     "delete_pocket_reassignment_rule",
+    "set_spend_pocket",
 }
 
 _DEFAULT_BIN = os.environ.get(

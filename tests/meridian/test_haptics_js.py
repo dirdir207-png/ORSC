@@ -156,3 +156,18 @@ def test_plan_html_has_delete_rule_picker():
     html = Path("templates/meridian/partials/plan.html").read_text(encoding="utf-8")
     assert "data-ca-delete-rule" in html
     assert 'name="rule_id"' in html
+
+
+def test_plan_js_wires_set_spend_pocket():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert "set_crew_spend_pocket" in js
+    assert "data-ca-set-spend" in js
+    assert "populatePocketPicker" in js
+
+
+def test_plan_html_has_set_spend_pocket_picker():
+    from pathlib import Path
+    html = Path("templates/meridian/partials/plan.html").read_text(encoding="utf-8")
+    assert "data-ca-set-spend" in html
+    assert 'name="subaccount_id"' in html

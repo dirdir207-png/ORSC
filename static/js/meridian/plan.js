@@ -1122,6 +1122,10 @@ async function loadPlan() {
     if (ruleForm) {
       populateRulePicker(ruleForm);
     }
+    const spendForm = root.querySelector("[data-ca-set-spend]");
+    if (spendForm) {
+      populatePocketPicker(spendForm);
+    }
 
     // Desktop shows the rail by default; mobile only on demand. Prefer a
     // commitment with a funding rule and a real target (e.g. a goal/reserve).
@@ -1242,6 +1246,48 @@ function wireCrewActions(root) {
       provenance: "owner_direct",
       rationale: "Delete a Crew autopilot rule from Meridian.",
     }));
+  }
+
+  // Set the active spend pocket (pick from the known spend subaccount ids).
+  const spendForm = root.querySelector("[data-ca-set-spend]");
+  if (spendForm) {
+    populatePocketPicker(spendForm);
+    attach(spendForm, (f) => {
+      const crew = (currentPlan && currentPlan.crew_ids) || {};
+      return {
+        type: "set_crew_spend_pocket",
+        params: {
+          user_id: crew.account_id || "",
+          subaccount_id: f.querySelector('select[name="subaccount_id"]').value.trim(),
+        },
+        provenance: "owner_direct",
+        rationale: "Set the active spend pocket from Meridian.",
+      };
+    });
+  }
+}
+
+/* Fill the set-spend-pocket picker from the known spend subaccount ids. */
+function populatePocketPicker(form) {
+  const sel = form.querySelector('select[name="subaccount_id"]');
+  if (!sel) {
+    return;
+  }
+  const crew = (currentPlan && currentPlan.crew_ids) || {};
+  const pockets = [
+    { id: crew.free_to_spend_subaccount_id, label: "Free to Spend" },
+    { id: crew.checking_subaccount_id, label: "Checking" },
+  ].filter((p) => p.id);
+  sel.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select a pocket…";
+  sel.appendChild(placeholder);
+  for (const pocket of pockets) {
+    const opt = document.createElement("option");
+    opt.value = pocket.id;
+    opt.textContent = pocket.label;
+    sel.appendChild(opt);
   }
 }
 

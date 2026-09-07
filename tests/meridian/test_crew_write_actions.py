@@ -24,6 +24,7 @@ def test_executors_register_all_verified_write_types(tmp_path):
         "delete_crew_autopilot_rule",
         "create_crew_pocket_reassignment_rule",
         "delete_crew_pocket_reassignment_rule",
+        "set_crew_spend_pocket",
     }
     for spec in specs.values():
         assert callable(spec[0])
@@ -108,3 +109,22 @@ def test_autopilot_rule_executor_enriches_formula_before_write(tmp_path, monkeyp
     assert action["accountId"] == "Acct:checking"
     assert action["accountType"] == "ACCOUNT"
     assert action["roundToNearest"] == 100
+
+
+def test_set_spend_pocket_executor_reaches_write(tmp_path, monkeypatch):
+    """set_crew_spend_pocket executor passes user/subaccount ids to the CLI."""
+    from meridian import crew_write_actions
+
+    seen = {}
+    def fake_execute(operation, input_payload):
+        seen["operation"] = operation
+        seen["payload"] = input_payload
+        return {"ok": True, "result": {}}
+
+    monkeypatch.setattr(crew_write_actions, "execute_crew_write", fake_execute)
+    specs = crew_write_actions.crew_write_executors(str(tmp_path / "m.db"))
+    executor = specs["set_crew_spend_pocket"][0]
+    executor({"user_id": "User:1", "subaccount_id": "Sub:2"})
+    assert seen["operation"] == "set_spend_pocket"
+    assert seen["payload"]["user_id"] == "User:1"
+    assert seen["payload"]["subaccount_id"] == "Sub:2"

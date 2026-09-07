@@ -102,5 +102,9 @@ def crew_write_executors(db_path: str) -> Dict[str, tuple[Callable, Optional[Cal
             _exec("delete_pocket_reassignment_rule"),
             no_verify,
         ),
+        "set_crew_spend_pocket": (
+            _exec("set_spend_pocket"),
+            no_verify,
+        ),
     }
     return base
