@@ -1130,6 +1130,10 @@ async function loadPlan() {
     if (delPocket) {
       populatePocketPicker(delPocket, true);
     }
+    const vcForm = root.querySelector("[data-ca-create-virtual-card]");
+    if (vcForm) {
+      populatePocketPicker(vcForm, true);
+    }
 
     // Desktop shows the rail by default; mobile only on demand. Prefer a
     // commitment with a funding rule and a real target (e.g. a goal/reserve).
@@ -1280,6 +1284,26 @@ function wireCrewActions(root) {
       provenance: "owner_direct",
       rationale: "Delete a Crew pocket from Meridian.",
     }));
+  }
+
+  // Create a virtual debit card (uses the live user + a chosen pocket).
+  const vcForm = root.querySelector("[data-ca-create-virtual-card]");
+  if (vcForm) {
+    populatePocketPicker(vcForm, true);
+    attach(vcForm, (f) => {
+      const crew = (currentPlan && currentPlan.crew_ids) || {};
+      return {
+        type: "create_crew_virtual_card",
+        params: {
+          user_id: crew.user_id || "",
+          name: f.querySelector('input[name="name"]').value.trim(),
+          subaccount_id: f.querySelector('select[name="subaccount_id"]').value.trim() || null,
+          card_color: "TEAL",
+        },
+        provenance: "owner_direct",
+        rationale: "Create a virtual debit card from Meridian.",
+      };
+    });
   }
 }
 

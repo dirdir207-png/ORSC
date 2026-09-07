@@ -25,6 +25,7 @@ def test_executors_register_all_verified_write_types(tmp_path):
         "create_crew_pocket_reassignment_rule",
         "delete_crew_pocket_reassignment_rule",
         "set_crew_spend_pocket",
+        "create_crew_virtual_card",
     }
     for spec in specs.values():
         assert callable(spec[0])
@@ -128,3 +129,20 @@ def test_set_spend_pocket_executor_reaches_write(tmp_path, monkeypatch):
     assert seen["operation"] == "set_spend_pocket"
     assert seen["payload"]["user_id"] == "User:1"
     assert seen["payload"]["subaccount_id"] == "Sub:2"
+
+
+def test_create_virtual_card_executor_reaches_write(tmp_path, monkeypatch):
+    """create_crew_virtual_card executor passes the card input to the CLI."""
+    from meridian import crew_write_actions
+    seen = {}
+    def fake_execute(operation, input_payload):
+        seen["operation"] = operation
+        seen["payload"] = input_payload
+        return {"ok": True, "result": {}}
+    monkeypatch.setattr(crew_write_actions, "execute_crew_write", fake_execute)
+    specs = crew_write_actions.crew_write_executors(str(tmp_path / "m.db"))
+    executor = specs["create_crew_virtual_card"][0]
+    executor({"user_id": "User:1", "name": "Zz Card", "subaccount_id": "Sub:2", "card_color": "TEAL"})
+    assert seen["operation"] == "create_virtual_card"
+    assert seen["payload"]["user_id"] == "User:1"
+    assert seen["payload"]["name"] == "Zz Card"

@@ -365,3 +365,17 @@ def test_crew_ids_exposes_all_subaccounts(tmp_path, monkeypatch):
         {"id": "Sub:b", "name": "Free to Spend"},
         {"id": "Sub:c", "name": "Emergency Fund"},
     ]
+
+
+def test_crew_ids_exposes_user_id(tmp_path, monkeypatch):
+    from meridian.services import plan as plan_mod
+    snapshot = (
+        "{'mode': 'read-only', 'source': 'crew', 'data': {'virtual_cards': {'data': "
+        "{'currentUser': {'id': 'VXNlcjoxMjM0NTY3ODktYWJj', 'family': {}}}, 'accounts': {'data': "
+        "{'currentUser': {'accounts': []}}}}}}"
+    )
+    f = tmp_path / "snapshot.txt"
+    f.write_text(snapshot, encoding="utf-8")
+    monkeypatch.setattr(plan_mod, "_CREW_SNAPSHOT_PATH", str(f))
+    ids = plan_mod._crew_ids()
+    assert ids["user_id"] == "VXNlcjoxMjM0NTY3ODktYWJj"

@@ -201,3 +201,18 @@ def test_mobile_main_clears_floating_advisor():
     css = Path("static/css/meridian/shell.css").read_text(encoding="utf-8")
     assert "env(safe-area-inset-bottom)" in css
     assert "m-space-7" in css  # extra bottom clearance so cards scroll clear of the FAB
+
+
+def test_plan_js_wires_create_virtual_card():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert "create_crew_virtual_card" in js
+    assert "data-ca-create-virtual-card" in js
+    assert "crew.user_id" in js
+
+
+def test_plan_html_has_virtual_card_form():
+    from pathlib import Path
+    html = Path("templates/meridian/partials/plan.html").read_text(encoding="utf-8")
+    assert "data-ca-create-virtual-card" in html
+    assert "Create virtual card" in html

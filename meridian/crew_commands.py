@@ -81,6 +81,12 @@ UPDATE_VIRTUAL_CARD_MUTATION = """mutation UpdateVirtualDebitCard($input: Update
   }
 }"""
 
+CREATE_VIRTUAL_CARD_MUTATION = """mutation CreateVirtualDebitCard($input: CreateVirtualDebitCardInput!) {
+  createVirtualDebitCard(input: $input) {
+    result { id }
+  }
+}"""
+
 CREATE_POCKET_REASSIGNMENT_MUTATION = """mutation CreatePocketReassignmentRule($input: CreateReassignmentRuleInput!) {
   createReassignmentRule(input: $input) {
     result { id match minAmount maxAmount assignmentSubaccount { id displayName } }
@@ -127,6 +133,9 @@ _SPECS = {
     ),
     "update_virtual_card": CommandSpec(
         "UpdateVirtualDebitCard", BROKER_UPDATE_VIRTUAL_CARD_MUTATION, "updateVirtualDebitCard"
+    ),
+    "create_virtual_card": CommandSpec(
+        "CreateVirtualDebitCard", CREATE_VIRTUAL_CARD_MUTATION, "createVirtualDebitCard"
     ),
 }
 
@@ -222,6 +231,21 @@ def build_command_payload(kind: str, params: dict[str, object]):
         variables = {"input": {
             "debitCardId": debit_card_id,
             "subaccountId": subaccount_id,
+        }}
+    elif kind == "create_virtual_card":
+        user_id = str(params.get("user_id") or "").strip()
+        name = str(params.get("name") or "").strip()
+        if not user_id or not name:
+            raise ValueError("user_id and name are required")
+        subaccount_id = str(params.get("subaccount_id") or "").strip()
+        variables = {"input": {
+            "userId": user_id,
+            "name": name,
+            "type": "DEBIT",
+            "subaccountId": subaccount_id or None,
+            "cardColor": str(params.get("card_color") or "TEAL"),
+            "monthlyLimit": params.get("monthly_limit"),
+            "cancelAfter": params.get("cancel_after"),
         }}
     elif kind == "create_autopilot_rule" or kind == "edit_autopilot_rule":
         rule_id = str(params.get("rule_id") or "").strip()

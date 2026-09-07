@@ -200,6 +200,19 @@
       <p class="m-action-note" data-note hidden></p>
       <button type="submit" class="m-button m-button--danger">Delete pocket</button>
     </form>
+    <form class="m-action-form" data-ca-create-virtual-card>
+      <h3 class="m-editor-title">Create virtual card</h3>
+      <label class="m-field">
+        <span class="m-field-label">Card name</span>
+        <input class="m-input" name="name" type="text" placeholder="e.g. Subscriptions" required>
+      </label>
+      <label class="m-field">
+        <span class="m-field-label">Pocket</span>
+        <select class="m-select" name="subaccount_id"><option value="">Match my physical card</option></select>
+      </label>
+      <p class="m-action-note" data-note hidden></p>
+      <button type="submit" class="m-button m-button-primary">Create virtual card</button>
+    </form>
   </section>
 
   {# Verified Crew mutation capture status — read-only, so Meridian's write path

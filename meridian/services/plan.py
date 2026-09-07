@@ -58,6 +58,26 @@ def _crew_ids() -> Optional[dict]:
 
     find(data)
     result = {}
+    user_id = None
+    def _user_id(o):
+        nonlocal user_id
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if str(k).lower() in ("user", "currentuser") and isinstance(v, dict):
+                    uid = v.get("id")
+                    if isinstance(uid, str) and uid.startswith("VXNlcjo"):  # User: id
+                        user_id = uid
+                        return True
+                if _user_id(v):
+                    return True
+        elif isinstance(o, list):
+            for x in o:
+                if _user_id(x):
+                    return True
+        return False
+    _user_id(data)
+    if user_id:
+        result["user_id"] = user_id
     subaccounts = []
     seen_sub = set()
     if accounts:
