@@ -743,6 +743,34 @@
   font-size: var(--m-text-xs);
 }
 
+/* Crew write actions panel: the individual action forms read as one cohesive
+   set of tidy cards (not stacked unstyled boxes), each with a label + a compact
+   pill button and consistent rhythm. */
+.m-plan-actions {
+  display: grid;
+  gap: var(--m-space-4);
+  margin-top: var(--m-space-4);
+}
+
+.m-action-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-space-3);
+  padding: var(--m-space-4);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+}
+
+.m-action-form .m-input,
+.m-action-form .m-select {
+  width: 100%;
+}
+
+.m-action-form .m-button {
+  align-self: flex-start;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {

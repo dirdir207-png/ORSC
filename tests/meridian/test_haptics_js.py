@@ -186,3 +186,11 @@ def test_plan_js_populate_pocket_picker_handles_all_flag():
     js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
     assert "function populatePocketPicker(form, all = false)" in js
     assert "crew.subaccounts" in js
+
+
+def test_plan_actions_panel_cards_are_styled():
+    from pathlib import Path
+    css = Path("static/css/meridian/plan.css").read_text(encoding="utf-8")
+    assert ".m-plan-actions" in css
+    assert ".m-action-form" in css
+    assert "border-radius: var(--m-radius-lg)" in css
