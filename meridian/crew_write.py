@@ -14,11 +14,21 @@ import os
 import subprocess
 from typing import Any
 
-# Only reviewed write operations ever reach the subprocess.
+# Only reviewed write operations ever reach the subprocess. Each op maps to a
+# verified Crew mutation contract (see docs/project/CREW_GRAPHQL_CATALOG.md).
 _ALLOWED = {
     "update_bill",
     "update_bill_reserve_settings",
     "create_autopilot_rule",
+    "create_bill",
+    "archive_bill",
+    "create_subaccount",
+    "delete_subaccount",
+    "initiate_transfer",
+    "create_paycheck_funding_plan",
+    "update_paycheck_funding_plan",
+    "delete_paycheck_funding_plan",
+    "top_up_reserve",
 }
 
 _DEFAULT_BIN = os.environ.get(

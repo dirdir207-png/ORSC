@@ -201,53 +201,107 @@ def build_command_payload(kind: str, params: dict[str, object]):
             "debitCardId": debit_card_id,
             "subaccountId": subaccount_id,
         }}
+    elif kind == "create_autopilot_rule" or kind == "edit_autopilot_rule":
+        rule_id = str(params.get("rule_id") or "").strip()
+        name = str(params.get("name") or "Autopilot rule").strip()
+        if not name:
+            raise ValueError("name is required")
+        if kind == "edit_autopilot_rule" and not rule_id:
+            raise ValueError("rule_id is required")
+        # Build the REAL Crew AutopilotRule formula. The schema supports a full
+        # action-type union (RoundUpTransfer / TargetBalanceTransfer /
+        # SplitDeposit / SplitDepositByAmount / InternalTransfer /
+        # SendNotification / SendWebhook / sweepExcess) and IdMatch/Or/And
+        # conditions. Accept either an explicit verified ``formula`` (preferred,
+        # any action type) or a roundUpTransfer convenience.
+        if isinstance(params.get("formula"), dict):
+            formula = _build_formula_from_payload(params["formula"])
+        else:
+            formula = _build_roundup_formula(params)
+        if kind == "create_autopilot_rule":
+            variables = {"input": {"name": name, "formula": formula}}
+        else:
+            variables = {"input": {
+                "ruleId": rule_id,
+                "name": name,
+                "enabled": bool(params.get("enabled", True)),
+                "formula": formula,
+            }}
     else:
         rule_id = str(params.get("rule_id") or "").strip()
-        name = str(params.get("name") or "Round Up").strip()
-        account_id = str(params.get("account_id") or "").strip()
-        if kind == "delete_autopilot_rule":
-            if not rule_id:
-                raise ValueError("rule_id is required")
-            variables = {"input": {"ruleId": rule_id}}
-        else:
-            if not account_id or not name:
-                raise ValueError("account_id and name are required")
-            try:
-                round_to_nearest = int(params.get("round_to_nearest", 100))
-            except (TypeError, ValueError) as exc:
-                raise ValueError("round_to_nearest must be an integer") from exc
-            if round_to_nearest < 1:
-                raise ValueError("round_to_nearest must be positive")
-            card_ids = [str(item).strip() for item in params.get("card_ids", ()) if str(item).strip()]
-            trigger = "DEBIT_CARD_TRANSACTION" if card_ids else "CASH_TRANSACTION_OCCURRED"
-            formula = {
-                "name": name,
-                "description": "Save extra change from card purchases." if card_ids else "Round up transactions to the nearest dollar",
-                "triggers": [trigger],
-                "actions": [{"roundUpTransfer": {
-                    "accountId": account_id,
-                    "roundToNearest": round_to_nearest,
-                    "accountType": "ACCOUNT",
-                }}],
-            }
-            subaccount_id = str(params.get("subaccount_id") or "").strip()
-            if subaccount_id:
-                formula["actions"][0]["roundUpTransfer"]["subaccountId"] = subaccount_id
-            if card_ids:
-                matches = [
-                    {"idMatch": {"entityId": card_id, "entitySchema": "DEBIT_CARDS"}}
-                    for card_id in card_ids
-                ]
-                formula["conditions"] = matches[0] if len(matches) == 1 else {"or": {"conditions": matches}}
-            if kind == "create_autopilot_rule":
-                variables = {"input": {"name": name, "formula": formula}}
-            else:
-                if not rule_id:
-                    raise ValueError("rule_id is required")
-                variables = {"input": {
-                    "ruleId": rule_id,
-                    "name": name,
-                    "enabled": bool(params.get("enabled", True)),
-                    "formula": formula,
-                }}
+        if kind == "delete_autopilot_rule" and not rule_id:
+            raise ValueError("rule_id is required")
+        variables = {"input": {"ruleId": rule_id}}
     return spec.operation_name, spec.query, variables
+
+
+def _build_roundup_formula(params: dict[str, object]) -> dict:
+    """RoundUpTransfer convenience rule (one of the supported action types)."""
+    name = str(params.get("name") or "Round Up").strip()
+    account_id = str(params.get("account_id") or "").strip()
+    if not account_id or not name:
+        raise ValueError("account_id and name are required")
+    try:
+        round_to_nearest = int(params.get("round_to_nearest", 100))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("round_to_nearest must be an integer") from exc
+    if round_to_nearest < 1:
+        raise ValueError("round_to_nearest must be positive")
+    card_ids = [str(item).strip() for item in params.get("card_ids", ()) if str(item).strip()]
+    trigger = "DEBIT_CARD_TRANSACTION" if card_ids else "CASH_TRANSACTION_OCCURRED"
+    formula = {
+        "name": name,
+        "description": "Save extra change from card purchases." if card_ids else "Round up transactions to the nearest dollar",
+        "triggers": [trigger],
+        "actions": [{"roundUpTransfer": {
+            "accountId": account_id,
+            "roundToNearest": round_to_nearest,
+            "accountType": "ACCOUNT",
+        }}],
+    }
+    subaccount_id = str(params.get("subaccount_id") or "").strip()
+    if subaccount_id:
+        formula["actions"][0]["roundUpTransfer"]["subaccountId"] = subaccount_id
+    if card_ids:
+        matches = [
+            {"idMatch": {"entityId": card_id, "entitySchema": "DEBIT_CARDS"}}
+            for card_id in card_ids
+        ]
+        formula["conditions"] = matches[0] if len(matches) == 1 else {"or": {"conditions": matches}}
+    return formula
+
+
+def _build_formula_from_payload(payload: dict) -> dict:
+    """Validate + normalize a verified AutopilotRule formula payload.
+
+    Accepts the exact Crew formula shape: {name, description, triggers,
+    conditions{and.conditions[idMatch{entityId,entitySchema}]}, actions[
+    <actionType>{...}]}. Every action key must be a known action type (the
+    union from the real schema) so we never emit an invented action.
+    """
+    formula = dict(payload)
+    if "name" not in formula:
+        raise ValueError("formula.name is required")
+    triggers = formula.get("triggers")
+    if not isinstance(triggers, list) or not triggers:
+        raise ValueError("formula.triggers must be a non-empty list")
+    actions = formula.get("actions")
+    if not isinstance(actions, list) or not actions:
+        raise ValueError("formula.actions must be a non-empty list")
+    _KNOWN_ACTIONS = frozenset({
+        "roundUpTransfer", "targetBalanceTransfer", "splitDeposit",
+        "splitDepositByAmount", "internalTransfer", "sendNotification",
+        "sendWebhook", "sweepExcess",
+    })
+    for action in actions:
+        if not isinstance(action, dict) or len(action) != 1:
+            raise ValueError("each formula.actions entry must be a single {type: {...}} object")
+        key = next(iter(action))
+        if key not in _KNOWN_ACTIONS:
+            raise ValueError(f"unknown autopilot rule action type: {key}")
+    conditions = formula.get("conditions")
+    if conditions is not None and not isinstance(conditions, dict):
+        raise ValueError("formula.conditions must be an object (or absent)")
+    return {"name": formula["name"], "description": formula.get("description"),
+            "triggers": triggers, "conditions": conditions,
+            "actions": actions}

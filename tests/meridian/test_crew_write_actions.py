@@ -5,13 +5,22 @@ from crew.executors import ExecutorSpec
 from meridian.crew_write_actions import crew_write_executors
 
 
-def test_executors_register_three_write_types(tmp_path):
+def test_executors_register_all_verified_write_types(tmp_path):
     db = str(tmp_path / "m.db")
     specs = crew_write_executors(db)
     assert set(specs) == {
         "update_crew_bill",
         "update_crew_bill_reserve_settings",
         "create_crew_autopilot_rule",
+        "create_crew_bill",
+        "archive_crew_bill",
+        "create_crew_pocket",
+        "delete_crew_pocket",
+        "crew_initiate_transfer",
+        "create_crew_paycheck_funding_plan",
+        "update_crew_paycheck_funding_plan",
+        "delete_crew_paycheck_funding_plan",
+        "top_up_crew_reserve",
     }
     for spec in specs.values():
         assert callable(spec[0])

@@ -50,18 +50,34 @@ def _verify_stored(db_path: str, check_field: str):
 
 def crew_write_executors(db_path: str) -> Dict[str, tuple[Callable, Optional[Callable]]]:
     """Register the Crew write executor specs (params-dict adapters)."""
+    def _exec(op: str):
+        return _crew_write_executor(op)
+
+    no_verify = None
     base: Dict[str, tuple[Callable, Optional[Callable]]] = {
-        "update_crew_bill": (
-            _crew_write_executor("update_bill"),
-            _verify_stored(db_path, "name"),
-        ),
+        "update_crew_bill": (_exec("update_bill"), _verify_stored(db_path, "name")),
         "update_crew_bill_reserve_settings": (
-            _crew_write_executor("update_bill_reserve_settings"),
+            _exec("update_bill_reserve_settings"),
             _verify_stored(db_path, "name"),
         ),
-        "create_crew_autopilot_rule": (
-            _crew_write_executor("create_autopilot_rule"),
-            None,
+        "create_crew_autopilot_rule": (_exec("create_autopilot_rule"), no_verify),
+        "create_crew_bill": (_exec("create_bill"), no_verify),
+        "archive_crew_bill": (_exec("archive_bill"), no_verify),
+        "create_crew_pocket": (_exec("create_subaccount"), no_verify),
+        "delete_crew_pocket": (_exec("delete_subaccount"), no_verify),
+        "crew_initiate_transfer": (_exec("initiate_transfer"), no_verify),
+        "create_crew_paycheck_funding_plan": (
+            _exec("create_paycheck_funding_plan"),
+            no_verify,
         ),
+        "update_crew_paycheck_funding_plan": (
+            _exec("update_paycheck_funding_plan"),
+            no_verify,
+        ),
+        "delete_crew_paycheck_funding_plan": (
+            _exec("delete_paycheck_funding_plan"),
+            no_verify,
+        ),
+        "top_up_crew_reserve": (_exec("top_up_reserve"), no_verify),
     }
     return base
