@@ -1000,6 +1000,19 @@ action_store = ActionStore(
         "update_crew_bill",
         "update_crew_bill_reserve_settings",
         "create_crew_autopilot_rule",
+        "create_crew_bill",
+        "archive_crew_bill",
+        "create_crew_pocket",
+        "delete_crew_pocket",
+        "crew_initiate_transfer",
+        "create_crew_paycheck_funding_plan",
+        "update_crew_paycheck_funding_plan",
+        "delete_crew_paycheck_funding_plan",
+        "top_up_crew_reserve",
+        "delete_crew_autopilot_rule",
+        "create_crew_pocket_reassignment_rule",
+        "delete_crew_pocket_reassignment_rule",
+        "update_crew_virtual_card",
     ) + MEMORY_ACTION_TYPES,
 )
 local_proposer_key = get_or_create_local_key(DB_FILE)
@@ -1037,6 +1050,15 @@ except Exception:  # pragma: no cover - import-time resilience
 
 for _kind, (_execute, _verify) in crew_write_executors(DB_FILE).items():
     action_executors[_kind] = ExecutorSpec(execute=_execute, verifier=_verify)
+
+# Write-routing: a mutation request is routed DIRECT (owner-direct, single,
+# unambiguous) or to a PROPOSAL (AI-interpreted/composed/low-confidence/plan-level)
+# per the write model. See meridian/write_routing.py.
+try:
+    from meridian.write_routing import route_mutation
+except Exception:  # pragma: no cover - import-time resilience
+    def route_mutation(store, executors, **kw):  # noqa: E306
+        return {"routing_direct": False, "action": store.propose(kw["action_type"], kw["params"], rationale=kw.get("rationale", ""), requested_by=kw.get("requested_by", "owner"))}
 
 for _kind, (_execute, _verify) in {
     **asset_executors(DB_FILE),
@@ -3899,6 +3921,39 @@ def api_actions_propose():
     except UnknownActionTypeError as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify(created)
+
+@app.route('/api/actions/mutate', methods=['POST'])
+@login_required
+def api_actions_mutate():
+    """Route a mutation DIRECT (owner-direct/unambiguous) or to a PROPOSAL.
+
+    Body: { "type": "<action_type>", "params": {...}, "provenance":
+    "owner_direct"|"ai_interpreted"|"ai_composed"|"scheduled", "low_confidence":
+    bool, "multi_op": bool, "rationale": str }. A direct (owner-direct, single,
+    fully-specified) mutation executes immediately; every AI-interpreted /
+    composed / low-confidence / plan-level / scheduled mutation creates a
+    PROPOSAL for the owner to approve.
+    """
+    data = request.json or {}
+    action_type = data.get('type')
+    params = data.get('params') or {}
+    provenance = data.get('provenance', 'owner_direct')
+    user = getattr(current_user, 'username', 'owner')
+    try:
+        result = route_mutation(
+            action_store,
+            action_executors,
+            action_type=action_type,
+            params=params,
+            rationale=data.get('rationale', ''),
+            requested_by=user,
+            provenance=provenance,
+            low_confidence=bool(data.get('low_confidence', False)),
+            multi_op=bool(data.get('multi_op', False)),
+        )
+    except (UnknownActionTypeError, KeyError, ValueError) as exc:
+        return jsonify({"error": str(exc), "routing": getattr(exc, 'routing', None)}), 400
+    return jsonify(result)
 
 @app.route('/api/meridian/funding-rules/propose', methods=['POST'])
 @login_required

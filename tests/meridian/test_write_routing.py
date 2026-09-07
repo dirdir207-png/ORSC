@@ -114,3 +114,43 @@ def test_route_mutation_direct_vs_proposal_paths():
     assert prop["routing_direct"] is False
     assert prop["routing"].requires_proposal is True
     assert prop["action"]["state"] == "proposed"
+
+
+def test_direct_mutation_runs_executor_proposal_does_not(monkeypatch):
+    """Owner-direct must attempt the executor; AI-interpreted must only propose."""
+    import tempfile
+
+    from crew.actions import ActionStore
+    from crew.executors import ExecutorSpec
+    from meridian.write_routing import route_mutation
+
+    db = tempfile.mktemp(suffix=".db")
+    store = ActionStore(db, allowed_types=("create_crew_pocket",))
+    calls = []
+
+    def fake_create(params):
+        calls.append(params)
+        return {"success": True, "crew": {"ok": True}}
+
+    executors = {"create_crew_pocket": ExecutorSpec(execute=fake_create, verifier=None)}
+
+    # Owner-direct, fully-specified -> executes (fake called).
+    direct = route_mutation(
+        store, executors, action_type="create_crew_pocket",
+        params={"account_id": "Acct:1", "name": "Savings", "type": "SAVINGS"},
+        rationale="set pocket", requested_by="owner", provenance="owner_direct",
+    )
+    assert direct["routing_direct"] is True
+    assert direct["action"]["state"] == "verified"   # executor ran + verified
+    assert calls, "owner-direct mutation should have reached the executor"
+
+    # AI-interpreted -> proposal only, executor never called.
+    calls.clear()
+    prop = route_mutation(
+        store, executors, action_type="create_crew_pocket",
+        params={"account_id": "Acct:1", "name": "Savings", "type": "SAVINGS"},
+        rationale="ai interpreted", requested_by="owner", provenance="ai_interpreted",
+    )
+    assert prop["routing_direct"] is False
+    assert prop["action"]["state"] == "proposed"
+    assert calls == [], "AI-interpreted mutation must NOT reach the executor until approved"
