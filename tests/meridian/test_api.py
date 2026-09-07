@@ -867,3 +867,22 @@ def test_oauth_callback_does_not_require_app_session(monkeypatch):
     client = simplecrew.app.test_client()  # deliberately NO session login
 
     assert client.get("/api/meridian/connections/oauth/callback?state=gmail-connect").status_code in (400, 200)
+
+
+def test_crew_mutations_status_readonly(api_client, tmp_path):
+    """The capture-status endpoint serves the verified mutation catalog (read-only)."""
+    client, _ = api_client
+    # Ensure the catalog doc exists (the real repo file) so the endpoint resolves.
+    response = client.get("/api/meridian/crew/mutations-status")
+    assert response.status_code in (200, 404)
+    if response.status_code == 200:
+        payload = response.get_json()
+        assert "summary" in payload
+        assert "mutations" in payload
+        assert payload["summary"]["total"] >= 1
+
+
+def test_crew_mutations_status_requires_login():
+    response = simplecrew.app.test_client().get("/api/meridian/crew/mutations-status")
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]

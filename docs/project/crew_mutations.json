@@ -1,0 +1,178 @@
+{
+  "captured_at": "2026-09-07T13:51:16",
+  "summary": {
+    "captured": 15,
+    "observed": 1,
+    "missing": 0,
+    "total": 16
+  },
+  "mutations": {
+    "ArchiveBill": {
+      "operation": "ArchiveBill",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{billId}}` (bill delete/archive)",
+      "source": "catalog"
+    },
+    "CreateAutopilotRule": {
+      "operation": "CreateAutopilotRule",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{name,paused,formula{name,triggers,conditions.and.conditions[idMatch{entityId,entitySchema}],actions[sweepExcess{subaccountId,amountToRemain,sweepDestinations[{type,accountId,subaccountId,percentage}]}]}}}`",
+      "source": "catalog"
+    },
+    "CreateBill": {
+      "operation": "CreateBill",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{accountId,name,amount(\u00a2),frequency,anchorDate,frequencyInterval,reassignmentRule{match,transactionType,debitCardId}}}`",
+      "source": "catalog"
+    },
+    "CreatePaycheckFundingPlan": {
+      "operation": "CreatePaycheckFundingPlan",
+      "kind": "mutation",
+      "status": "captured",
+      "variables": [
+        {
+          "input": {
+            "billReserveId": "QmlsbFJlc2VydmU6OGQyZjNlOGYtZDI0MS00MDY3LWI4OGUtMGQ1NDRlNzc4MDc5",
+            "name": "Cash App",
+            "amount": 42720,
+            "frequency": "WEEKLY",
+            "frequencyInterval": 2,
+            "anchorDate": "2026-09-04",
+            "reassignmentRule": {
+              "match": "CASH APP*STEPHEN WEST*"
+            }
+          }
+        }
+      ],
+      "variable_count": 1,
+      "source": "mitmproxy"
+    },
+    "CreatePocketReassignmentRule": {
+      "operation": "CreatePocketReassignmentRule",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{match,accountId,assignmentSubaccountId,minAmount,maxAmount}}`",
+      "source": "catalog"
+    },
+    "CreateSubaccount": {
+      "operation": "CreateSubaccount",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{accountId,type,name,initialTransferAmount,targetAmount,piggyBanked}}`",
+      "source": "catalog"
+    },
+    "DeletePaycheckFundingPlan": {
+      "operation": "DeletePaycheckFundingPlan",
+      "kind": "mutation",
+      "status": "captured",
+      "variables": [
+        {
+          "input": {
+            "fundingPlanId": "RnVuZGluZ1BsYW46NTJhY2M2ZDItZjQwYi00YjhkLTljYTUtNTkxNTNkYTI3Njc3"
+          }
+        }
+      ],
+      "variable_count": 1,
+      "source": "mitmproxy"
+    },
+    "DeletePocketReassignmentRule": {
+      "operation": "DeletePocketReassignmentRule",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{reassignmentRuleId}}`",
+      "source": "catalog"
+    },
+    "DeleteRule": {
+      "operation": "DeleteRule",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{ruleId}}`",
+      "source": "catalog"
+    },
+    "DeleteSubaccount": {
+      "operation": "DeleteSubaccount",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{subaccountId}}`",
+      "source": "catalog"
+    },
+    "GenerateViewSadToken": {
+      "operation": "GenerateViewSadToken",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{debitCardId}}`",
+      "source": "catalog"
+    },
+    "InitiateTransferRuth": {
+      "operation": "InitiateTransferRuth",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{accountFromId,accountToId,amount,memo}}` (spend-pocket / internal transfer)",
+      "source": "catalog"
+    },
+    "RecordRiskSession": {
+      "operation": "RecordRiskSession",
+      "kind": "mutation",
+      "status": "captured",
+      "variables": [
+        {
+          "input": {
+            "sessionId": "a6258145-8c9e-4dba-9074-d728b396d3b5",
+            "installId": "fd4f0440-9c11-4838-bf1c-89f2a92422ee",
+            "capturedAt": "2026-09-07T14:54:41.050Z",
+            "deviceLanguage": "en-US",
+            "osName": "ios",
+            "osVersion": "26.4",
+            "appName": "Crew",
+            "appVersion": "2.2.7",
+            "screenWidthPx": 750,
+            "screenHeightPx": 1334,
+            "screenDensity": 2,
+            "userAgent": "Mozilla/5.0 (iPad; CPU OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+            "deviceModel": "iPad Pro 12.9-inch (3rd generation)",
+            "deviceManufacturer": "Apple",
+            "cpuArchs": [
+              "ARM64E"
+            ],
+            "totalStorageBytes": "245107195904",
+            "unusedStorageBytes": "58743037952",
+            "batteryLevel": 0.009999999776482582,
+            "batteryCharging": false,
+            "timezone": "America/New_York",
+            "timezoneOffsetMinutes": -240,
+            "connectionType": "wifi",
+            "carrierName": "unknown",
+            "isEmulator": false,
+            "isSimulator": false,
+            "debugBuild": false
+          }
+        }
+      ],
+      "variable_count": 1,
+      "source": "mitmproxy"
+    },
+    "TopUpReserve": {
+      "operation": "TopUpReserve",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{billReserveId,amount,subaccountId}}`",
+      "source": "catalog"
+    },
+    "TransactionUpdatesPoller": {
+      "operation": "TransactionUpdatesPoller",
+      "kind": "mutation_maybe",
+      "status": "observed",
+      "source": "cache"
+    },
+    "UpdatePaycheckFundingPlan": {
+      "operation": "UpdatePaycheckFundingPlan",
+      "kind": "mutation",
+      "status": "captured_documented",
+      "contract": "`{input{fundingPlanId,name,amount,frequency,frequencyInterval,anchorDate,reassignmentRule}}`",
+      "source": "catalog"
+    }
+  }
+}

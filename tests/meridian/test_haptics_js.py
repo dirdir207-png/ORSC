@@ -102,3 +102,42 @@ def test_plan_summary_cards_have_hover_lift():
     css = Path("static/css/meridian/plan.css").read_text(encoding="utf-8")
     assert ".m-plan-coverage-card:hover," in css
     assert "var(--m-elevation-2)" in css
+
+
+def test_build_crew_catalog_helpers(tmp_path):
+    """Catalog builder parses contracts + tracks capture status correctly."""
+    import sys
+    sys.path.insert(0, "scripts")
+    import build_crew_catalog as bc
+
+    # catalog_contracts parses documented mutations from the real doc.
+    contracts = bc.catalog_contracts()
+    assert "TopUpReserve" in contracts
+    assert "CreateBill" in contracts
+    assert "billReserveId" in contracts["TopUpReserve"]
+
+    # parse_mitm_log dedups + records variables from a small log.
+    log = tmp_path / "capture.log"
+    log.write_text("\n".join([
+        '{"operation":"TopUpReserve","kind":"mutation","variables":{"input":{"billReserveId":"BR1"}}}',
+        '{"operation":"TopUpReserve","kind":"mutation","variables":{"input":{"billReserveId":"BR1"}}}',
+    ]))
+    ops = bc.parse_mitm_log(log)
+    assert "TopUpReserve" in ops
+    assert len(ops["TopUpReserve"]["variables"]) == 1
+
+
+def test_plan_js_loads_capture_status():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert "loadCaptureStatus" in js
+    assert "/api/meridian/crew/mutations-status" in js
+    assert "data-capture-status" in js
+
+
+def test_plan_html_has_capture_status_panel():
+    from pathlib import Path
+    html = Path("templates/meridian/partials/plan.html").read_text(encoding="utf-8")
+    assert "data-capture-status" in html
+    assert "data-capture-track" in html
+    assert "data-capture-note" in html

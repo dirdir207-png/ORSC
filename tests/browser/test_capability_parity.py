@@ -29,16 +29,13 @@ pytestmark = pytest.mark.skipif(not APP_URL, reason="APP_URL is required for bro
 DESKTOP = {"width": 1440, "height": 900}
 OWNER_PASSWORD = "meridian-owner-2026"
 
-# Legacy Crew-backed capabilities that still run via legacy surfaces only.
-# These must each carry an explicit deferred marker on the Plan page.
+# Crew-backed capabilities not yet exposed as a Meridian control. These must
+# each carry an explicit deferred marker on the Plan page.
 DEFERRED_CAPABILITIES = {
-    "pocket_create": "Create pocket",
-    "pocket_delete": "Delete pocket",
-    "bill_create": "Create bill",
-    "bill_delete": "Delete bill",
     "spend_pocket": "Set active spend pocket",
-    "virtual_card": "Update virtual card",
-    "edit_autopilot_rule": "Edit autopilot rule",
+    "delete_pocket": "Delete pocket",
+    "virtual_card": "Create / update virtual card",
+    "pocket_reassignment": "Pocket reassignment rules",
     "delete_autopilot_rule": "Delete autopilot rule",
 }
 

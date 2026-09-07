@@ -697,6 +697,52 @@
   margin-block: var(--m-space-3) 0;
 }
 
+/* Verified Crew mutation capture status (read-only coverage panel). */
+.m-plan-capture-status {
+  margin-top: var(--m-space-4);
+}
+
+.m-capture-status-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--m-space-2);
+  margin: var(--m-space-2) 0 var(--m-space-1);
+}
+
+.m-capture-status-line {
+  margin: 0;
+  color: var(--m-ink-muted);
+  font-size: var(--m-text-sm);
+}
+
+.m-capture-status-figure {
+  font-size: var(--m-text-md);
+  font-weight: 600;
+  color: var(--m-healthy);
+}
+
+.m-capture-status-track {
+  display: flex;
+  height: 8px;
+  border-radius: var(--m-radius-sm);
+  overflow: hidden;
+  background: var(--m-surface-muted);
+  margin: var(--m-space-2) 0;
+}
+
+.m-capture-status-fill {
+  display: block;
+  height: 100%;
+  background: var(--m-healthy);
+  transition: width var(--m-motion-slow) var(--m-ease-out);
+}
+
+.m-capture-status-note {
+  margin: 0;
+  color: var(--m-ink-faint);
+  font-size: var(--m-text-xs);
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {

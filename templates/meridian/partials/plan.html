@@ -111,24 +111,20 @@
 
   <p class="m-inline-error" data-plan-error role="alert" hidden></p>
 
-  {# Account/parity (R30): honest list of Crew-backed capabilities that are not
-     yet exposed through Meridian. Each has an explicit deferred marker so the
-     UI never implies a control that does not exist. Nothing here triggers a
-     live Crew write. #}
+  {# Honest list of the small remainder of Crew-backed actions not yet surfaced in
+     the Meridian UI (most are now wired: delete bill, create pocket, autopilot
+     rule, top-up, etc.). Updates as capabilities are exposed. #}
   <section class="m-plan-parity" aria-label="Crew capabilities still via legacy" data-crew-parity>
     <h2 class="m-section-label">Crew capabilities (deferred)</h2>
     <p class="m-parity-note">
-      These actions still run only through the legacy Crew surface; Meridian does
-      not yet expose a control and does not claim to.
+      These Crew actions are not yet exposed as a Meridian control. The rest of
+      the write surface (bills, pockets, autopilot rules, top-up) is wired.
     </p>
     <ul class="m-parity-list">
-      <li data-parity-deferred="pocket_create">Create pocket</li>
-      <li data-parity-deferred="pocket_delete">Delete pocket</li>
-      <li data-parity-deferred="bill_create">Create bill</li>
-      <li data-parity-deferred="bill_delete">Delete bill</li>
       <li data-parity-deferred="spend_pocket">Set active spend pocket</li>
-      <li data-parity-deferred="virtual_card">Update virtual card</li>
-      <li data-parity-deferred="edit_autopilot_rule">Edit autopilot rule</li>
+      <li data-parity-deferred="delete_pocket">Delete pocket</li>
+      <li data-parity-deferred="virtual_card">Create / update virtual card</li>
+      <li data-parity-deferred="pocket_reassignment">Pocket reassignment rules</li>
       <li data-parity-deferred="delete_autopilot_rule">Delete autopilot rule</li>
     </ul>
   </section>
@@ -177,6 +173,18 @@
       <p class="m-action-note" data-note hidden></p>
       <button type="submit" class="m-button m-button-primary">Top up reserve</button>
     </form>
+  </section>
+
+  {# Verified Crew mutation capture status — read-only, so Meridian's write path
+     never has to guess a contract. Surfaced for the owner to review coverage. #}
+  <section class="m-surface m-plan-capture-status" aria-label="Crew mutation capture status" data-capture-status>
+    <h2 class="m-section-label">Crew mutation coverage</h2>
+    <div class="m-capture-status-row">
+      <p class="m-capture-status-line">Verified contracts:</p>
+      <strong class="m-capture-status-figure" data-capture-total>—</strong>
+    </div>
+    <div class="m-capture-status-track" data-capture-track></div>
+    <p class="m-capture-status-note" data-capture-note>Loading capture status…</p>
   </section>
 
 </div>

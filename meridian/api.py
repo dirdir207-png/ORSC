@@ -1280,3 +1280,38 @@ def contextual_advisor():
             400,
         )
     return jsonify(result)
+
+
+@meridian_api.get("/crew/mutations-status")
+@login_required
+def crew_mutations_status():
+    """Read-only view of the verified Crew mutation catalog + capture status.
+
+    Serves docs/project/crew_mutations.json (built by scripts/build_crew_catalog.py
+    from the mitm capture archive + the documented contract set) and reports how
+    many mutations are captured vs missing, so "capture in totality" is measurable.
+    Read-only; never triggers a live Crew write.
+    """
+    import json
+    from pathlib import Path
+
+    # Resolve docs/project/crew_mutations.json robustly regardless of where the
+    # repo is mounted (walk up from root_path / this module until found).
+    candidates = [
+        Path(current_app.root_path),
+        Path(current_app.root_path).parent,
+        Path(__file__).resolve().parents[1],
+    ]
+    catalog_path = None
+    for base in candidates:
+        p = base / "docs" / "project" / "crew_mutations.json"
+        if p.exists():
+            catalog_path = p
+            break
+    if catalog_path is None:
+        return jsonify({"success": False, "error": "catalog_unavailable"}), 404
+    try:
+        payload = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except Exception:
+        return jsonify({"success": False, "error": "catalog_unreadable"}), 500
+    return jsonify(payload)

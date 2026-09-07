@@ -70,3 +70,4 @@ backups/workspace-snapshot-*
 # Broker runtime secrets and PIDs (never commit)
 *.capability
 *.pid
+docs/project/captures/crew_ops.jsonl

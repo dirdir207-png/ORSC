@@ -1048,6 +1048,38 @@ function indexRules(rules) {
   return map;
 }
 
+/* Load the verified Crew mutation capture status into the Plan page (read-only).
+   Shows how many mutation contracts are captured/verified so coverage is visible. */
+async function loadCaptureStatus(root) {
+  const panel = root.querySelector("[data-capture-status]");
+  if (!panel) {
+    return;
+  }
+  const total = panel.querySelector("[data-capture-total]");
+  const track = panel.querySelector("[data-capture-track]");
+  const note = panel.querySelector("[data-capture-note]");
+  try {
+    const payload = await meridianFetch("/api/meridian/crew/mutations-status");
+    const summary = payload.summary || {};
+    const captured = summary.captured || 0;
+    const missing = summary.missing || 0;
+    const all = summary.total || 0;
+    total.textContent = `${captured}/${all}`;
+    const pct = all ? Math.round((captured / all) * 100) : 0;
+    track.replaceChildren();
+    const fill = document.createElement("span");
+    fill.className = "m-capture-status-fill";
+    fill.style.width = `${pct}%`;
+    track.appendChild(fill);
+    note.textContent = missing > 0
+      ? `${captured} of ${all} verified; ${missing} not yet captured.`
+      : `${captured} of ${all} verified — full covered.`;
+  } catch {
+    total.textContent = "—";
+    note.textContent = "Capture status unavailable.";
+  }
+}
+
 async function loadPlan() {
   const root = document.querySelector("[data-plan-root]");
   if (!root) {
@@ -1085,6 +1117,7 @@ async function loadPlan() {
     renderTimeline(root, plan);
     renderCommitments(root, plan, template);
     renderDocumentDiscrepancies(root, plan);
+    loadCaptureStatus(root);
 
     // Desktop shows the rail by default; mobile only on demand. Prefer a
     // commitment with a funding rule and a real target (e.g. a goal/reserve).
