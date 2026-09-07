@@ -29,6 +29,9 @@ _ALLOWED = {
     "update_paycheck_funding_plan",
     "delete_paycheck_funding_plan",
     "top_up_reserve",
+    "delete_rule",
+    "create_pocket_reassignment_rule",
+    "delete_pocket_reassignment_rule",
 }
 
 _DEFAULT_BIN = os.environ.get(

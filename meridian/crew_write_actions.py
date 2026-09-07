@@ -79,5 +79,14 @@ def crew_write_executors(db_path: str) -> Dict[str, tuple[Callable, Optional[Cal
             no_verify,
         ),
         "top_up_crew_reserve": (_exec("top_up_reserve"), no_verify),
+        "delete_crew_autopilot_rule": (_exec("delete_rule"), no_verify),
+        "create_crew_pocket_reassignment_rule": (
+            _exec("create_pocket_reassignment_rule"),
+            no_verify,
+        ),
+        "delete_crew_pocket_reassignment_rule": (
+            _exec("delete_pocket_reassignment_rule"),
+            no_verify,
+        ),
     }
     return base

@@ -81,6 +81,18 @@ UPDATE_VIRTUAL_CARD_MUTATION = """mutation UpdateVirtualDebitCard($input: Update
   }
 }"""
 
+CREATE_POCKET_REASSIGNMENT_MUTATION = """mutation CreatePocketReassignmentRule($input: CreateReassignmentRuleInput!) {
+  createReassignmentRule(input: $input) {
+    result { id match minAmount maxAmount assignmentSubaccount { id displayName } }
+  }
+}"""
+
+DELETE_POCKET_REASSIGNMENT_MUTATION = """mutation DeletePocketReassignmentRule($input: DeleteReassignmentRuleInput!) {
+  deleteReassignmentRule(input: $input) {
+    result { id match }
+  }
+}"""
+
 
 _SPECS = {
     "create_pocket": CommandSpec(
@@ -99,6 +111,16 @@ _SPECS = {
     ),
     "delete_autopilot_rule": CommandSpec(
         "DeleteRule", DELETE_RULE_MUTATION, "deleteRule"
+    ),
+    "create_pocket_reassignment_rule": CommandSpec(
+        "CreatePocketReassignmentRule",
+        CREATE_POCKET_REASSIGNMENT_MUTATION,
+        "createReassignmentRule",
+    ),
+    "delete_pocket_reassignment_rule": CommandSpec(
+        "DeletePocketReassignmentRule",
+        DELETE_POCKET_REASSIGNMENT_MUTATION,
+        "deleteReassignmentRule",
     ),
     "set_spend_pocket": CommandSpec(
         "SetActiveSpendPocketScottie", BROKER_SET_SPEND_POCKET_MUTATION, "setSpendSubaccount"
@@ -227,6 +249,24 @@ def build_command_payload(kind: str, params: dict[str, object]):
                 "enabled": bool(params.get("enabled", True)),
                 "formula": formula,
             }}
+    elif kind == "create_pocket_reassignment_rule":
+        match = str(params.get("match") or "").strip()
+        account_id = str(params.get("account_id") or "").strip()
+        assignment_subaccount_id = str(params.get("assignment_subaccount_id") or "").strip()
+        if not match or not account_id or not assignment_subaccount_id:
+            raise ValueError("match, account_id and assignment_subaccount_id are required")
+        variables = {"input": {
+            "match": match,
+            "accountId": account_id,
+            "assignmentSubaccountId": assignment_subaccount_id,
+            "minAmount": _cents(params.get("min_amount"), "min_amount") if params.get("min_amount") is not None else None,
+            "maxAmount": _cents(params.get("max_amount"), "max_amount") if params.get("max_amount") is not None else None,
+        }}
+    elif kind == "delete_pocket_reassignment_rule":
+        reassignment_rule_id = str(params.get("reassignment_rule_id") or "").strip()
+        if not reassignment_rule_id:
+            raise ValueError("reassignment_rule_id is required")
+        variables = {"input": {"reassignmentRuleId": reassignment_rule_id}}
     else:
         rule_id = str(params.get("rule_id") or "").strip()
         if kind == "delete_autopilot_rule" and not rule_id:

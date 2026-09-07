@@ -21,6 +21,9 @@ def test_executors_register_all_verified_write_types(tmp_path):
         "update_crew_paycheck_funding_plan",
         "delete_crew_paycheck_funding_plan",
         "top_up_crew_reserve",
+        "delete_crew_autopilot_rule",
+        "create_crew_pocket_reassignment_rule",
+        "delete_crew_pocket_reassignment_rule",
     }
     for spec in specs.values():
         assert callable(spec[0])
