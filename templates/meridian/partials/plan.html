@@ -173,6 +173,15 @@
       <p class="m-action-note" data-note hidden></p>
       <button type="submit" class="m-button m-button-primary">Top up reserve</button>
     </form>
+    <form class="m-action-form" data-ca-delete-rule>
+      <h3 class="m-editor-title">Manage autopilot rule</h3>
+      <label class="m-field">
+        <span class="m-field-label">Rule</span>
+        <select class="m-select" name="rule_id"><option value="">Select a rule…</option></select>
+      </label>
+      <p class="m-action-note" data-note hidden></p>
+      <button type="submit" class="m-button m-button--danger">Delete rule</button>
+    </form>
   </section>
 
   {# Verified Crew mutation capture status — read-only, so Meridian's write path

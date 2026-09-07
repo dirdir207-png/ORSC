@@ -141,3 +141,18 @@ def test_plan_html_has_capture_status_panel():
     assert "data-capture-status" in html
     assert "data-capture-track" in html
     assert "data-capture-note" in html
+
+
+def test_plan_js_wires_delete_autopilot_rule():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert "delete_crew_autopilot_rule" in js
+    assert "data-ca-delete-rule" in js
+    assert "crew_ids" in js and ".rules" in js
+
+
+def test_plan_html_has_delete_rule_picker():
+    from pathlib import Path
+    html = Path("templates/meridian/partials/plan.html").read_text(encoding="utf-8")
+    assert "data-ca-delete-rule" in html
+    assert 'name="rule_id"' in html

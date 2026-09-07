@@ -1118,6 +1118,10 @@ async function loadPlan() {
     renderCommitments(root, plan, template);
     renderDocumentDiscrepancies(root, plan);
     loadCaptureStatus(root);
+    const ruleForm = root.querySelector("[data-ca-delete-rule]");
+    if (ruleForm) {
+      populateRulePicker(ruleForm);
+    }
 
     // Desktop shows the rail by default; mobile only on demand. Prefer a
     // commitment with a funding rule and a real target (e.g. a goal/reserve).
@@ -1227,6 +1231,40 @@ function wireCrewActions(root) {
       rationale: "Top up the Crew bill reserve from Meridian.",
     };
   });
+
+  // Delete an existing autopilot rule (populate the picker from crew_ids.rules).
+  const ruleForm = root.querySelector("[data-ca-delete-rule]");
+  if (ruleForm) {
+    populateRulePicker(ruleForm);
+    attach(ruleForm, (f) => ({
+      type: "delete_crew_autopilot_rule",
+      params: { rule_id: f.querySelector('select[name="rule_id"]').value.trim() },
+      provenance: "owner_direct",
+      rationale: "Delete a Crew autopilot rule from Meridian.",
+    }));
+  }
+}
+
+/* Fill the delete-rule picker from currentPlan.crew_ids.rules. Called after
+   currentPlan is populated (the rules are not known at wire time). */
+function populateRulePicker(ruleForm) {
+  const sel = ruleForm.querySelector('select[name="rule_id"]');
+  if (!sel) {
+    return;
+  }
+  const crew = (currentPlan && currentPlan.crew_ids) || {};
+  const rules = crew.rules || [];
+  sel.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select a rule…";
+  sel.appendChild(placeholder);
+  for (const rule of rules) {
+    const opt = document.createElement("option");
+    opt.value = rule.id;
+    opt.textContent = rule.name || "Untitled rule";
+    sel.appendChild(opt);
+  }
 }
 
 document.addEventListener("meridian:workspacechange", (event) => {

@@ -323,3 +323,22 @@ def test_crew_ids_parses_snapshot(tmp_path, monkeypatch):
     assert ids["account_id"] == "Acct:checking"
     assert ids["checking_subaccount_id"] == "Sub:checking"
     assert ids["free_to_spend_subaccount_id"] == "Sub:fts"
+
+
+def test_crew_ids_extracts_autopilot_rules(tmp_path, monkeypatch):
+    """The snapshot's autopilot rules (id + name) surface for edit/delete controls."""
+    from meridian.services import plan as plan_mod
+    snapshot = (
+        "{'mode': 'read-only', 'source': 'crew', 'data': {'autopilot': {'data': "
+        "{'currentUser': {'family': {'rules': ["
+        "{'id': 'Rule:111', 'name': 'Round up', 'isPaused': False, 'formula': {}}, "
+        "{'id': 'Rule:222', 'name': 'Sweep excess', 'isPaused': True, 'formula': {}}]}}}}}}"
+    )
+    f = tmp_path / "snapshot.txt"
+    f.write_text(snapshot, encoding="utf-8")
+    monkeypatch.setattr(plan_mod, "_CREW_SNAPSHOT_PATH", str(f))
+    ids = plan_mod._crew_ids()
+    assert ids["rules"] == [
+        {"id": "Rule:111", "name": "Round up", "is_paused": False},
+        {"id": "Rule:222", "name": "Sweep excess", "is_paused": True},
+    ]

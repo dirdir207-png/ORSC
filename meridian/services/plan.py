@@ -57,19 +57,46 @@ def _crew_ids() -> Optional[dict]:
                 find(x)
 
     find(data)
-    if not accounts:
-        return None
     result = {}
-    for acc in accounts:
-        name = (acc.get("displayName") or acc.get("name") or "").strip().lower()
-        if name == "checking":
-            result["account_id"] = acc.get("id")
-        for sub in acc.get("subaccounts", []):
-            subname = (sub.get("displayName") or sub.get("name") or "").strip().lower()
-            if name == "checking" and subname == "checking":
-                result["checking_subaccount_id"] = sub.get("id")
-            if subname in ("free to spend", "free to spend "):
-                result["free_to_spend_subaccount_id"] = sub.get("id")
+    if accounts:
+        for acc in accounts:
+            name = (acc.get("displayName") or acc.get("name") or "").strip().lower()
+            if name == "checking":
+                result["account_id"] = acc.get("id")
+            for sub in acc.get("subaccounts", []):
+                subname = (sub.get("displayName") or sub.get("name") or "").strip().lower()
+                if name == "checking" and subname == "checking":
+                    result["checking_subaccount_id"] = sub.get("id")
+                if subname in ("free to spend", "free to spend "):
+                    result["free_to_spend_subaccount_id"] = sub.get("id")
+    # Autopilot rules (id + name) so the UI can edit/delete existing rules.
+    rules = []
+    for word in ("rules",):
+        seen = set()
+        def _rules(o):
+            if isinstance(o, dict):
+                for k, v in o.items():
+                    if str(k).lower() == word and isinstance(v, list):
+                        for item in v:
+                            if isinstance(item, dict) and item.get("id"):
+                                key = item.get("id")
+                                if key in seen:
+                                    continue
+                                seen.add(key)
+                                rules.append({
+                                    "id": item.get("id"),
+                                    "name": item.get("name") or "Untitled rule",
+                                    "is_paused": bool(item.get("isPaused")),
+                                })
+                    _rules(v)
+            elif isinstance(o, list):
+                for x in o:
+                    _rules(x)
+        _rules(data)
+        if rules:
+            break
+    if rules:
+        result["rules"] = rules
     return result or None
 _ZERO = Decimal("0")
 
