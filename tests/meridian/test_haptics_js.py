@@ -171,3 +171,18 @@ def test_plan_html_has_set_spend_pocket_picker():
     html = Path("templates/meridian/partials/plan.html").read_text(encoding="utf-8")
     assert "data-ca-set-spend" in html
     assert 'name="subaccount_id"' in html
+
+
+def test_plan_js_wires_delete_pocket():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert "delete_crew_pocket" in js
+    assert "data-ca-delete-pocket" in js
+    assert "populatePocketPicker(delPocket, true)" in js or "populatePocketPicker(" in js
+
+
+def test_plan_js_populate_pocket_picker_handles_all_flag():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert "function populatePocketPicker(form, all = false)" in js
+    assert "crew.subaccounts" in js

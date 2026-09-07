@@ -1126,6 +1126,10 @@ async function loadPlan() {
     if (spendForm) {
       populatePocketPicker(spendForm);
     }
+    const delPocket = root.querySelector("[data-ca-delete-pocket]");
+    if (delPocket) {
+      populatePocketPicker(delPocket, true);
+    }
 
     // Desktop shows the rail by default; mobile only on demand. Prefer a
     // commitment with a funding rule and a real target (e.g. a goal/reserve).
@@ -1265,19 +1269,34 @@ function wireCrewActions(root) {
       };
     });
   }
+
+  // Delete a pocket (pick from the full subaccount list; destructive, confirmed).
+  const delPocket = root.querySelector("[data-ca-delete-pocket]");
+  if (delPocket) {
+    populatePocketPicker(delPocket, true);
+    attach(delPocket, (f) => ({
+      type: "delete_crew_pocket",
+      params: { subaccount_id: f.querySelector('select[name="subaccount_id"]').value.trim() },
+      provenance: "owner_direct",
+      rationale: "Delete a Crew pocket from Meridian.",
+    }));
+  }
 }
 
-/* Fill the set-spend-pocket picker from the known spend subaccount ids. */
-function populatePocketPicker(form) {
+/* Fill a pocket picker. With `all`, list every known subaccount (for delete);
+   otherwise only the spend pockets (for set-spend). */
+function populatePocketPicker(form, all = false) {
   const sel = form.querySelector('select[name="subaccount_id"]');
   if (!sel) {
     return;
   }
   const crew = (currentPlan && currentPlan.crew_ids) || {};
-  const pockets = [
-    { id: crew.free_to_spend_subaccount_id, label: "Free to Spend" },
-    { id: crew.checking_subaccount_id, label: "Checking" },
-  ].filter((p) => p.id);
+  const pockets = all
+    ? (crew.subaccounts || [])
+    : [
+        { id: crew.free_to_spend_subaccount_id, name: "Free to Spend" },
+        { id: crew.checking_subaccount_id, name: "Checking" },
+      ].filter((p) => p.id);
   sel.replaceChildren();
   const placeholder = document.createElement("option");
   placeholder.value = "";
@@ -1286,7 +1305,7 @@ function populatePocketPicker(form) {
   for (const pocket of pockets) {
     const opt = document.createElement("option");
     opt.value = pocket.id;
-    opt.textContent = pocket.label;
+    opt.textContent = pocket.name || "Pocket";
     sel.appendChild(opt);
   }
 }

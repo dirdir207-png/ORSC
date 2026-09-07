@@ -342,3 +342,26 @@ def test_crew_ids_extracts_autopilot_rules(tmp_path, monkeypatch):
         {"id": "Rule:111", "name": "Round up", "is_paused": False},
         {"id": "Rule:222", "name": "Sweep excess", "is_paused": True},
     ]
+
+
+def test_crew_ids_exposes_all_subaccounts(tmp_path, monkeypatch):
+    from meridian.services import plan as plan_mod
+    snapshot = (
+        "{'mode': 'read-only', 'source': 'crew', 'data': {'accounts': {'data': "
+        "{'currentUser': {'accounts': [{'displayName': 'Checking', 'id': 'Acct:1', "
+        "'subaccounts': [{'displayName': 'Checking', 'id': 'Sub:a'}, "
+        "{'displayName': 'Free to Spend', 'id': 'Sub:b'}, "
+        "{'displayName': 'Emergency Fund', 'id': 'Sub:c'}]}]}}}}}"
+    )
+    f = tmp_path / "snapshot.txt"
+    f.write_text(snapshot, encoding="utf-8")
+    monkeypatch.setattr(plan_mod, "_CREW_SNAPSHOT_PATH", str(f))
+    ids = plan_mod._crew_ids()
+    assert ids["account_id"] == "Acct:1"
+    assert ids["checking_subaccount_id"] == "Sub:a"
+    assert ids["free_to_spend_subaccount_id"] == "Sub:b"
+    assert ids["subaccounts"] == [
+        {"id": "Sub:a", "name": "Checking"},
+        {"id": "Sub:b", "name": "Free to Spend"},
+        {"id": "Sub:c", "name": "Emergency Fund"},
+    ]

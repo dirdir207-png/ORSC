@@ -58,17 +58,25 @@ def _crew_ids() -> Optional[dict]:
 
     find(data)
     result = {}
+    subaccounts = []
+    seen_sub = set()
     if accounts:
         for acc in accounts:
             name = (acc.get("displayName") or acc.get("name") or "").strip().lower()
             if name == "checking":
                 result["account_id"] = acc.get("id")
             for sub in acc.get("subaccounts", []):
-                subname = (sub.get("displayName") or sub.get("name") or "").strip().lower()
-                if name == "checking" and subname == "checking":
-                    result["checking_subaccount_id"] = sub.get("id")
-                if subname in ("free to spend", "free to spend "):
-                    result["free_to_spend_subaccount_id"] = sub.get("id")
+                sid = sub.get("id")
+                sname = sub.get("displayName") or sub.get("name") or ""
+                if name == "checking" and (sname or "").strip().lower() == "checking":
+                    result["checking_subaccount_id"] = sid
+                if (sname or "").strip().lower() in ("free to spend", "free to spend "):
+                    result["free_to_spend_subaccount_id"] = sid
+                if sid and sid not in seen_sub:
+                    seen_sub.add(sid)
+                    subaccounts.append({"id": sid, "name": sname or "Pocket"})
+    if subaccounts:
+        result["subaccounts"] = subaccounts
     # Autopilot rules (id + name) so the UI can edit/delete existing rules.
     rules = []
     for word in ("rules",):
