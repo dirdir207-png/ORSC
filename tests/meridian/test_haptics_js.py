@@ -37,3 +37,13 @@ def test_api_js_has_mutate_client():
     api = Path("static/js/meridian/api.js").read_text(encoding="utf-8")
     assert "meridianMutate" in api
     assert "/api/actions/mutate" in api
+
+
+def test_autopilot_editor_supports_action_union():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    for action in ("roundUpTransfer", "targetBalanceTransfer", "internalTransfer",
+                   "splitDeposit", "sweepExcess"):
+        assert action in js, f"missing action option {action}"
+    assert "create_crew_autopilot_rule" in js
+    assert "meridianMutate" in js

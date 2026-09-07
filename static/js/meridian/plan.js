@@ -756,11 +756,40 @@ function openAutopilotRuleEditor() {
       <h3 class="m-editor-title">New autopilot rule</h3>
       <label class="m-field">
         <span class="m-field-label">Rule name</span>
-        <input class="m-input" name="rule-name" type="text" required maxlength="80" placeholder="e.g. Round up spare change">
+        <input class="m-input" name="rule-name" type="text" required maxlength="80" placeholder="e.g. Save the spare change">
       </label>
-      <p class="m-editor-preview">Creates a Crew autopilot rule; approve to push it to Crew.</p>
+      <label class="m-field">
+        <span class="m-field-label">Triggers</span>
+        <select class="m-select" name="rule-trigger">
+          <option value="ACCOUNT_DEPOSIT_RECEIVED">Account deposit received</option>
+          <option value="DEBIT_CARD_TRANSACTION">Debit card transaction</option>
+        </select>
+      </label>
+      <label class="m-field">
+        <span class="m-field-label">Action</span>
+        <select class="m-select" name="rule-action">
+          <option value="roundUpTransfer">Round up spare change</option>
+          <option value="targetBalanceTransfer">Move to a target balance</option>
+          <option value="internalTransfer">Move a fixed amount</option>
+          <option value="splitDeposit">Split a deposit by percentage</option>
+          <option value="sweepExcess">Sweep excess above a floor</option>
+        </select>
+      </label>
+      <div class="m-field" data-rule-target-balance hidden>
+        <span class="m-field-label">Target balance ($)</span>
+        <input class="m-input" name="rule-merchant" type="number" min="0" step="0.01" inputmode="decimal">
+      </div>
+      <div class="m-field" data-rule-amount hidden>
+        <span class="m-field-label">Amount ($)</span>
+        <input class="m-input" name="rule-amount" type="number" min="0.01" step="0.01" inputmode="decimal">
+      </div>
+      <div class="m-field" data-rule-to-subaccount hidden>
+        <span class="m-field-label">To pocket (subaccount id)</span>
+        <input class="m-input" name="rule-subaccount" type="text" placeholder="U3ViYWNjb3VudDo…">
+      </div>
+      <p class="m-editor-preview">Creates a Crew autopilot rule. A fully-specified owner rule executes; under-specified rules need approval.</p>
       <div class="m-editor-actions">
-        <button type="submit" class="m-button">Propose to Crew</button>
+        <button type="submit" class="m-button">Create rule</button>
         <button type="button" class="m-button m-button--quiet" data-autopilot-rule-cancel>Cancel</button>
       </div>
       <p class="m-editor-note" data-autopilot-rule-note hidden></p>
@@ -768,26 +797,85 @@ function openAutopilotRuleEditor() {
   `;
 
   const note = sheet.querySelector("[data-autopilot-rule-note]");
+
+  // Show/hide action-specific fields.
+  const actionSelect = sheet.querySelector('select[name="rule-action"]');
+  const syncFields = () => {
+    const action = actionSelect.value;
+    sheet.querySelector("[data-rule-target-balance]").hidden = action !== "targetBalanceTransfer";
+    sheet.querySelector("[data-rule-amount]").hidden =
+      !(action === "internalTransfer" || action === "sweepExcess");
+    sheet.querySelector("[data-rule-to-subaccount]").hidden =
+      !(action === "targetBalanceTransfer" || action === "internalTransfer");
+  };
+  actionSelect.addEventListener("change", syncFields);
+  syncFields();
+
   sheet.querySelector("[data-autopilot-rule-cancel]").addEventListener("click", () => {
     if (window.MeridianShell.closeSheet) window.MeridianShell.closeSheet();
   });
   sheet.querySelector("form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const name = sheet.querySelector('input[name="rule-name"]').value.trim();
+    const form = sheet.querySelector("form");
+    const name = form.querySelector('input[name="rule-name"]').value.trim();
+    const action = form.querySelector('select[name="rule-action"]').value;
+    const trigger = form.querySelector('select[name="rule-trigger"]').value;
+    const toSub = form.querySelector('input[name="rule-subaccount"]').value.trim();
     note.hidden = true;
     if (!name) {
-      note.hidden = false; note.dataset.state = "error"; note.textContent = "Enter a rule name.";
+      note.hidden = false; note.dataset.state = "error";
+      note.textContent = "Enter a rule name.";
       return;
     }
+    // Build the verified formula action (subset of the real action union).
+    const actions = [];
+    if (action === "roundUpTransfer") {
+      actions.push({ roundUpTransfer: { roundToNearest: 100 } });
+    } else if (action === "sweepExcess" || action === "targetBalanceTransfer") {
+      const amtField = form.querySelector('input[name="rule-merchant"]').value;
+      const amount = Number(amtField) || 1;
+      if (action === "sweepExcess") {
+        actions.push({ sweepExcess: {
+          amountToRemain: Math.round(amount * 100),
+          sweepDestinations: [{ type: "SUBACCOUNT", percentage: 100, subaccountId: toSub || "" }],
+        }});
+      } else {
+        actions.push({ targetBalanceTransfer: { target: Math.round(amount * 100), direction: "INTO" } });
+      }
+    } else if (action === "internalTransfer") {
+      const amt = Number(form.querySelector('input[name="rule-amount"]').value);
+      actions.push({ internalTransfer: { amount: Math.round(amt * 100), memo: name } });
+    } else if (action === "splitDeposit") {
+      actions.push({ splitDeposit: { destinations: [{ type: "SUBACCOUNT", percentage: 100, subaccountId: toSub || "" }] }});
+    }
+    const rule = {
+      name,
+      formula: {
+        name,
+        triggers: [trigger],
+        conditions: { and: { conditions: [{ idMatch: {
+          entitySchema: "SUBACCOUNTS",
+          entityId: (currentPlan && currentPlan.crew_ids && currentPlan.crew_ids.free_to_spend_subaccount_id) || "",
+        } }] } },
+        actions,
+      },
+    };
     try {
-      await meridianPropose("/api/meridian/crew/rules", { name });
+      const result = await meridianMutate({
+        type: "create_crew_autopilot_rule",
+        params: { name, formula: rule.formula },
+        provenance: "owner_direct",
+        rationale: `Create an autopilot rule (${action}) from Meridian.`,
+      });
+      const direct = result.routing_direct;
+      const state = result.action && result.action.state;
       note.hidden = false; note.dataset.state = "ok";
-      note.textContent = "Autopilot rule proposed — approve it in Pending Actions.";
+      note.textContent = direct ? `Executed (${state}).` : "Proposed — approve it in Pending Actions.";
     } catch (error) {
       note.hidden = false; note.dataset.state = "error";
       note.textContent = error instanceof MeridianApiError
         ? `${error.message} ${error.recoveryAction}`
-        : "The rule could not be proposed.";
+        : "The rule could not be created.";
     }
   });
 

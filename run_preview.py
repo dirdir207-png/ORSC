@@ -3,7 +3,10 @@ Meridian live-data refresh loop runs (auto-syncs CrewWorkAssistant snapshots
 every MERIDIAN_REFRESH_INTERVAL seconds, default 300)."""
 import os
 
-os.environ.setdefault("DB_FILE", "savings_data.db")
+os.environ.setdefault(
+    "DB_FILE",
+    os.environ.get("GATE_DB", "/tmp/gate-preview/gate.db"),
+)
 
 # Patch out legacy background threads before importing app
 import app as a
