@@ -84,11 +84,17 @@ def test_plan_js_builds_cohesive_commitment_action_cell():
 
 def test_shared_buttons_have_snappy_transitions():
     from pathlib import Path
-    css = Path("static/css/meridian/workspaces.css").read_text(encoding="utf-8")
-    assert ".m-button {" in css
-    assert "transition:" in css
-    assert "var(--m-motion-fast)" in css
-    assert "var(--m-ease-out)" in css
+    # Motion primitives live centrally in motion.css under reduced-motion guard.
+    motion = Path("static/css/meridian/motion.css").read_text(encoding="utf-8")
+    assert "prefers-reduced-motion: no-preference" in motion
+    assert ".m-button," in motion
+    assert ".m-primary-button," in motion
+    assert "var(--m-motion-fast)" in motion
+    assert "var(--m-ease-out)" in motion
+    # Base button rules stay (sans transition) in workspaces.css.
+    workspaces = Path("static/css/meridian/workspaces.css").read_text(encoding="utf-8")
+    assert ".m-button {" in workspaces
+    assert "cursor: pointer;" in workspaces
 
 
 def test_plan_summary_cards_have_hover_lift():

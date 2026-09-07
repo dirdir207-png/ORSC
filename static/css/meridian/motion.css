@@ -27,6 +27,30 @@
     transform: scale(0.96);
   }
 
+  /* Buttons and interactive surfaces share the same snappy motion primitive so
+     the whole app feels uniform (transitions live here, under reduced-motion). */
+  .m-button,
+  .m-primary-button,
+  .m-secondary-button {
+    transition: background var(--m-motion-fast) var(--m-ease-out),
+      border-color var(--m-motion-fast) var(--m-ease-out),
+      transform var(--m-motion-fast) var(--m-ease-out),
+      box-shadow var(--m-motion-fast) var(--m-ease-out);
+  }
+
+  .m-surface,
+  .m-plan-coverage-card,
+  .m-plan-funding-card {
+    transition: border-color var(--m-motion-fast) var(--m-ease-out),
+      box-shadow var(--m-motion-fast) var(--m-ease-out);
+  }
+
+  .m-button:active,
+  .m-primary-button:active,
+  .m-secondary-button:active {
+    transform: translateY(1px);
+  }
+
   .m-sheet[data-open] {
     animation: m-sheet-rise var(--m-motion-base) var(--m-ease-out);
   }
