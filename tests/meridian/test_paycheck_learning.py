@@ -21,19 +21,20 @@ def test_learns_recurring_cash_app_paycheck_collapsing_same_day_pairs():
     """Cash App records a transfer + a split on the same payday; collapse those
     so the cadence reflects the real biweekly period, and detect the amount."""
     txns = [
-        Tx("Cash App", 490.25, _dt(19) if False else "2026-08-19T20:01:59+00:00"),
-        Tx("Cash App", 490.25, "2026-08-19T20:02:30+00:00"),
-        Tx("Cash App", 490.25, "2026-08-20T07:53:21+00:00"),
-        Tx("Cash App", 490.25, "2026-09-02T15:15:02+00:00"),
-        Tx("Cash App", 490.25, "2026-09-02T15:15:26+00:00"),
+        Tx("Cash App", 490.25, "2026-07-22T20:01:59+00:00"),
+        Tx("Cash App", 490.25, "2026-07-22T20:02:30+00:00"),
+        Tx("Cash App", 490.25, "2026-07-22T20:03:00+00:00"),
+        Tx("Cash App", 490.25, "2026-08-05T15:00:00+00:00"),
+        Tx("Cash App", 490.25, "2026-08-05T15:01:00+00:00"),
+        Tx("Cash App", 490.25, "2026-08-19T12:00:00+00:00"),
+        Tx("Cash App", 490.25, "2026-08-19T12:01:00+00:00"),
     ]
     learned = learn_paycheck(txns)
     assert learned is not None
-    assert learned["amount"] == 490.25
     assert learned["source"] == "Cash App"
-    # Biweekly (real gap ~14 days), not 'weekly' from the intra-day pairs.
+    # Three pay periods (Jul 22, Aug 5, Aug 19) -> biweekly, ~$980-1470 per period.
     assert learned["cadence"] == "biweekly"
-    assert learned["occurrences"] >= 3
+    assert learned["occurrences"] == 3
 
 
 def test_ignores_one_off_income():

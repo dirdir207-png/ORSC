@@ -441,3 +441,20 @@ def test_virgil_brief_falls_back_when_unavailable():
     brief = _build_virgil_brief({"available": False}, None, None, "unavailable")
     assert brief["title"] == "A useful connection"
     assert "Nothing" in brief["summary"]
+
+
+def test_beacon_signal_notes_guaranteed_base_vs_ot():
+    from meridian.services.today import _build_beacon_signal
+
+    forecast = {
+        "available": True,
+        "runway_days": 5,
+        "first_shortfall": None,
+        "paycheck_covers": False,
+        "next_paycheck": "2026-09-16",
+        "factors": (),
+        "low_point": 100.0,
+        "daily_expense": 25.0,
+    }
+    beacon = _build_beacon_signal(forecast, 100.0, "available", paycheck_amount=1663.0)
+    assert "Base $1,663.00 is guaranteed" in beacon["detail"]

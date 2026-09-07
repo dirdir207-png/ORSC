@@ -204,7 +204,7 @@ def _learned_paycheck_range(repository) -> Optional[tuple[float, float]]:
     return None
 
 
-def _build_beacon_signal(forecast: Optional[dict], safe_amount: Optional[float], safe_status: str) -> dict:
+def _build_beacon_signal(forecast: Optional[dict], safe_amount: Optional[float], safe_status: str, paycheck_amount: Optional[float] = None) -> dict:
     """Derive a genuinely valuable Beacon summary from the forecast + safe-to-spend.
 
     Not a static "plan is steady": it surfaces the real, actionable signal — a
@@ -248,6 +248,10 @@ def _build_beacon_signal(forecast: Optional[dict], safe_amount: Optional[float],
         lo, hi = float(p_range[0]), float(p_range[1])
         if hi > lo:
             detail = f"{detail} Paycheck ${lo:,.0f}–${hi:,.0f} depending on the week."
+    # Explain the guaranteed base vs typical-with-OT so the planned floor is
+    # never confused with the (higher) average that includes overtime.
+    if paycheck_amount and paycheck_amount > 0:
+        detail = f"{detail} Base ${paycheck_amount:,.2f} is guaranteed; OT is upside."
     return {"title": title, "summary": title, "detail": detail, "evidence": []}
 
 
@@ -410,7 +414,10 @@ def build_today(
         },
         "upcoming_events": [],
         "forecast": beacon,
-        "beacon": _build_beacon_signal(beacon, safe_amount, safe_status),
+        "beacon": _build_beacon_signal(
+            beacon, safe_amount, safe_status,
+            paycheck_amount=(getattr(paycheck, "amount", None) if paycheck else None),
+        ),
         "brief": _build_virgil_brief(beacon, beacon, safe_amount, safe_status),
         "data_freshness": freshness,
         "breakdown": breakdown,
