@@ -55,3 +55,28 @@ def test_plan_js_has_delete_bill_control():
     assert 'archive_crew_bill' in js
     assert 'Delete bill' in js or '"Delete"' in js
     assert 'meridianMutate' in js
+
+
+def test_plan_css_has_integrated_action_styles():
+    from pathlib import Path
+    css = Path("static/css/meridian/plan.css").read_text(encoding="utf-8")
+    # Destructive delete + routed action-note feedback must be styled so the
+    # action cell reads as an integrated row (not unstyled text bleeding over).
+    assert ".m-button--danger" in css
+    assert "color: var(--m-risk" in css or "color: var(--m-risk" in css
+    assert ".m-action-note" in css
+    assert '.m-action-note[data-state="ok"]' in css
+    assert '.m-action-note[data-state="error"]' in css
+    # Action buttons flow as a row, note wraps under them.
+    assert ".m-plan-cell-action .m-action-note" in css
+
+
+def test_plan_js_builds_cohesive_commitment_action_cell():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert 'm-plan-cell-action' in js
+    assert 'Edit funding' in js
+    assert 'Save to Crew' in js
+    assert 'm-button--danger' in js
+    assert 'Delete' in js
+    assert 'archive_crew_bill' in js
