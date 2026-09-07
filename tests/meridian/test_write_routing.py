@@ -46,20 +46,23 @@ def test_under_specified_requires_proposal():
     assert "under-specified" in d.reason
 
 
-def test_plan_level_budget_change_requires_proposal():
+def test_plan_level_budget_change_owner_direct_executes():
+    # Owner-direct + fully-specified plan-level change executes (owner authority).
     d = classify_action(
         Provenance.OWNER_DIRECT.value, "update_autopilot_settings", {"optimize": True}
     )
-    assert d.requires_proposal is True
-    assert "plan-level" in d.reason
+    assert d.requires_proposal is False
+    assert "owner-direct" in d.reason
 
 
-def test_plan_level_budget_type_always_proposal_regardless_of_provenance():
-    # reallocate_budget is plan-level: it must be a proposal for any provenance.
-    for prov in (Provenance.OWNER_DIRECT.value, Provenance.SCHEDULED.value, Provenance.AI_INTERPRETED.value):
+def test_plan_level_budget_type_proposal_for_non_owner_provenance():
+    # reallocate_budget is plan-level: proposal for AI / scheduled, direct for owner.
+    for prov in (Provenance.SCHEDULED.value, Provenance.AI_INTERPRETED.value):
         d = classify_action(prov, "reallocate_budget", {"amount": 100.0})
         assert d.requires_proposal is True
         assert "plan-level" in d.reason or "require confirmation" in d.reason
+    d = classify_action(Provenance.OWNER_DIRECT.value, "reallocate_budget", {"amount": 100.0})
+    assert d.requires_proposal is False
 
 
 def test_explicit_confidence_below_threshold_requires_proposal():
@@ -75,11 +78,11 @@ def test_unknown_provenance_defaults_to_proposal():
     assert d.requires_proposal is True
 
 
-def test_fund_transfer_between_pockets_is_plan_level():
+def test_fund_transfer_between_pockets_owner_direct_executes():
     d = classify_action(
         Provenance.OWNER_DIRECT.value, "move_money_between_pockets", {"amount": 30.0}
     )
-    assert d.requires_proposal is True
+    assert d.requires_proposal is False
 
 
 def test_route_mutation_direct_vs_proposal_paths():

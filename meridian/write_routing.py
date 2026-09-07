@@ -101,18 +101,23 @@ def classify_action(
             prov.value,
         )
 
-    # Plan-level budget/allocation changes move policy money — always confirm.
-    if action_type in _PLAN_LEVEL_TYPES or action_type.startswith("reallocate_"):
-        return RoutingDecision(
-            True,
-            f"plan-level change ({action_type}) alters the budget model; require confirmation",
-            prov.value,
-        )
-
+    # Owner-direct + single + fully-specified: the owner is the authority, so it
+    # executes immediately even for plan-level types (they set up a rule/plan the
+    # owner explicitly wants). Anything else at plan-level is the AI/composed path
+    # moving policy money -> propose.
     if prov is Provenance.OWNER_DIRECT:
         return RoutingDecision(
             False,
             "owner-direct, single, fully-specified action; execute without confirmation",
+            prov.value,
+        )
+
+    # Plan-level budget/allocation changes move policy money — confirm unless the
+    # owner explicitly stated this exact change (handled above).
+    if action_type in _PLAN_LEVEL_TYPES or action_type.startswith("reallocate_"):
+        return RoutingDecision(
+            True,
+            f"plan-level change ({action_type}) alters the budget model; require confirmation",
             prov.value,
         )
     if prov is Provenance.SCHEDULED:
