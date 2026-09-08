@@ -771,6 +771,89 @@
   align-self: flex-start;
 }
 
+/* Segmented view switch (Plan | Rules | Crew actions) — keeps the page
+   scannable instead of one very long scroll. */
+.m-plan-seg {
+  display: inline-flex;
+  gap: var(--m-space-1);
+  padding: var(--m-space-1);
+  margin: 0 0 var(--m-space-4);
+  border-radius: var(--m-radius-pill);
+  background: var(--m-surface-muted);
+  border: 1px solid var(--m-border);
+}
+
+.m-seg-tab {
+  min-height: 40px;
+  padding: 0 var(--m-space-4);
+  border: 0;
+  border-radius: var(--m-radius-pill);
+  background: transparent;
+  color: var(--m-ink-muted);
+  font-family: var(--m-font-sans);
+  font-size: var(--m-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--m-motion-fast) var(--m-ease-out),
+    color var(--m-motion-fast) var(--m-ease-out);
+}
+
+.m-seg-tab.is-active {
+  background: var(--m-surface);
+  color: var(--m-ink);
+  box-shadow: var(--m-elevation-1);
+}
+
+.m-plan-view[hidden] {
+  display: none;
+}
+
+/* Crew-style modular rule card (name + pause + delete + a one-line summary). */
+.m-plan-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--m-space-3);
+}
+
+.m-rule-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-space-2);
+  padding: var(--m-space-4);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+}
+
+.m-rule-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--m-space-2);
+}
+
+.m-rule-card-name {
+  margin: 0;
+  font-size: var(--m-text-md);
+  font-weight: 600;
+}
+
+.m-rule-card-body {
+  margin: 0;
+  color: var(--m-ink-muted);
+  font-size: var(--m-text-sm);
+}
+
+@media (max-width: 600px) {
+  .m-plan-seg {
+    width: 100%;
+  }
+  .m-seg-tab {
+    flex: 1;
+    text-align: center;
+  }
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {

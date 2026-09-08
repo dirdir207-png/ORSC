@@ -34,6 +34,16 @@
      visible editorial statement lives in the header above. #}
   <p class="m-visually-hidden" data-plan-headline>No commitments yet.</p>
 
+  {# Segmented view switch: Plan surface | Rules | Crew actions, so the Plan
+     page stays scannable instead of one very long scroll. #}
+  <nav class="m-plan-seg" aria-label="Plan views" data-plan-seg>
+    <button type="button" class="m-seg-tab is-active" data-plan-view="plan" aria-pressed="true">Plan</button>
+    <button type="button" class="m-seg-tab" data-plan-view="rules" aria-pressed="false">Rules</button>
+    <button type="button" class="m-seg-tab" data-plan-view="crew" aria-pressed="false">Crew</button>
+  </nav>
+
+  <div class="m-plan-view" data-plan-view-pane="plan">
+
   {# Summary-first grid: coverage orbit + next paycheck. #}
   <section class="m-plan-summary-grid" aria-label="Coverage and next funding">
     <article class="m-surface m-plan-coverage-card" aria-labelledby="coverage-heading">
@@ -114,6 +124,17 @@
   {# Honest list of the small remainder of Crew-backed actions not yet surfaced in
      the Meridian UI (most are now wired: delete bill, create pocket, autopilot
      rule, top-up, etc.). Updates as capabilities are exposed. #}
+  </div><!-- /data-plan-view-pane="plan" -->
+
+  {# Crew-style modular rules view: one card per autopilot rule. #}
+  <div class="m-plan-view" data-plan-view-pane="rules" hidden>
+    <section class="m-plan-rules" aria-label="Autopilot rules" data-rules-list>
+      <p class="m-empty-note" data-rules-empty hidden>No autopilot rules yet.</p>
+    </section>
+  </div>
+
+  {# Crew actions view: the write controls + honest deferred remainder. #}
+  <div class="m-plan-view" data-plan-view-pane="crew" hidden>
   <section class="m-plan-parity" aria-label="Crew capabilities still via legacy" data-crew-parity>
     <h2 class="m-section-label">Crew capabilities (deferred)</h2>
     <p class="m-parity-note">
@@ -226,6 +247,7 @@
     <div class="m-capture-status-track" data-capture-track></div>
     <p class="m-capture-status-note" data-capture-note>Loading capture status…</p>
   </section>
+  </div><!-- /data-plan-view-pane="crew" -->
 
 </div>
 

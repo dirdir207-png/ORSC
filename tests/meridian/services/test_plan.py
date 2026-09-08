@@ -339,8 +339,8 @@ def test_crew_ids_extracts_autopilot_rules(tmp_path, monkeypatch):
     monkeypatch.setattr(plan_mod, "_CREW_SNAPSHOT_PATH", str(f))
     ids = plan_mod._crew_ids()
     assert ids["rules"] == [
-        {"id": "Rule:111", "name": "Round up", "is_paused": False},
-        {"id": "Rule:222", "name": "Sweep excess", "is_paused": True},
+        {"id": "Rule:111", "name": "Round up", "is_paused": False, "formula": {}},
+        {"id": "Rule:222", "name": "Sweep excess", "is_paused": True, "formula": {}},
     ]
 
 

@@ -115,6 +115,7 @@ def _crew_ids() -> Optional[dict]:
                                     "id": item.get("id"),
                                     "name": item.get("name") or "Untitled rule",
                                     "is_paused": bool(item.get("isPaused")),
+                                    "formula": item.get("formula"),
                                 })
                     _rules(v)
             elif isinstance(o, list):

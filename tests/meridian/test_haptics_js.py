@@ -216,3 +216,29 @@ def test_plan_html_has_virtual_card_form():
     html = Path("templates/meridian/partials/plan.html").read_text(encoding="utf-8")
     assert "data-ca-create-virtual-card" in html
     assert "Create virtual card" in html
+
+
+def test_plan_js_has_segmented_views():
+    from pathlib import Path
+    js = Path("static/js/meridian/plan.js").read_text(encoding="utf-8")
+    assert "setupPlanSegs" in js
+    assert "data-plan-view-pane" in js
+    assert "renderRules" in js
+
+
+def test_plan_html_has_segmented_toggle():
+    from pathlib import Path
+    html = Path("templates/meridian/partials/plan.html").read_text(encoding="utf-8")
+    assert "data-plan-seg" in html
+    assert 'data-plan-view="plan"' in html
+    assert 'data-plan-view="rules"' in html
+    assert 'data-plan-view="crew"' in html
+    assert "data-plan-view-pane=" in html
+
+
+def test_plan_css_styles_rule_cards():
+    from pathlib import Path
+    css = Path("static/css/meridian/plan.css").read_text(encoding="utf-8")
+    assert ".m-plan-seg" in css
+    assert ".m-seg-tab" in css
+    assert ".m-rule-card" in css

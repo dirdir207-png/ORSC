@@ -1048,8 +1048,119 @@ function indexRules(rules) {
   return map;
 }
 
-/* Load the verified Crew mutation capture status into the Plan page (read-only).
-   Shows how many mutation contracts are captured/verified so coverage is visible. */
+/* Switch between the Plan | Rules | Crew segmented views (keeps the page
+   scannable instead of one long scroll). */
+function setupPlanSegs(root) {
+  const seg = root.querySelector("[data-plan-seg]");
+  if (!seg) {
+    return;
+  }
+  const panes = root.querySelectorAll("[data-plan-view-pane]");
+  const tabs = seg.querySelectorAll("[data-plan-view]");
+  tabs.forEach((tab) => {
+    const name = tab.dataset.planView;
+    const activ = tab.classList.contains("is-active");
+    tab.setAttribute("aria-pressed", activ ? "true" : "false");
+    tab.addEventListener("click", (event) => {
+      event.stopPropagation();
+      tabs.forEach((t) => {
+        const on = t === tab;
+        t.classList.toggle("is-active", on);
+        t.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      panes.forEach((p) => {
+        p.hidden = p.dataset.planViewPane !== name;
+      });
+    });
+  });
+}
+
+/* Render autopilot rules as modular cards (name, trigger, action, pause, delete)
+   in a Crew-like layout. */
+function renderRules(root) {
+  const list = root.querySelector("[data-rules-list]");
+  const empty = root.querySelector("[data-rules-empty]");
+  if (!list) {
+    return;
+  }
+  const crew = (currentPlan && currentPlan.crew_ids) || {};
+  const rules = crew.rules || [];
+  empty.hidden = rules.length > 0;
+  list.replaceChildren();
+  for (const rule of rules) {
+    const card = document.createElement("article");
+    card.className = "m-rule-card";
+    card.dataset.ruleId = rule.id;
+    const head = document.createElement("div");
+    head.className = "m-rule-card-head";
+    const nameEl = document.createElement("h3");
+    nameEl.className = "m-rule-card-name";
+    nameEl.textContent = rule.name || "Untitled rule";
+    head.appendChild(nameEl);
+    if (rule.is_paused) {
+      const paused = document.createElement("span");
+      paused.className = "m-bill-badge m-bill-badge--due_soon";
+      paused.textContent = "Paused";
+      head.appendChild(paused);
+    }
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "m-button m-button--quiet m-button--small m-button--danger";
+    del.textContent = "Delete";
+    del.setAttribute("aria-label", `Delete rule ${rule.name}`);
+    del.addEventListener("click", () => {
+      if (!window.confirm(`Delete the rule "${rule.name}"? This cannot be undone.`)) {
+        return;
+      }
+      (async () => {
+        try {
+          const result = await meridianMutate({
+            type: "delete_crew_autopilot_rule",
+            params: { rule_id: rule.id },
+            provenance: "owner_direct",
+            rationale: `Delete the Crew rule ${rule.name} from Meridian.`,
+          });
+          del.textContent = result.routing_direct ? "Deleted." : "Proposed.";
+          del.disabled = true;
+          setTimeout(() => loadPlan(), 600);
+        } catch {
+          del.textContent = "Failed";
+        }
+      })();
+    });
+    head.appendChild(del);
+    card.appendChild(head);
+    const body = document.createElement("p");
+    body.className = "m-rule-card-body";
+    body.textContent = ruleActionsSummary(rule);
+    card.appendChild(body);
+    list.appendChild(card);
+  }
+}
+
+function ruleActionsSummary(rule) {
+  const formula = (rule.formula || {}) || {};
+  const actions = formula.actions || [];
+  const labels = {
+    SWEEP_EXCESS: "Sweep excess",
+    ROUND_UP_TRANSFER: "Round up",
+    TARGET_BALANCE_TRANSFER: "Target balance",
+    SPLIT_DEPOSIT: "Split deposit",
+    SPLIT_DEPOSIT_BY_AMOUNT: "Split deposit (amount)",
+    INTERNAL_TRANSFER: "Internal transfer",
+    SEND_NOTIFICATION: "Notify",
+    SEND_WEBHOOK: "Webhook",
+  };
+  if (!actions.length) {
+    return formula.description || "Autopilot rule";
+  }
+  return actions.map((a) => {
+    const key = (typeof a === "object" && a && a.type) || "";
+    return labels[key] || key.replace(/_/g, " ").toLowerCase() || "action";
+  }).filter(Boolean).join(" · ");
+}
+
+
 async function loadCaptureStatus(root) {
   const panel = root.querySelector("[data-capture-status]");
   if (!panel) {
@@ -1118,6 +1229,8 @@ async function loadPlan() {
     renderCommitments(root, plan, template);
     renderDocumentDiscrepancies(root, plan);
     loadCaptureStatus(root);
+    setupPlanSegs(root);
+    renderRules(root);
     const ruleForm = root.querySelector("[data-ca-delete-rule]");
     if (ruleForm) {
       populateRulePicker(ruleForm);
